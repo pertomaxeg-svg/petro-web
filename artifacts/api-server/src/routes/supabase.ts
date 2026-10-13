@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { createClient } from "@supabase/supabase-js";
 import { Router, type IRouter } from "express";
 import { SupabaseHealthCheckResponse } from "@workspace/api-zod";
 
@@ -44,39 +45,23 @@ function inspectSupabaseKey(apiKey: string): {
   return { kind: "unsupported" };
 }
 
-async function getSanitizedUpstreamMessage(response: Response): Promise<string> {
-  let bodyText: string;
-  try {
-    bodyText = await response.text();
-  } catch {
-    return "Supabase returned a non-JSON error response; details redacted.";
+function sanitizeSupabaseError(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "Supabase returned an error; details redacted.";
   }
 
-  let body: unknown = bodyText;
-  try {
-    body = JSON.parse(bodyText);
-  } catch {
-    // Some API gateways return plain text; classify it without returning it.
-  }
+  const errorFields = error as Record<string, unknown>;
+  const upstreamText = [
+    errorFields.message,
+    errorFields.code,
+    errorFields.details,
+    errorFields.hint,
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ");
 
-  const strings: string[] = [];
-  const collectStrings = (value: unknown, depth: number): void => {
-    if (depth > 3 || strings.length >= 24) return;
-    if (typeof value === "string") {
-      strings.push(value.slice(0, 512));
-      return;
-    }
-    if (Array.isArray(value)) {
-      for (const item of value) collectStrings(item, depth + 1);
-      return;
-    }
-    if (value && typeof value === "object") {
-      for (const item of Object.values(value)) collectStrings(item, depth + 1);
-    }
-  };
-  collectStrings(body, 0);
-
-  const upstreamText = strings.join(" ").toLowerCase().replace(/[_-]+/g, " ");
   if (/invalid.{0,32}(api )?key|(?:api )?key.{0,32}invalid/.test(upstreamText)) {
     return "Supabase rejected the API key as invalid.";
   }
@@ -98,7 +83,33 @@ async function getSanitizedUpstreamMessage(response: Response): Promise<string> 
   if (/project.{0,30}(not found|invalid|mismatch)|invalid project/.test(upstreamText)) {
     return "Supabase could not resolve the requested project.";
   }
+  if (/fetch failed|network|timed out|timeout|aborted/.test(upstreamText)) {
+    return "The SDK request failed before receiving an HTTP response.";
+  }
   return "Supabase returned an error response; details redacted.";
+}
+
+function findReadableRelation(spec: unknown): string | undefined {
+  if (!spec || typeof spec !== "object" || !("paths" in spec)) return undefined;
+
+  const paths = (spec as { paths?: unknown }).paths;
+  if (!paths || typeof paths !== "object") return undefined;
+
+  const readableRelations = Object.entries(paths as Record<string, unknown>)
+    .filter(([path, operations]) => {
+      if (!/^\/[A-Za-z_][A-Za-z0-9_$-]{0,127}$/.test(path) || path === "/rpc") {
+        return false;
+      }
+      return (
+        !!operations &&
+        typeof operations === "object" &&
+        Object.prototype.hasOwnProperty.call(operations, "get")
+      );
+    })
+    .map(([path]) => path.slice(1))
+    .sort((left, right) => left.localeCompare(right));
+
+  return readableRelations[0];
 }
 
 router.get("/supabase/health", async (req, res): Promise<void> => {
@@ -115,10 +126,15 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
     return;
   }
 
-  let restUrl: URL;
+  let projectUrl: URL;
   try {
-    const projectUrl = new URL(supabaseUrl);
-    if (projectUrl.protocol !== "https:" || projectUrl.hostname !== "msvgzsfzrqlrfpstthhe.supabase.co") {
+    projectUrl = new URL(supabaseUrl);
+    if (
+      projectUrl.origin !== "https://msvgzsfzrqlrfpstthhe.supabase.co" ||
+      projectUrl.pathname !== "/" ||
+      projectUrl.search ||
+      projectUrl.hash
+    ) {
       const data = SupabaseHealthCheckResponse.parse({
         status: "project_mismatch",
         message:
@@ -127,7 +143,6 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
       res.status(503).json(data);
       return;
     }
-    restUrl = new URL("/rest/v1/", projectUrl);
   } catch {
     const data = SupabaseHealthCheckResponse.parse({
       status: "unavailable",
@@ -184,53 +199,106 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
     return;
   }
 
-  const headers: Record<string, string> = {
-    apikey: apiKey,
-    Accept: "application/openapi+json",
-  };
-
-  // Legacy anon JWTs need a bearer header. Publishable keys use only apikey.
-  if (keyInfo.kind === "legacy_anon") {
-    headers.Authorization = `Bearer ${apiKey}`;
-  }
-
   try {
-    const response = await fetch(restUrl, {
-      method: "GET",
-      headers,
-      signal: AbortSignal.timeout(8_000),
+    const supabase = createClient(projectUrl.origin, apiKey, {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: false,
+      },
+      db: {
+        retry: false,
+        schema: "public",
+        timeout: 8_000,
+      },
     });
 
-    if (response.ok) {
-      const keyType =
-        keyInfo.kind === "publishable" ? "publishable key" : "legacy anon key";
-      const data = SupabaseHealthCheckResponse.parse({
-        status: "connected",
-        message:
-          `The approved project's REST API is reachable using a public ${keyType}. Database schema compatibility still requires review.`,
-      });
-      res.status(200).json(data);
+    let sessionSummary = "auth.getSession could not be completed.";
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      sessionSummary = error
+        ? "auth.getSession returned an error."
+        : data.session
+          ? "auth.getSession found an existing user session."
+          : "auth.getSession found no stored user session.";
+    } catch {
+      // No session details or thrown error text are returned or logged.
+    }
+
+    // This SDK GET validates the API key and lists only resources whose
+    // privileges are exposed to this key's role. It does not read table rows.
+    const openApiResult = await supabase.schema("public").getOpenApiSpec();
+    if (openApiResult.error || !openApiResult.data) {
+      const upstreamStatus = openApiResult.status > 0 ? openApiResult.status : null;
+      const upstreamMessage = sanitizeSupabaseError(openApiResult.error);
+      req.log.warn(
+        { upstreamStatus, upstreamMessage },
+        "Supabase SDK authentication check failed",
+      );
+      const status =
+        openApiResult.status === 401 || openApiResult.status === 403
+          ? "unauthorized"
+          : "unavailable";
+      const statusText =
+        upstreamStatus === null ? "no HTTP response" : `HTTP ${upstreamStatus}`;
+
+      res.status(503).json(
+        SupabaseHealthCheckResponse.parse({
+          status,
+          message: `Supabase SDK REST authentication check returned ${statusText}: ${upstreamMessage}`,
+        }),
+      );
       return;
     }
 
-    const upstreamMessage = await getSanitizedUpstreamMessage(response);
-    req.log.warn(
-      { upstreamStatus: response.status, upstreamMessage },
-      "Supabase REST connectivity check failed",
+    req.log.info(
+      {
+        upstreamStatus: openApiResult.status,
+        upstreamMessage: "Supabase SDK REST authentication check succeeded.",
+      },
+      "Supabase SDK authentication check succeeded",
     );
-    const keyType =
-      keyInfo.kind === "publishable" ? "publishable key" : "legacy anon key";
-    const status =
-      response.status === 401 || response.status === 403
-        ? "unauthorized"
-        : "unavailable";
+
+    const relation = findReadableRelation(openApiResult.data);
+    let tableReadSummary =
+      "No GET-permitted public relation was exposed; no table read was performed.";
+
+    if (relation) {
+      try {
+        const readResult = await supabase
+          .from(relation)
+          .select("*", { head: true })
+          .limit(1);
+        const readMessage = readResult.error
+          ? sanitizeSupabaseError(readResult.error)
+          : "Read-only HEAD check succeeded; no row data was returned.";
+        req.log.info(
+          {
+            upstreamStatus: readResult.status,
+            upstreamMessage: readMessage,
+          },
+          "Supabase permitted relation read check completed",
+        );
+        tableReadSummary =
+          `Read-only permitted relation check returned HTTP ${readResult.status}: ${readMessage}`;
+      } catch {
+        tableReadSummary =
+          "A permitted relation was listed, but its read-only check did not complete; details redacted.";
+        req.log.warn(
+          {
+            upstreamStatus: null,
+            upstreamMessage: tableReadSummary,
+          },
+          "Supabase permitted relation read check failed",
+        );
+      }
+    }
 
     const data = SupabaseHealthCheckResponse.parse({
-      status,
-      message: `Configured public ${keyType}; Supabase returned HTTP ${response.status}: ${upstreamMessage}`,
+      status: "connected",
+      message: `Supabase SDK REST authentication returned HTTP ${openApiResult.status}. ${sessionSummary} ${tableReadSummary}`,
     });
-    res.status(503).json(data);
-    return;
+    res.status(200).json(data);
   } catch {
     const message = "No HTTP response was received from the Supabase REST API.";
     req.log.warn(
