@@ -1,5 +1,4 @@
 import { Buffer } from "node:buffer";
-import { createClient } from "@supabase/supabase-js";
 import { Router, type IRouter } from "express";
 import { SupabaseHealthCheckResponse } from "@workspace/api-zod";
 
@@ -45,71 +44,19 @@ function inspectSupabaseKey(apiKey: string): {
   return { kind: "unsupported" };
 }
 
-function sanitizeSupabaseError(error: unknown): string {
-  if (!error || typeof error !== "object") {
-    return "Supabase returned an error; details redacted.";
-  }
-
-  const errorFields = error as Record<string, unknown>;
-  const upstreamText = [
-    errorFields.message,
-    errorFields.code,
-    errorFields.details,
-    errorFields.hint,
-  ]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ")
-    .toLowerCase()
-    .replace(/[_-]+/g, " ");
-
-  if (/invalid.{0,32}(api )?key|(?:api )?key.{0,32}invalid/.test(upstreamText)) {
-    return "Supabase rejected the API key as invalid.";
-  }
-  if (/no.{0,20}(api )?key|missing.{0,20}(api )?key/.test(upstreamText)) {
-    return "Supabase reported that no API key was received.";
-  }
-  if (/invalid.{0,20}jwt|jwt.{0,20}invalid|signature.{0,20}invalid/.test(upstreamText)) {
-    return "Supabase rejected the JWT as invalid.";
-  }
-  if (/jwt.{0,20}expir|expir.{0,20}jwt/.test(upstreamText)) {
-    return "Supabase rejected an expired JWT.";
-  }
-  if (/permission.{0,20}denied|not allowed|forbidden/.test(upstreamText)) {
-    return "Supabase denied access to the REST endpoint.";
-  }
-  if (/unauthori[sz]ed|unauthenticated|authentication.{0,20}(fail|reject|invalid)/.test(upstreamText)) {
-    return "Supabase rejected authentication; the detailed reason is redacted.";
-  }
-  if (/project.{0,30}(not found|invalid|mismatch)|invalid project/.test(upstreamText)) {
-    return "Supabase could not resolve the requested project.";
-  }
-  if (/fetch failed|network|timed out|timeout|aborted/.test(upstreamText)) {
-    return "The SDK request failed before receiving an HTTP response.";
-  }
-  return "Supabase returned an error response; details redacted.";
+function extractSafeErrorCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const fields = payload as Record<string, unknown>;
+  const candidate = fields.code ?? fields.error_code ?? fields.error;
+  return typeof candidate === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(candidate)
+    ? candidate
+    : undefined;
 }
 
-function findReadableRelation(spec: unknown): string | undefined {
-  if (!spec || typeof spec !== "object" || !("paths" in spec)) return undefined;
-
-  const paths = (spec as { paths?: unknown }).paths;
-  if (!paths || typeof paths !== "object") return undefined;
-
-  const readableRelations = Object.entries(paths as Record<string, unknown>)
-    .filter(([path, operations]) => {
-      if (!/^\/[A-Za-z_][A-Za-z0-9_$-]{0,127}$/.test(path) || path === "/rpc") {
-        return false;
-      }
-      return (
-        !!operations &&
-        typeof operations === "object" &&
-        Object.prototype.hasOwnProperty.call(operations, "get")
-      );
-    })
-    .map(([path]) => path.slice(1))
-    .sort((left, right) => left.localeCompare(right));
-
-  return readableRelations[0];
+function describeAuthFailure(status: number): string {
+  if (status === 401) return "Supabase Auth لم يقبل المفتاح العام لهذا الطلب.";
+  if (status === 403) return "Supabase Auth منع الوصول إلى إعداداته العامة.";
+  return `تعذر الوصول إلى إعدادات Supabase Auth العامة (HTTP ${status}).`;
 }
 
 router.get("/supabase/health", async (req, res): Promise<void> => {
@@ -119,6 +66,7 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
   if (!supabaseUrl) {
     const data = SupabaseHealthCheckResponse.parse({
       status: "not_configured",
+      dataAccessStatus: "not_tested",
       message:
         "Set SUPABASE_URL to the approved Pertomax EG Supabase project in Replit Secrets.",
     });
@@ -137,6 +85,7 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
     ) {
       const data = SupabaseHealthCheckResponse.parse({
         status: "project_mismatch",
+        dataAccessStatus: "not_tested",
         message:
           "Only Supabase project msvgzsfzrqlrfpstthhe is approved for this Pertomax EG Repl.",
       });
@@ -146,6 +95,7 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
   } catch {
     const data = SupabaseHealthCheckResponse.parse({
       status: "unavailable",
+      dataAccessStatus: "not_tested",
       message: "SUPABASE_URL must be a valid HTTPS URL.",
     });
     res.status(503).json(data);
@@ -155,6 +105,7 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
   if (!apiKey) {
     const data = SupabaseHealthCheckResponse.parse({
       status: "not_configured",
+      dataAccessStatus: "not_tested",
       message:
         "Add this project's SUPABASE_ANON_KEY (or publishable key) in Pertomax EG Replit Secrets. Do not paste it into the app or chat.",
     });
@@ -174,6 +125,7 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
     );
     const data = SupabaseHealthCheckResponse.parse({
       status: "unauthorized",
+      dataAccessStatus: "not_tested",
       message,
     });
     res.status(503).json(data);
@@ -193,6 +145,7 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
     );
     const data = SupabaseHealthCheckResponse.parse({
       status: "project_mismatch",
+      dataAccessStatus: "not_tested",
       message,
     });
     res.status(503).json(data);
@@ -200,52 +153,62 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
   }
 
   try {
-    const supabase = createClient(projectUrl.origin, apiKey, {
-      auth: {
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-        persistSession: false,
+    const authSettingsResponse = await fetch(
+      new URL("/auth/v1/settings", projectUrl.origin),
+      {
+        method: "GET",
+        headers: {
+          apikey: apiKey,
+          accept: "application/json",
+        },
+        redirect: "error",
+        signal: AbortSignal.timeout(8_000),
       },
-      db: {
-        retry: false,
-        schema: "public",
-        timeout: 8_000,
-      },
-    });
-
-    let sessionSummary = "auth.getSession could not be completed.";
+    );
+    const responseText = await authSettingsResponse.text();
+    let responsePayload: unknown;
     try {
-      const { data, error } = await supabase.auth.getSession();
-      sessionSummary = error
-        ? "auth.getSession returned an error."
-        : data.session
-          ? "auth.getSession found an existing user session."
-          : "auth.getSession found no stored user session.";
+      responsePayload = responseText ? JSON.parse(responseText) : undefined;
     } catch {
-      // No session details or thrown error text are returned or logged.
+      responsePayload = undefined;
     }
 
-    // This SDK GET validates the API key and lists only resources whose
-    // privileges are exposed to this key's role. It does not read table rows.
-    const openApiResult = await supabase.schema("public").getOpenApiSpec();
-    if (openApiResult.error || !openApiResult.data) {
-      const upstreamStatus = openApiResult.status > 0 ? openApiResult.status : null;
-      const upstreamMessage = sanitizeSupabaseError(openApiResult.error);
+    const dataAccessStatus = "not_tested" as const;
+    const authHttpStatus = authSettingsResponse.status;
+    if (!authSettingsResponse.ok) {
+      const authErrorCode = extractSafeErrorCode(responsePayload);
+      const upstreamMessage = describeAuthFailure(authHttpStatus);
       req.log.warn(
-        { upstreamStatus, upstreamMessage },
-        "Supabase SDK authentication check failed",
+        { upstreamStatus: authHttpStatus, upstreamErrorCode: authErrorCode, upstreamMessage },
+        "Supabase public Auth settings check failed",
       );
       const status =
-        openApiResult.status === 401 || openApiResult.status === 403
+        authHttpStatus === 401 || authHttpStatus === 403
           ? "unauthorized"
           : "unavailable";
-      const statusText =
-        upstreamStatus === null ? "no HTTP response" : `HTTP ${upstreamStatus}`;
-
       res.status(503).json(
         SupabaseHealthCheckResponse.parse({
           status,
-          message: `Supabase SDK REST authentication check returned ${statusText}: ${upstreamMessage}`,
+          authHttpStatus,
+          authErrorCode,
+          dataAccessStatus,
+          message: upstreamMessage,
+        }),
+      );
+      return;
+    }
+
+    if (!responsePayload || typeof responsePayload !== "object" || Array.isArray(responsePayload)) {
+      req.log.warn(
+        { upstreamStatus: authHttpStatus, upstreamMessage: "Unexpected Auth settings response." },
+        "Supabase public Auth settings check returned an unexpected body",
+      );
+      res.status(503).json(
+        SupabaseHealthCheckResponse.parse({
+          status: "unavailable",
+          authHttpStatus,
+          dataAccessStatus,
+          message: "Supabase Auth responded, but its public settings response was not valid JSON.",
         }),
       );
       return;
@@ -253,60 +216,29 @@ router.get("/supabase/health", async (req, res): Promise<void> => {
 
     req.log.info(
       {
-        upstreamStatus: openApiResult.status,
-        upstreamMessage: "Supabase SDK REST authentication check succeeded.",
+        upstreamStatus: authHttpStatus,
+        upstreamMessage: "Supabase public Auth settings check succeeded.",
       },
-      "Supabase SDK authentication check succeeded",
+      "Supabase public Auth settings check succeeded",
     );
-
-    const relation = findReadableRelation(openApiResult.data);
-    let tableReadSummary =
-      "No GET-permitted public relation was exposed; no table read was performed.";
-
-    if (relation) {
-      try {
-        const readResult = await supabase
-          .from(relation)
-          .select("*", { head: true })
-          .limit(1);
-        const readMessage = readResult.error
-          ? sanitizeSupabaseError(readResult.error)
-          : "Read-only HEAD check succeeded; no row data was returned.";
-        req.log.info(
-          {
-            upstreamStatus: readResult.status,
-            upstreamMessage: readMessage,
-          },
-          "Supabase permitted relation read check completed",
-        );
-        tableReadSummary =
-          `Read-only permitted relation check returned HTTP ${readResult.status}: ${readMessage}`;
-      } catch {
-        tableReadSummary =
-          "A permitted relation was listed, but its read-only check did not complete; details redacted.";
-        req.log.warn(
-          {
-            upstreamStatus: null,
-            upstreamMessage: tableReadSummary,
-          },
-          "Supabase permitted relation read check failed",
-        );
-      }
-    }
 
     const data = SupabaseHealthCheckResponse.parse({
       status: "connected",
-      message: `Supabase SDK REST authentication returned HTTP ${openApiResult.status}. ${sessionSummary} ${tableReadSummary}`,
+      authHttpStatus,
+      dataAccessStatus,
+      message:
+        "Supabase public Auth settings are reachable. This does not verify database table access; no table was read.",
     });
     res.status(200).json(data);
   } catch {
-    const message = "No HTTP response was received from the Supabase REST API.";
+    const message = "No HTTP response was received from the Supabase Auth API.";
     req.log.warn(
       { upstreamStatus: null, upstreamMessage: message },
-      "Supabase REST connectivity check failed before receiving a response",
+      "Supabase Auth connectivity check failed before receiving a response",
     );
     const data = SupabaseHealthCheckResponse.parse({
       status: "unavailable",
+      dataAccessStatus: "not_tested",
       message,
     });
     res.status(503).json(data);

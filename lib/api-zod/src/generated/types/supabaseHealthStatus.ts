@@ -5,9 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SupabaseHealthStatusDataAccessStatus } from './supabaseHealthStatusDataAccessStatus';
 import type { SupabaseHealthStatusStatus } from './supabaseHealthStatusStatus';
 
 export interface SupabaseHealthStatus {
   status: SupabaseHealthStatusStatus;
+  /** Original HTTP status from the Supabase Auth settings endpoint, when a request was made */
+  authHttpStatus?: number;
+  /** Sanitized upstream error code, when available */
+  authErrorCode?: string;
+  dataAccessStatus: SupabaseHealthStatusDataAccessStatus;
   message?: string;
 }

@@ -8,4 +8,5 @@
 
 export * from './healthStatus';
 export * from './supabaseHealthStatus';
+export * from './supabaseHealthStatusDataAccessStatus';
 export * from './supabaseHealthStatusStatus';

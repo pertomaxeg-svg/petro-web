@@ -617,7 +617,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .status-line-label { color: hsl(var(--muted-foreground)); }
 .status-line-value { font-weight: 600; }
 .setup-callout { display: flex; gap: 11px; margin-top: 14px; padding: 12px; background: hsl(18 55% 52% / .08); border: 1px solid hsl(18 55% 52% / .19); border-radius: 5px; }
+.setup-callout-success { background: hsl(var(--primary) / .06); border-color: hsl(var(--primary) / .17); }
 .callout-icon { display: flex; color: hsl(18 55% 46%); flex: 0 0 auto; }
+.setup-callout-success .callout-icon { color: hsl(var(--primary)); }
 .setup-callout b { font-size: 10px; color: hsl(var(--foreground)); }
 .setup-callout p { margin: 4px 0 0; font-size: 9px; color: hsl(var(--muted-foreground)); line-height: 1.8; }
 .setup-card-bottom { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 15px; }

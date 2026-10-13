@@ -211,14 +211,16 @@ function WorkspaceStatus() {
   const dbError = supabase.error?.data;
   const dbStatus = supabase.data?.status ?? dbError?.status;
   const dbMessage = supabase.data?.message ?? dbError?.message;
+  const authHttpStatus = supabase.data?.authHttpStatus ?? dbError?.authHttpStatus;
+  const authErrorCode = supabase.data?.authErrorCode ?? dbError?.authErrorCode;
   const databaseLabel = dbStatus === 'connected'
-    ? 'الاتصال متاح، التحقق مطلوب'
+    ? `إعدادات Auth العامة متاحة${authHttpStatus ? ` · HTTP ${authHttpStatus}` : ''}`
     : dbStatus === 'not_configured'
       ? 'الإعداد غير مكتمل'
       : dbStatus === 'project_mismatch'
         ? 'مرجع المشروع غير متطابق'
         : dbStatus === 'unauthorized'
-          ? 'تعذر التحقق من الوصول'
+            ? `تعذر التحقق من الوصول${authHttpStatus ? ` · HTTP ${authHttpStatus}` : ''}${authErrorCode ? ` · ${authErrorCode}` : ''}`
           : dbStatus === 'unavailable'
             ? 'الخدمة غير متاحة'
             : 'بانتظار التحقق';
@@ -234,7 +236,7 @@ function WorkspaceStatus() {
       <Topbar minimal />
       <section className="workspace-shell">
         <div className="workspace-heading">
-          <div><span className="section-kicker">مساحة العمل / حالة الوصول</span><h1>أهلًا بك في <em>Pertomax EG</em></h1><p>هذه شاشة حالة تأسيسية. لا توجد سجلات جهات أو فروع معروضة قبل التحقق من إعداد المشروع.</p></div>
+          <div><span className="section-kicker">مساحة العمل / حالة الوصول</span><h1>أهلًا بك في <em>Pertomax EG</em></h1><p>هذه شاشة حالة تأسيسية. نجاح الوصول إلى Auth لا يثبت صلاحية قراءة سجلات الجهات أو الفروع.</p></div>
           <button className="signout-button" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="button-sign-out"><LogOut size={16} /> تسجيل الخروج</button>
         </div>
 
@@ -249,23 +251,29 @@ function WorkspaceStatus() {
 
           <article className="setup-card">
             <div className="setup-card-head"><div><span className="section-kicker">فحص تأسيسي</span><h2>إعداد الاتصال</h2></div><span className={`setup-state ${showSetupError ? 'setup-state-error' : ''}`}>{showSetupError ? 'يتطلب الانتباه' : supabase.isLoading || api.isLoading ? 'جارٍ الفحص' : 'الحالة الحالية'}</span></div>
-            <p className="setup-description">نتحقق من جاهزية خدمة المنصة والاتصال بقاعدة البيانات دون عرض مفاتيح أو بيانات.</p>
+            <p className="setup-description">نفحص إعدادات Auth العامة بالمفتاح العام فقط. حالة تسجيل دخولك منفصلة، وقراءة بيانات الجداول غير مختبرة.</p>
             <div className="status-list">
               <StatusLine label="خدمة المنصة" tone={api.data?.status === 'ok' || api.data?.status === 'healthy' ? 'ok' : api.isError ? 'bad' : api.isLoading ? 'neutral' : 'warn'}>
                 {api.isLoading ? 'جارٍ الفحص' : api.isError ? 'تعذر الوصول' : api.data?.status === 'ok' || api.data?.status === 'healthy' ? 'متاحة' : api.data?.status ?? 'بانتظار التحقق'}
               </StatusLine>
-              <StatusLine label="اتصال Supabase" tone={setupTone}>
+              <StatusLine label="Supabase Auth (مفتاح عام)" tone={dbStatus === 'connected' ? 'ok' : setupTone}>
                 {supabase.isLoading ? 'جارٍ الفحص' : supabase.isError ? 'تعذر التحقق' : databaseLabel}
+              </StatusLine>
+              <StatusLine label="تسجيل دخول الحساب (Clerk)" tone={isSignedIn ? 'ok' : 'warn'}>
+                {isSignedIn ? 'مسجل الدخول' : 'غير مسجل'}
+              </StatusLine>
+              <StatusLine label="قراءة بيانات الجداول" tone="neutral">
+                لم تُختبر — لا توجد جلسة Supabase مصرح بها لهذا الفحص
               </StatusLine>
             </div>
             {showSetupError && <div className="inline-error" role="alert" data-testid="status-setup-error"><CircleAlert size={16} /><span>لم يكتمل فحص الإعداد. حاول مرة أخرى أو تواصل مع مسؤول المنصة.</span></div>}
-            <div className="setup-callout" role="status" data-testid="status-setup-blocked">
-              <span className="callout-icon"><CircleAlert size={18} /></span>
-              <div><b>مساحة العمل غير مفعّلة</b><p>{dbMessage ?? (dbStatus === 'connected' ? 'الاتصال يستجيب، لكن توافق المخطط لم يُراجع بعد. لن تظهر أي سجلات قبل إتمام التحقق.' : dbStatus === 'project_mismatch' ? 'مرجع مشروع Supabase لا يطابق المشروع المصرّح به. لم يتم تحميل أي سجلات.' : dbStatus === 'unauthorized' ? 'تعذر التحقق من صلاحية الاتصال. لم يتم تحميل أي سجلات.' : dbStatus === 'unavailable' ? 'الخدمة غير متاحة الآن. لم يتم تحميل أي سجلات.' : 'أكمل إعداد اتصال Supabase المعتمد حتى يمكن التحقق من المخطط والصلاحيات.')}</p></div>
+            <div className={`setup-callout${dbStatus === 'connected' ? ' setup-callout-success' : ''}`} role="status" data-testid="status-setup-blocked">
+              <span className="callout-icon">{dbStatus === 'connected' ? <CircleCheck size={18} /> : <CircleAlert size={18} />}</span>
+              <div><b>{dbStatus === 'connected' ? 'Auth متاحة؛ صلاحية البيانات لم تُختبر' : 'إعداد مساحة العمل'}</b><p>{dbMessage ?? (dbStatus === 'connected' ? 'تم الوصول إلى إعدادات Auth العامة فقط. لم تُقرأ الجداول ولم يُراجع المخطط أو نطاق الصلاحيات.' : dbStatus === 'project_mismatch' ? 'مرجع مشروع Supabase لا يطابق المشروع المصرّح به. لم يتم تحميل أي سجلات.' : dbStatus === 'unauthorized' ? 'تعذر الوصول إلى إعدادات Auth العامة بالمفتاح العام. لم يتم تحميل أي سجلات.' : dbStatus === 'unavailable' ? 'خدمة Auth غير متاحة الآن. لم يتم تحميل أي سجلات.' : 'أكمل إعداد اتصال Supabase المعتمد حتى يمكن التحقق من Auth.')}</p></div>
             </div>
             {supabase.isLoading && <div className="status-skeleton"><span /><span /></div>}
             <div className="setup-card-bottom">
-              <span>لا بيانات تشغيل معروضة قبل اعتماد الإعداد.</span>
+              <span>لم تُقرأ أي بيانات من الجداول.</span>
               <button className="retry-button" onClick={retry} disabled={supabase.isFetching || api.isFetching} data-testid="button-retry-setup">{supabase.isFetching || api.isFetching ? 'جارٍ الفحص…' : 'إعادة الفحص'} <ArrowLeft size={15} /></button>
             </div>
           </article>

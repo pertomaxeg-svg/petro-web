@@ -20,8 +20,20 @@ export const SupabaseHealthStatusStatus = {
   project_mismatch: 'project_mismatch',
 } as const;
 
+export type SupabaseHealthStatusDataAccessStatus = typeof SupabaseHealthStatusDataAccessStatus[keyof typeof SupabaseHealthStatusDataAccessStatus];
+
+
+export const SupabaseHealthStatusDataAccessStatus = {
+  not_tested: 'not_tested',
+} as const;
+
 export interface SupabaseHealthStatus {
   status: SupabaseHealthStatusStatus;
+  /** Original HTTP status from the Supabase Auth settings endpoint, when a request was made */
+  authHttpStatus?: number;
+  /** Sanitized upstream error code, when available */
+  authErrorCode?: string;
+  dataAccessStatus: SupabaseHealthStatusDataAccessStatus;
   message?: string;
 }
 

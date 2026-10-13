@@ -18,11 +18,14 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * Checks Supabase API access without returning credentials or database data
+ * Checks public Supabase Auth settings only; it does not inspect database access or return credentials
  * @summary Supabase connection check
  */
 export const SupabaseHealthCheckResponse = zod.object({
   "status": zod.enum(['connected', 'not_configured', 'unauthorized', 'unavailable', 'project_mismatch']),
+  "authHttpStatus": zod.number().int().optional().describe('Original HTTP status from the Supabase Auth settings endpoint, when a request was made'),
+  "authErrorCode": zod.string().optional().describe('Sanitized upstream error code, when available'),
+  "dataAccessStatus": zod.enum(['not_tested']),
   "message": zod.string().optional()
 })
 

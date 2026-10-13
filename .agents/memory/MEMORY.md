@@ -1,0 +1,1 @@
+- [Pertomax project boundaries](pertomax-project-boundaries.md) — Work only in this project, its approved GitHub repo, and its dedicated Supabase project.

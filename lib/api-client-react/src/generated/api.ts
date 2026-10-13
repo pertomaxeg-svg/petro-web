@@ -134,7 +134,7 @@ export const getSupabaseHealthCheckUrl = () => {
 }
 
 /**
- * Checks Supabase API access without returning credentials or database data
+ * Checks public Supabase Auth settings only; it does not inspect database access or return credentials
  * @summary Supabase connection check
  */
 export const supabaseHealthCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<SupabaseHealthStatus> => {
