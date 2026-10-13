@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Pertomax EG"
+description = "Arabic right-to-left operations platform for Egyptian companies, stations, service providers, branches, controlled account access, approvals, and versioned annual plans."
+version = "1.0.0"
+id = "artifacts/pertomax-eg-web"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25467
+
+[services.development]
+run = "pnpm --filter @workspace/pertomax-eg-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pertomax-eg-web", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pertomax-eg-web/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25467"
+BASE_PATH = "/"

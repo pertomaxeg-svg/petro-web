@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 52" fill="none">
+  <rect x="1" y="7" width="38" height="38" rx="12" fill="#2D6659"/>
+  <rect x="11" y="25" width="4" height="11" rx="2" fill="#F6F2E9" opacity=".68"/>
+  <rect x="19" y="15" width="4" height="21" rx="2" fill="#F6F2E9"/>
+  <rect x="27" y="20" width="4" height="16" rx="2" fill="#F6F2E9" opacity=".82"/>
+  <text x="50" y="36" fill="#263842" font-family="Manrope, sans-serif" font-size="27" font-weight="800" letter-spacing="-1.5">Pertomax</text>
+  <text x="178" y="35" fill="#2D6659" font-family="DM Sans, sans-serif" font-size="13" font-weight="700" letter-spacing="2">EG</text>
+</svg>

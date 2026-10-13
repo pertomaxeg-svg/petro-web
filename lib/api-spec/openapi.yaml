@@ -24,12 +24,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /supabase/health:
+    get:
+      operationId: supabaseHealthCheck
+      tags: [health]
+      summary: Supabase connection check
+      description: Checks Supabase API access without returning credentials or database data
+      responses:
+        "200":
+          description: Supabase is reachable and the API key is accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupabaseHealthStatus"
+        "503":
+          description: Supabase credentials are missing or the API is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupabaseHealthStatus"
 components:
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
+          type: string
+      required:
+        - status
+    SupabaseHealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            [connected, not_configured, unauthorized, unavailable, project_mismatch]
+        message:
           type: string
       required:
         - status
