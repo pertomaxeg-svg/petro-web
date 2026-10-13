@@ -33,6 +33,14 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - Supabase is contacted from the API server; its API key is never sent to a browser.
 - The initial connection check is read-only and does not create or modify database tables.
 
+## Execution constraints
+
+- For the active Pertomax EG task, use only the currently available Free mode. Do not select Power or Max, buy credits, upgrade a subscription, or bypass a usage limit.
+- A message stating a model preference is not approval in a model-selection dialog. If the UI requires a model choice, stop and clearly ask the user to select Free themselves.
+- If Free usage is exhausted, stop. Do not assume work resumes automatically; on or after the scheduled review date, first verify that Free capacity is available. The scheduled review is October 29, 2026.
+- Work in ordered, testable steps. Record what was completed, what remains, and test results. Do not call a phase complete until its relevant checks pass.
+- On resumption, resolve and test the web/API preview runtime first, then verify the actual approved Supabase connection and review its schema read-only, then continue Phase 1.
+
 ## Project boundaries and data rules
 
 - Work only in this Pertomax EG Repl. Do not open or modify the user's two other Replit projects.
@@ -44,7 +52,7 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - New accounts remain pending until a trusted administrator assigns access. Never grant platform ownership to the first user or create default credentials.
 - Tenant and branch data must be limited to the authenticated user's explicit memberships and permissions.
 - Phase one covers authentication, access assignment, organizations, branches, plan approval/status, versioned pricing, and administrative audit history. Do not present wallets, payments, or settlements as implemented.
-- Keep later phases on the roadmap only: companies, vehicles, drivers, chips, service catalog, services, prepaid wallet, and monthly settlements.
+- Keep this phase order: (1) runtime and connections, (2) accounts, permissions, entities, branches, and plans, (3) vehicles, drivers, and chips, (4) catalog, services, and inventory, (5) worker apps, (6) finance, wallets, and settlements, (7) reports, support, and integration tests. Do not start later phases before their turn.
 - Current user-provided commercial rules: annual company plans are EGP 500, 750, and 1,000 per vehicle; chip issuance is EGP 100; service-provider default subscription is EGP 5,000 per branch/year; stations join free with no commission. Price changes must create a new version and preserve prior prices.
 
 ## Product
