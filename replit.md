@@ -9,7 +9,7 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required secret: `SUPABASE_DB_URL` — PostgreSQL connection URI for the approved Supabase project; do not use Replit-managed `DATABASE_URL`.
 - Supabase connection: `SUPABASE_URL` and `SUPABASE_ANON_KEY` (store the key in Replit Secrets)
 
 ## Stack
@@ -26,7 +26,7 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - `artifacts/pertomax-eg-web/` — Arabic RTL web application.
 - `artifacts/api-server/` — shared Express API and Supabase readiness check.
 - `lib/api-spec/openapi.yaml` — source of truth for API contracts.
-- `lib/db/` — existing Replit PostgreSQL/Drizzle connection; preserve it.
+- `lib/db/` — Drizzle connection configured only for the approved Supabase PostgreSQL secret.
 
 ## Architecture decisions
 
