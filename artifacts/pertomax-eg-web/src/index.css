@@ -456,12 +456,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
   height: 82px; max-width: 1280px; margin: 0 auto; padding: 0 54px;
   display: flex; align-items: center; justify-content: space-between; gap: 26px;
 }
-.brand-lockup { display: inline-flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; direction: ltr; flex: 0 0 auto; }
-.brand-mark { width: 34px; height: 34px; display: flex; gap: 3px; align-items: flex-end; padding: 7px; border-radius: 11px 11px 11px 4px; background: hsl(var(--primary)); transform: rotate(-5deg); }
-.brand-mark span { display: block; width: 4px; border-radius: 4px; background: hsl(var(--primary-foreground)); transform: rotate(5deg); }
-.brand-mark span:nth-child(1) { height: 10px; opacity: .65; }
-.brand-mark span:nth-child(2) { height: 17px; }
-.brand-mark span:nth-child(3) { height: 13px; opacity: .8; }
+.brand-lockup { display: inline-flex; align-items: center; gap: 9px; color: inherit; text-decoration: none; direction: ltr; flex: 0 0 auto; }
+.brand-symbol { display: block; width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; }
 .brand-wordmark { display: inline-flex; align-items: baseline; gap: 5px; font-family: var(--app-font-serif); letter-spacing: -.055em; font-size: 21px; }
 .brand-wordmark b { font-weight: 800; }
 .brand-wordmark > span { font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .16em; color: hsl(var(--primary)); }
@@ -548,7 +544,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .start-panel h2 { margin: 11px 0 7px; font: 700 21px var(--app-font-serif); letter-spacing: -.03em; }
 .start-panel p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 10px; line-height: 1.8; }
 .footer { max-width: 1280px; height: 82px; margin: auto; padding: 0 54px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); font-size: 9px; }
-.brand-compact .brand-mark { width: 28px; height: 28px; border-radius: 9px 9px 9px 3px; padding: 6px; }
+.brand-compact .brand-symbol { width: 34px; height: 34px; }
 .brand-compact .brand-wordmark { font-size: 17px; }
 .footer-year { font: 8px var(--app-font-mono); letter-spacing: .09em; direction: ltr; display: flex; align-items: center; gap: 8px; }
 .footer-year i { width: 4px; height: 4px; background: hsl(var(--accent)); border-radius: 50%; }
@@ -557,6 +553,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .auth-page .topbar { border-bottom: 1px solid hsl(var(--border) / .7); }
 .auth-layout { max-width: 1080px; margin: auto; min-height: calc(100dvh - 164px); padding: 62px 45px 72px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 65px; }
 .auth-context { max-width: 410px; }
+.auth-logo { display: block; width: 104px; height: auto; object-fit: contain; margin-bottom: 18px; }
 .auth-context h1 { font: 700 clamp(51px, 6vw, 71px)/1.13 var(--app-font-serif); letter-spacing: -.065em; margin: 25px 0 20px; }
 .auth-context p { max-width: 380px; font-size: 13px; line-height: 2.1; color: hsl(var(--muted-foreground)); }
 .auth-trust { display: flex; align-items: center; gap: 10px; margin-top: 32px; color: hsl(var(--primary)); font-size: 10px; }
@@ -654,7 +651,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 @media (max-width: 680px) {
   .topbar { height: 70px; padding: 0 20px; gap: 12px; }
-  .brand-mark { width: 31px; height: 31px; }.brand-wordmark { font-size: 19px; }
+  .brand-symbol { width: 32px; height: 32px; }.brand-wordmark { font-size: 18px; }
   .topnav { display: none; }
   .topbar-actions { gap: 13px; }
   .topbar-actions .signin-link { font-size: 10px; }
@@ -704,6 +701,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .auth-page .topbar { padding-inline: 20px; }
   .auth-layout { min-height: auto; padding: 44px 20px 50px; grid-template-columns: 1fr; gap: 31px; }
   .auth-context h1 { margin: 18px 0 11px; font-size: 53px; }
+  .auth-logo { width: 86px; margin-bottom: 14px; }
   .auth-context p { font-size: 11px; max-width: 440px; }
   .auth-trust { margin-top: 15px; }
   .auth-form-wrap { max-width: 500px; }

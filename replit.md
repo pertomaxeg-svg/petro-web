@@ -11,7 +11,7 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - `PORT=25467 BASE_PATH=/ pnpm --filter @workspace/pertomax-eg-web run build` — build the web artifact
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - Required secret: `SUPABASE_DB_URL` — PostgreSQL connection URI for the approved Supabase project; do not use Replit-managed `DATABASE_URL`.
-- Supabase Auth connection: `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Replit Secrets. The optional `PERTOMAX_OWNER_BOOTSTRAP_TOKEN` and designated `PERTOMAX_OWNER_BOOTSTRAP_USERNAME` must also remain in Replit Secrets; neither is set by default.
+- Supabase Auth connection: `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Replit Secrets. The optional owner-bootstrap secrets are only for the initial, explicitly authorized setup; remove them after successful initialization and never restore them as a shortcut.
 
 ## Stack
 
@@ -56,6 +56,7 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - Do not change account-wide Replit settings. Development only; do not publish or deploy.
 - GitHub uploads for this Repl use the repository-specific `PERTOMAX_PETROWEB_DEPLOY_KEY` Replit Secret through `scripts/pertomax-github-ssh`, selected by this repository's local `core.sshCommand` setting. The helper reads the Secret at each Git invocation and accepts raw OpenSSH private-key text (including flattened line breaks) or Base64-encoded private-key text. It uses a mode-`0600` temporary key outside the workspace, removes it on exit, and keeps `StrictHostKeyChecking=yes` against the verified GitHub host-key file in this repository's `.git` directory. Never print the Secret, place it in source files, change the remote, or force-push. Before pushing, verify `origin` is exactly `git@github.com:pertomaxeg-svg/petro-web.git`, run `git ls-remote origin refs/heads/main`, and scan all unpushed history for secrets.
 - The interface and user-facing messages are Arabic, RTL, responsive, and use Egyptian pounds (EGP).
+- The official platform logo is the user-provided Petro Max EG artwork. Use the original lockup for prominent brand placements and its unaltered symbol crop for compact headers and browser icons; do not substitute the previous generated mark.
 - New accounts remain pending until a trusted administrator assigns access. Never grant platform ownership to the first user or create default credentials.
 - Tenant and branch data must be limited to the authenticated user's explicit memberships and permissions.
 - Phase one covers authentication, access assignment, organizations, branches, invitations, account status, and administrative audit history. Do not present wallets, payments, or settlements as implemented.
