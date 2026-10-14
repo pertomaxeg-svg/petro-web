@@ -1,0 +1,108 @@
+#!/bin/sh
+set -eu
+
+secret=${PERTOMAX_PETROWEB_DEPLOY_KEY:-}
+if [ -z "$secret" ]; then
+  printf '%s\n' "Pertomax GitHub deploy key Secret is unavailable to this Git process." >&2
+  exit 90
+fi
+
+git_dir=$(git rev-parse --absolute-git-dir)
+known_hosts="$git_dir/pertomax-github-known_hosts"
+if [ ! -s "$known_hosts" ]; then
+  printf '%s\n' "Verified GitHub host keys are unavailable for this repository." >&2
+  exit 91
+fi
+
+umask 077
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/pertomax-git-ssh.XXXXXX")
+cleanup() { rm -rf "$tmpdir"; }
+trap cleanup EXIT HUP INT TERM
+
+input="$tmpdir/input"
+candidate="$tmpdir/candidate"
+decoded="$tmpdir/decoded"
+key_file="$tmpdir/id_ed25519"
+
+# Normalize Windows CRLF without writing the secret to the workspace or logs.
+printf '%s' "$secret" | tr -d '\r' > "$input"
+chmod 600 "$input"
+unset secret
+
+private_key_valid() {
+  ssh-keygen -y -P '' -f "$1" >/dev/null 2>&1
+}
+
+normalize_openssh() {
+  awk -v begin='-----BEGIN OPENSSH PRIVATE KEY-----' \
+      -v end='-----END OPENSSH PRIVATE KEY-----' '
+    { text = text $0 }
+    END {
+      gsub(/\r/, "", text)
+      begin_at = index(text, begin)
+      end_at = index(text, end)
+      if (begin_at == 0 || end_at == 0 || end_at <= begin_at + length(begin)) exit 1
+
+      prefix = substr(text, 1, begin_at - 1)
+      suffix = substr(text, end_at + length(end))
+      if (prefix ~ /[^[:space:]]/ || suffix ~ /[^[:space:]]/) exit 1
+
+      body = substr(text, begin_at + length(begin), end_at - begin_at - length(begin))
+      gsub(/[[:space:]]/, "", body)
+      if (body == "" || body ~ /[^A-Za-z0-9+\/=]/) exit 1
+
+      print begin
+      for (i = 1; i <= length(body); i += 70) print substr(body, i, 70)
+      print end
+    }'
+}
+
+if private_key_valid "$input"; then
+  cp "$input" "$key_file"
+elif normalize_openssh < "$input" > "$candidate" && private_key_valid "$candidate"; then
+  cp "$candidate" "$key_file"
+else
+  encoded=$(tr -d '[:space:]' < "$input" | tr '_-' '/+')
+  case "$encoded" in
+    ''|*[!A-Za-z0-9+/=]*)
+      printf '%s\n' "Pertomax GitHub deploy key Secret is neither a readable SSH key nor Base64." >&2
+      exit 92
+      ;;
+  esac
+
+  case $((${#encoded} % 4)) in
+    0) ;;
+    2) encoded="${encoded}==" ;;
+    3) encoded="${encoded}=" ;;
+    *)
+      printf '%s\n' "Pertomax GitHub deploy key Secret has invalid Base64 encoding." >&2
+      exit 92
+      ;;
+  esac
+
+  if ! printf '%s' "$encoded" | base64 --decode > "$decoded" 2>/dev/null; then
+    printf '%s\n' "Pertomax GitHub deploy key Secret has invalid Base64 encoding." >&2
+    exit 92
+  fi
+  unset encoded
+
+  if private_key_valid "$decoded"; then
+    cp "$decoded" "$key_file"
+  elif normalize_openssh < "$decoded" > "$candidate" && private_key_valid "$candidate"; then
+    cp "$candidate" "$key_file"
+  else
+    printf '%s\n' "Pertomax GitHub deploy key Secret does not contain a valid unencrypted SSH private key." >&2
+    exit 93
+  fi
+fi
+
+chmod 600 "$key_file"
+unset PERTOMAX_PETROWEB_DEPLOY_KEY
+
+ssh -i "$key_file" \
+  -o IdentitiesOnly=yes \
+  -o BatchMode=yes \
+  -o UserKnownHostsFile="$known_hosts" \
+  -o GlobalKnownHostsFile=/dev/null \
+  -o StrictHostKeyChecking=yes \
+  "$@"
