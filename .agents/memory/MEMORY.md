@@ -1,1 +1,2 @@
 - [Pertomax project boundaries](pertomax-project-boundaries.md) — Work only in this project, its approved GitHub repo, and its dedicated Supabase project.
+- [Supabase PostgreSQL TLS](supabase-postgres-tls.md) — Trust the approved Supabase root CA and keep PostgreSQL certificate verification enabled.

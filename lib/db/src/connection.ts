@@ -1,10 +1,21 @@
+import { SUPABASE_ROOT_CA_CERT } from "./supabaseRootCa";
+
 const APPROVED_SUPABASE_PROJECT_REF = "msvgzsfzrqlrfpstthhe";
 const DIRECT_DATABASE_HOST =
   `db.${APPROVED_SUPABASE_PROJECT_REF}.supabase.co`;
 const POOLER_HOST_SUFFIX = ".pooler.supabase.com";
 const REQUIRED_SSL_MODES = new Set(["require", "verify-ca", "verify-full"]);
 
-export function getSupabaseDatabaseUrl(): string {
+export interface SupabaseDatabaseConnectionOptions {
+  connectionString: string;
+  ssl: {
+    ca: string;
+    rejectUnauthorized: true;
+  };
+  connectionTimeoutMillis: number;
+}
+
+export function getSupabaseDatabaseConnectionOptions(): SupabaseDatabaseConnectionOptions {
   const connectionString = process.env["SUPABASE_DB_URL"]?.trim();
   if (!connectionString) {
     throw new Error(
@@ -28,9 +39,7 @@ export function getSupabaseDatabaseUrl(): string {
 
   const usesApprovedDirectHost =
     databaseUrl.hostname.toLowerCase() === DIRECT_DATABASE_HOST;
-  const poolerUsernameParts = decodeURIComponent(databaseUrl.username).split(
-    ".",
-  );
+  const poolerUsernameParts = databaseUrl.username.split(".");
   const usesApprovedPooler =
     databaseUrl.hostname.toLowerCase().endsWith(POOLER_HOST_SUFFIX) &&
     poolerUsernameParts.includes(APPROVED_SUPABASE_PROJECT_REF);
@@ -54,5 +63,18 @@ export function getSupabaseDatabaseUrl(): string {
     );
   }
 
-  return connectionString;
+  // Let node-postgres use the downloaded Supabase root CA instead of the
+  // URI's sslmode, which can replace the explicit certificate configuration.
+  for (const parameter of ["sslmode", "sslrootcert", "sslcert", "sslkey"]) {
+    databaseUrl.searchParams.delete(parameter);
+  }
+
+  return {
+    connectionString: databaseUrl.toString(),
+    ssl: {
+      ca: SUPABASE_ROOT_CA_CERT,
+      rejectUnauthorized: true,
+    },
+    connectionTimeoutMillis: 10_000,
+  };
 }

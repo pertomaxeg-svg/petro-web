@@ -1,11 +1,13 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
-import { getSupabaseDatabaseUrl } from "./src/connection";
+import { getSupabaseDatabaseConnectionOptions } from "./src/connection";
 
+const connectionOptions = getSupabaseDatabaseConnectionOptions();
 export default defineConfig({
   schema: path.join(__dirname, "./src/schema/index.ts"),
   dialect: "postgresql",
   dbCredentials: {
-    url: getSupabaseDatabaseUrl(),
+    url: connectionOptions.connectionString,
+    ssl: connectionOptions.ssl,
   },
 });
