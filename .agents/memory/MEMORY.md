@@ -1,3 +1,4 @@
 - [Pertomax project boundaries](pertomax-project-boundaries.md) — Work only in this project, its approved GitHub repo, and its dedicated Supabase project.
+- [GitHub SSH key diagnosis](github-ssh-key-diagnosis.md) — Check the repository's SSH helper before asking to replace a deploy-key Secret.
 - [Supabase PostgreSQL TLS](supabase-postgres-tls.md) — Trust the approved Supabase root CA and keep PostgreSQL certificate verification enabled.
 - [Supabase Auth test accounts](supabase-auth-test-accounts.md) — Check confirmation settings before signup tests; do not send test emails to unverified recipients.
