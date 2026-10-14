@@ -59,6 +59,8 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 
 Pertomax EG is an Egyptian platform for managing companies, stations, service providers, branches, access approvals, and versioned annual plans. Organization data is isolated by membership and branch permissions.
 
+- Sign-in requirement: username and password only for all accounts; email is for recovery only; do not offer Google or other social sign-in buttons. Do not call this complete until the configured identity provider and end-to-end tests prove it.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
