@@ -30,3 +30,440 @@ export const SupabaseHealthCheckResponse = zod.object({
 })
 
 
+/**
+ * @summary Create an email or username account
+ */
+export const signUpBodyUsernameMin = 3;
+export const signUpBodyUsernameMax = 32;
+
+export const signUpBodyDisplayNameMax = 120;
+
+export const signUpBodyPasswordMin = 12;
+export const signUpBodyPasswordMax = 128;
+
+
+
+export const SignUpBody = zod.object({
+  "identifierType": zod.enum(['email', 'username']),
+  "email": zod.string().email().optional(),
+  "username": zod.string().min(signUpBodyUsernameMin).max(signUpBodyUsernameMax).optional(),
+  "recoveryEmail": zod.string().email().optional(),
+  "displayName": zod.string().max(signUpBodyDisplayNameMax).optional(),
+  "password": zod.string().min(signUpBodyPasswordMin).max(signUpBodyPasswordMax),
+  "redirectTo": zod.string().url()
+})
+
+export const SignUpResponse = zod.object({
+  "status": zod.enum(['created', 'confirmation_required']),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Sign in with email or username and password
+ */
+export const signInBodyIdentifierMin = 3;
+export const signInBodyIdentifierMax = 254;
+
+export const signInBodyPasswordMax = 128;
+
+
+
+export const SignInBody = zod.object({
+  "identifier": zod.string().min(signInBodyIdentifierMin).max(signInBodyIdentifierMax),
+  "password": zod.string().max(signInBodyPasswordMax)
+})
+
+export const SignInResponse = zod.object({
+  "status": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary End the current Supabase Auth session
+ */
+export const SignOutResponse = zod.void()
+
+
+/**
+ * @summary Send password recovery instructions to the registered email
+ */
+export const requestPasswordRecoveryBodyIdentifierMin = 3;
+export const requestPasswordRecoveryBodyIdentifierMax = 254;
+
+
+
+export const RequestPasswordRecoveryBody = zod.object({
+  "identifier": zod.string().min(requestPasswordRecoveryBodyIdentifierMin).max(requestPasswordRecoveryBodyIdentifierMax),
+  "redirectTo": zod.string().url()
+})
+
+export const RequestPasswordRecoveryResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Set a new password from a verified recovery session
+ */
+export const updatePasswordBodyPasswordMin = 12;
+export const updatePasswordBodyPasswordMax = 128;
+
+
+
+export const UpdatePasswordBody = zod.object({
+  "password": zod.string().min(updatePasswordBodyPasswordMin).max(updatePasswordBodyPasswordMax)
+})
+
+export const UpdatePasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Return the current account status and authorized role context
+ */
+export const GetAuthMeResponse = zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "username": zod.string().nullish(),
+  "loginIdentifierType": zod.union([zod.literal('email'),zod.literal('username'),zod.literal(null)]).nullish(),
+  "state": zod.enum(['active', 'pending']),
+  "accessContext": zod.unknown()
+})
+
+
+/**
+ * @summary Check whether protected first-owner setup is available
+ */
+export const GetOwnerBootstrapStatusResponse = zod.object({
+  "available": zod.boolean()
+})
+
+
+/**
+ * @summary Explicitly initialize a platform owner with the private bootstrap token
+ */
+export const bootstrapOwnerBodyTokenMin = 32;
+export const bootstrapOwnerBodyTokenMax = 256;
+
+
+
+export const BootstrapOwnerBody = zod.object({
+  "token": zod.string().min(bootstrapOwnerBodyTokenMin).max(bootstrapOwnerBodyTokenMax)
+})
+
+export const BootstrapOwnerResponse = zod.object({
+  "status": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Exchange an email confirmation or recovery code for a session
+ */
+export const AuthCallbackQueryParams = zod.object({
+  "code": zod.coerce.string().optional(),
+  "next": zod.coerce.string().optional()
+})
+
+export const AuthCallbackResponse = zod.void()
+
+
+/**
+ * @summary List organizations visible through the current account's RLS scope
+ */
+export const ListOrganizationsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "kind": zod.enum(['company', 'station', 'provider']),
+  "country_code": zod.enum(['EG']),
+  "currency": zod.enum(['EGP']),
+  "status": zod.enum(['pending', 'active', 'suspended']),
+  "created_at": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create an organization request for platform owner approval
+ */
+export const createOrganizationBodyNameMin = 2;
+export const createOrganizationBodyNameMax = 160;
+
+
+
+export const CreateOrganizationBody = zod.object({
+  "name": zod.string().min(createOrganizationBodyNameMin).max(createOrganizationBodyNameMax),
+  "kind": zod.enum(['company', 'station', 'provider'])
+})
+
+export const CreateOrganizationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Update the name of an organization the account can manage
+ */
+export const UpdateOrganizationParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const updateOrganizationBodyNameMin = 2;
+export const updateOrganizationBodyNameMax = 160;
+
+
+
+export const UpdateOrganizationBody = zod.object({
+  "name": zod.string().min(updateOrganizationBodyNameMin).max(updateOrganizationBodyNameMax)
+})
+
+export const UpdateOrganizationResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Approve, suspend, or return an organization to pending status
+ */
+export const UpdateOrganizationStatusParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const UpdateOrganizationStatusBody = zod.object({
+  "status": zod.enum(['pending', 'active', 'suspended'])
+})
+
+export const UpdateOrganizationStatusResponse = zod.object({
+  "status": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List branches visible to the current account in an organization
+ */
+export const ListBranchesParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const ListBranchesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organization_id": zod.string().uuid(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "status": zod.enum(['pending', 'active', 'suspended']),
+  "created_at": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a branch in an organization the account can manage
+ */
+export const CreateBranchParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const createBranchBodyNameMin = 2;
+export const createBranchBodyNameMax = 160;
+
+export const createBranchBodyAddressMax = 500;
+
+
+
+export const CreateBranchBody = zod.object({
+  "name": zod.string().min(createBranchBodyNameMin).max(createBranchBodyNameMax),
+  "address": zod.string().max(createBranchBodyAddressMax).optional()
+})
+
+export const CreateBranchResponse = zod.object({
+  "id": zod.string().uuid(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Update a branch in an organization the account can manage
+ */
+export const UpdateBranchParams = zod.object({
+  "branchId": zod.coerce.string().uuid()
+})
+
+export const updateBranchBodyNameMin = 2;
+export const updateBranchBodyNameMax = 160;
+
+export const updateBranchBodyAddressMax = 500;
+
+
+
+export const UpdateBranchBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "name": zod.string().min(updateBranchBodyNameMin).max(updateBranchBodyNameMax),
+  "address": zod.string().max(updateBranchBodyAddressMax).optional()
+})
+
+export const UpdateBranchResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Change a branch status and write an audit event
+ */
+export const UpdateBranchStatusParams = zod.object({
+  "branchId": zod.coerce.string().uuid()
+})
+
+export const UpdateBranchStatusBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'active', 'suspended'])
+})
+
+export const UpdateBranchStatusResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List employees visible within the account's organization or branch scope
+ */
+export const ListMembershipsParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const ListMembershipsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "user_id": zod.string().uuid(),
+  "organization_id": zod.string().uuid(),
+  "role": zod.enum(['organization_owner', 'manager', 'finance', 'worker', 'viewer']),
+  "scope": zod.enum(['organization', 'branches']),
+  "active": zod.boolean(),
+  "profile": zod.union([zod.object({
+  "user_id": zod.string().uuid(),
+  "display_name": zod.string(),
+  "username": zod.string().nullish(),
+  "active": zod.boolean(),
+  "account_status": zod.string().nullish()
+}),zod.null()]).optional(),
+  "branchIds": zod.array(zod.string().uuid())
+}))
+})
+
+
+/**
+ * @summary Assign or update a registered user's organization and branch permissions
+ */
+export const SetMembershipParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const SetMembershipBody = zod.object({
+  "userId": zod.string().uuid(),
+  "role": zod.enum(['organization_owner', 'manager', 'finance', 'worker', 'viewer']),
+  "scope": zod.enum(['organization', 'branches']),
+  "branchIds": zod.array(zod.string().uuid()),
+  "active": zod.boolean().optional()
+})
+
+export const SetMembershipResponse = zod.object({
+  "id": zod.string().uuid(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List pending, accepted, and revoked invitations visible to a manager
+ */
+export const ListInvitationsParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const ListInvitationsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "invited_email": zod.string().email(),
+  "role": zod.string(),
+  "scope": zod.string(),
+  "branch_ids": zod.array(zod.string().uuid()),
+  "created_at": zod.coerce.date(),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.coerce.date().nullish(),
+  "revoked_at": zod.coerce.date().nullish()
+}))
+})
+
+
+/**
+ * @summary Create a one-time invitation for a company employee
+ */
+export const CreateInvitationParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const CreateInvitationBody = zod.object({
+  "email": zod.string().email(),
+  "role": zod.enum(['organization_owner', 'manager', 'finance', 'worker', 'viewer']),
+  "scope": zod.enum(['organization', 'branches']),
+  "branchIds": zod.array(zod.string().uuid())
+})
+
+export const CreateInvitationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "inviteUrl": zod.string().url(),
+  "expiresInDays": zod.number().int(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Accept a one-time invitation after verifying the registered email
+ */
+export const acceptInvitationBodyTokenMin = 32;
+export const acceptInvitationBodyTokenMax = 128;
+
+
+
+export const AcceptInvitationBody = zod.object({
+  "token": zod.string().min(acceptInvitationBodyTokenMin).max(acceptInvitationBodyTokenMax)
+})
+
+export const AcceptInvitationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Revoke an unused invitation
+ */
+export const RevokeInvitationParams = zod.object({
+  "invitationId": zod.coerce.string().uuid()
+})
+
+export const RevokeInvitationResponse = zod.void()
+
+
+/**
+ * @summary Activate or suspend an account; suspended owners cannot retain a stale session
+ */
+export const SetUserStatusParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const SetUserStatusBody = zod.object({
+  "status": zod.enum(['pending', 'active', 'suspended'])
+})
+
+export const SetUserStatusResponse = zod.object({
+  "status": zod.string(),
+  "message": zod.string()
+})
+
+

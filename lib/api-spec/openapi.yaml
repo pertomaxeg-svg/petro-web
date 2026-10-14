@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Supabase Auth flows handled by the API; sessions use HTTP-only cookies
+  - name: management
+    description: Company, branch and staff operations protected by Supabase RLS
 paths:
   /healthz:
     get:
@@ -43,7 +47,501 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SupabaseHealthStatus"
+  /auth/sign-up:
+    post:
+      operationId: signUp
+      tags: [auth]
+      summary: Create an email or username account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignUpRequest"
+      responses:
+        "202":
+          description: Account created or email confirmation required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignUpResult"
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "429":
+          $ref: "#/components/responses/ApiError"
+        "503":
+          $ref: "#/components/responses/ApiError"
+  /auth/sign-in:
+    post:
+      operationId: signIn
+      tags: [auth]
+      summary: Sign in with email or username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignInRequest"
+      responses:
+        "200":
+          description: Authenticated; session is stored in an HTTP-only cookie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthActionResult"
+        "401":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "429":
+          $ref: "#/components/responses/ApiError"
+  /auth/sign-out:
+    post:
+      operationId: signOut
+      tags: [auth]
+      summary: End the current Supabase Auth session
+      responses:
+        "204":
+          description: Session ended
+  /auth/recovery:
+    post:
+      operationId: requestPasswordRecovery
+      tags: [auth]
+      summary: Send password recovery instructions to the registered email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoveryRequest"
+      responses:
+        "202":
+          description: Generic response that does not disclose whether an account exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResult"
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "429":
+          $ref: "#/components/responses/ApiError"
+  /auth/password:
+    post:
+      operationId: updatePassword
+      tags: [auth]
+      summary: Set a new password from a verified recovery session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordUpdateRequest"
+      responses:
+        "200":
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResult"
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "401":
+          $ref: "#/components/responses/ApiError"
+  /auth/me:
+    get:
+      operationId: getAuthMe
+      tags: [auth]
+      summary: Return the current account status and authorized role context
+      responses:
+        "200":
+          description: Current account state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMe"
+        "401":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /auth/bootstrap-status:
+    get:
+      operationId: getOwnerBootstrapStatus
+      tags: [auth]
+      summary: Check whether protected first-owner setup is available
+      responses:
+        "200":
+          description: Bootstrap availability only; no owner identity is disclosed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapStatus"
+  /auth/bootstrap-owner:
+    post:
+      operationId: bootstrapOwner
+      tags: [auth]
+      summary: Explicitly initialize a platform owner with the private bootstrap token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BootstrapOwnerRequest"
+      responses:
+        "200":
+          description: Owner initialized for the signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthActionResult"
+        "401":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /auth/callback:
+    get:
+      operationId: authCallback
+      tags: [auth]
+      summary: Exchange an email confirmation or recovery code for a session
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: next
+          in: query
+          schema:
+            type: string
+      responses:
+        "303":
+          description: Redirect to a local application page
+        "400":
+          description: Invalid or expired confirmation link
+  /organizations:
+    get:
+      operationId: listOrganizations
+      tags: [management]
+      summary: List organizations visible through the current account's RLS scope
+      responses:
+        "200":
+          description: Visible organizations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationList"
+        "401":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: createOrganization
+      tags: [management]
+      summary: Create an organization request for platform owner approval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationRequest"
+      responses:
+        "201":
+          description: Organization created in pending status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedResult"
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /organizations/{organizationId}:
+    patch:
+      operationId: updateOrganization
+      tags: [management]
+      summary: Update the name of an organization the account can manage
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationRequest"
+      responses:
+        "200":
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /organizations/{organizationId}/status:
+    patch:
+      operationId: updateOrganizationStatus
+      tags: [management]
+      summary: Approve, suspend, or return an organization to pending status
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusRequest"
+      responses:
+        "200":
+          description: Organization status changed and audited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /organizations/{organizationId}/branches:
+    get:
+      operationId: listBranches
+      tags: [management]
+      summary: List branches visible to the current account in an organization
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Visible branches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BranchList"
+        "403":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: createBranch
+      tags: [management]
+      summary: Create a branch in an organization the account can manage
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBranchRequest"
+      responses:
+        "201":
+          description: Branch created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /branches/{branchId}:
+    patch:
+      operationId: updateBranch
+      tags: [management]
+      summary: Update a branch in an organization the account can manage
+      parameters:
+        - name: branchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBranchRequest"
+      responses:
+        "200":
+          description: Branch updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /branches/{branchId}/status:
+    patch:
+      operationId: updateBranchStatus
+      tags: [management]
+      summary: Change a branch status and write an audit event
+      parameters:
+        - name: branchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchStatusRequest"
+      responses:
+        "200":
+          description: Branch status changed and audited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /organizations/{organizationId}/memberships:
+    get:
+      operationId: listMemberships
+      tags: [management]
+      summary: List employees visible within the account's organization or branch scope
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Visible memberships and profiles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipList"
+        "403":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: setMembership
+      tags: [management]
+      summary: Assign or update a registered user's organization and branch permissions
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetMembershipRequest"
+      responses:
+        "200":
+          description: Membership updated and audited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /organizations/{organizationId}/invitations:
+    get:
+      operationId: listInvitations
+      tags: [management]
+      summary: List pending, accepted, and revoked invitations visible to a manager
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Invitations for the organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationList"
+        "403":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: createInvitation
+      tags: [management]
+      summary: Create a one-time invitation for a company employee
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationRequest"
+      responses:
+        "201":
+          description: Invitation created; raw link is returned once
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationCreatedResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /invitations/accept:
+    post:
+      operationId: acceptInvitation
+      tags: [management]
+      summary: Accept a one-time invitation after verifying the registered email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationRequest"
+      responses:
+        "200":
+          description: Invitation accepted and membership activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /invitations/{invitationId}:
+    delete:
+      operationId: revokeInvitation
+      tags: [management]
+      summary: Revoke an unused invitation
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Invitation revoked
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /users/{userId}/status:
+    patch:
+      operationId: setUserStatus
+      tags: [management]
+      summary: Activate or suspend an account; suspended owners cannot retain a stale session
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusRequest"
+      responses:
+        "200":
+          description: Account state changed and audited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
 components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    ApiError:
+      description: Request rejected or unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
   schemas:
     HealthStatus:
       type: object
@@ -73,4 +571,299 @@ components:
       required:
         - status
         - dataAccessStatus
+    ApiError:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+    MessageResult:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+    SignUpRequest:
+      type: object
+      properties:
+        identifierType:
+          type: string
+          enum: [email, username]
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        recoveryEmail:
+          type: string
+          format: email
+        displayName:
+          type: string
+          maxLength: 120
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+        redirectTo:
+          type: string
+          format: uri
+      required: [identifierType, password, redirectTo]
+    SignUpResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [created, confirmation_required]
+        message:
+          type: string
+      required: [status, message]
+    SignInRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          minLength: 3
+          maxLength: 254
+        password:
+          type: string
+          maxLength: 128
+      required: [identifier, password]
+    AuthActionResult:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+      required: [status, message]
+    RecoveryRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          minLength: 3
+          maxLength: 254
+        redirectTo:
+          type: string
+          format: uri
+      required: [identifier, redirectTo]
+    PasswordUpdateRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+      required: [password]
+    AuthMe:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        username:
+          type: [string, "null"]
+        loginIdentifierType:
+          type: [string, "null"]
+          enum: [email, username, null]
+        state:
+          type: string
+          enum: [active, pending]
+        accessContext: {}
+      required: [id, displayName, state, accessContext]
+    BootstrapStatus:
+      type: object
+      properties:
+        available:
+          type: boolean
+      required: [available]
+    BootstrapOwnerRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 32
+          maxLength: 256
+      required: [token]
+    CreateOrganizationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        kind:
+          type: string
+          enum: [company, station, provider]
+      required: [name, kind]
+    Organization:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [company, station, provider] }
+        country_code: { type: string, enum: [EG] }
+        currency: { type: string, enum: [EGP] }
+        status: { type: string, enum: [pending, active, suspended] }
+        created_at: { type: string, format: date-time }
+      required: [id, name, kind, country_code, currency, status, created_at]
+    OrganizationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Organization" }
+      required: [items]
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+      required: [name]
+    StatusRequest:
+      type: object
+      properties:
+        status: { type: string, enum: [pending, active, suspended] }
+      required: [status]
+    BranchStatusRequest:
+      type: object
+      required: [organizationId, status]
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, active, suspended]
+    StatusResult:
+      type: object
+      properties:
+        status: { type: string }
+        message: { type: string }
+      required: [status, message]
+    CreatedResult:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        message: { type: string }
+      required: [id, message]
+    CreateBranchRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        address: { type: string, maxLength: 500 }
+      required: [name]
+    Branch:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        name: { type: string }
+        address: { type: string }
+        status: { type: string, enum: [pending, active, suspended] }
+        created_at: { type: string, format: date-time }
+      required: [id, organization_id, name, address, status, created_at]
+    BranchList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Branch" }
+      required: [items]
+    UpdateBranchRequest:
+      type: object
+      properties:
+        organizationId: { type: string, format: uuid }
+        name: { type: string, minLength: 2, maxLength: 160 }
+        address: { type: string, maxLength: 500 }
+      required: [organizationId, name]
+    MembershipProfile:
+      type: object
+      properties:
+        user_id: { type: string, format: uuid }
+        display_name: { type: string }
+        username: { type: [string, "null"] }
+        active: { type: boolean }
+        account_status: { type: [string, "null"] }
+      required: [user_id, display_name, active]
+    Membership:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        role: { type: string, enum: [organization_owner, manager, finance, worker, viewer] }
+        scope: { type: string, enum: [organization, branches] }
+        active: { type: boolean }
+        profile: { oneOf: [{ $ref: "#/components/schemas/MembershipProfile" }, { type: "null" }] }
+        branchIds:
+          type: array
+          items: { type: string, format: uuid }
+      required: [id, user_id, organization_id, role, scope, active, branchIds]
+    MembershipList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Membership" }
+      required: [items]
+    SetMembershipRequest:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        role: { type: string, enum: [organization_owner, manager, finance, worker, viewer] }
+        scope: { type: string, enum: [organization, branches] }
+        branchIds:
+          type: array
+          items: { type: string, format: uuid }
+        active: { type: boolean }
+      required: [userId, role, scope, branchIds]
+    CreateInvitationRequest:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        role: { type: string, enum: [organization_owner, manager, finance, worker, viewer] }
+        scope: { type: string, enum: [organization, branches] }
+        branchIds:
+          type: array
+          items: { type: string, format: uuid }
+      required: [email, role, scope, branchIds]
+    Invitation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        invited_email: { type: string, format: email }
+        role: { type: string }
+        scope: { type: string }
+        branch_ids:
+          type: array
+          items: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        accepted_at: { type: [string, "null"], format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+      required: [id, invited_email, role, scope, branch_ids, created_at, expires_at]
+    InvitationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Invitation" }
+      required: [items]
+    InvitationCreatedResult:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        inviteUrl: { type: string, format: uri }
+        expiresInDays: { type: integer }
+        message: { type: string }
+      required: [id, inviteUrl, expiresInDays, message]
+    AcceptInvitationRequest:
+      type: object
+      properties:
+        token: { type: string, minLength: 32, maxLength: 128 }
+      required: [token]
 

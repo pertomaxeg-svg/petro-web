@@ -1,398 +1,53 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { ClerkProvider, Show, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
-import { publishableKeyFromHost } from '@clerk/react/internal';
-import { arSA } from '@clerk/localizations';
-import { useHealthCheck, useSupabaseHealthCheck } from '@workspace/api-client-react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowUpLeft, BadgeCheck, Building2, ChevronLeft, CircleAlert, CircleCheck, CircleDashed, Compass, LockKeyhole, LogOut, ShieldCheck, Sparkles, Waves } from 'lucide-react';
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
+import { ArrowLeft, ArrowUpLeft, BadgeCheck, Building2, ChevronLeft, CircleAlert, CircleCheck, CircleDashed, Compass, LockKeyhole, LogOut, Plus, ShieldCheck, Waves, X, Users, MapPin, Copy, Mail, RefreshCw } from 'lucide-react';
+import { useSignUp, useSignIn, useSignOut, useRequestPasswordRecovery, useUpdatePassword, useGetAuthMe, useGetOwnerBootstrapStatus, useBootstrapOwner, useListOrganizations, useCreateOrganization, useUpdateOrganization, useUpdateOrganizationStatus, useListBranches, useCreateBranch, useUpdateBranch, useUpdateBranchStatus, useListMemberships, useSetMembership, useListInvitations, useCreateInvitation, useAcceptInvitation, useRevokeInvitation, useSetUserStatus, getGetAuthMeQueryKey, getGetOwnerBootstrapStatusQueryKey, getListOrganizationsQueryKey, getListBranchesQueryKey, getListMembershipsQueryKey, getListInvitationsQueryKey, setBaseUrl } from '@workspace/api-client-react';
 
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
-const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
-const arabicLocalization = {
-  ...arSA,
-  signIn: {
-    ...arSA.signIn,
-    start: {
-      ...(arSA.signIn?.start ?? {}),
-      title: 'تسجيل الدخول',
-      subtitle: 'تابع إلى مساحة العمل الخاصة بك',
-    },
-  },
-  signUp: {
-    ...arSA.signUp,
-    start: {
-      ...(arSA.signUp?.start ?? {}),
-      title: 'إنشاء حساب',
-      subtitle: 'ابدأ حسابك على Pertomax EG',
-    },
-  },
-  formFieldInputPlaceholder__emailAddress: 'أدخل بريدك الإلكتروني',
-  formFieldInputPlaceholder__password: 'أدخل كلمة المرور',
-  formFieldInputPlaceholder__signUpPassword: 'أنشئ كلمة مرور',
-  badge__developmentMode: 'وضع التطوير',
-} as never;
-
-function stripBase(path: string) {
-  return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
+setBaseUrl(basePath);
+function authCallbackUrl(nextPath: string) {
+  return `${window.location.origin}${basePath}/api/auth/callback?next=${encodeURIComponent(nextPath)}`;
 }
-
-function Brand({ compact = false }: { compact?: boolean }) {
-  return (
-    <Link href="/" className={`brand-lockup ${compact ? 'brand-compact' : ''}`} aria-label="Pertomax EG — الرئيسية" data-testid="link-brand-home">
-      <span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>
-      <span className="brand-wordmark"><b>Pertomax</b><span>EG</span></span>
-    </Link>
-  );
+function inviteTokenFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const direct = params.get('invite');
+  if (direct) return direct;
+  const next = params.get('next');
+  if (!next || !next.startsWith('/') || next.startsWith('//')) return null;
+  return new URLSearchParams(next.split('?')[1] ?? '').get('token');
 }
-
-function Topbar({ minimal = false }: { minimal?: boolean }) {
-  return (
-    <header className="topbar" dir="rtl">
-      <Brand />
-      {!minimal && <nav className="topnav" aria-label="التنقل الرئيسي">
-        <a href="#platform" data-testid="link-platform">عن المنصة</a>
-        <a href="#access" data-testid="link-access">إدارة الصلاحيات</a>
-      </nav>}
-      <div className="topbar-actions">
-        {!minimal && <Link href="/sign-in" className="signin-link" data-testid="link-sign-in">تسجيل الدخول</Link>}
-        {!minimal && <Link href="/sign-up" className="button button-small" data-testid="link-create-account">إنشاء حساب <ArrowLeft size={15} /></Link>}
-        {minimal && <Link href="/" className="back-link" data-testid="link-back-home"><ArrowLeft size={16} /> الرئيسية</Link>}
-      </div>
-    </header>
-  );
-}
-
-function HomePage() {
-  return (
-    <main className="landing" dir="rtl">
-      <Topbar />
-      <section className="hero">
-        <div className="hero-copy page-enter">
-          <div className="eyebrow"><span className="eyebrow-line" /> منصة تشغيل مصرية <span className="eyebrow-dot" /> نسخة تأسيسية</div>
-          <h1>مساحة عمل واحدة،<br /><em>وصول واضح.</em></h1>
-          <p className="hero-lede">Pertomax EG تمهّد لإدارة الشركات والفروع ومقدّمي الخدمات ضمن منظومة تشغيل موحّدة، بصلاحيات تُسند بوضوح إلى أصحابها.</p>
-          <div className="hero-actions">
-            <Link href="/sign-up" className="button" data-testid="link-hero-sign-up">ابدأ بإنشاء حساب <ArrowLeft size={17} /></Link>
-            <Link href="/sign-in" className="text-button" data-testid="link-hero-sign-in">لديك حساب بالفعل؟ <span>سجّل الدخول</span></Link>
-          </div>
-          <div className="hero-assurance"><ShieldCheck size={16} strokeWidth={1.8} /><span>إنشاء الحساب لا يمنح صلاحيات إدارية تلقائيًا</span></div>
-        </div>
-
-        <div className="hero-art page-enter-delay" aria-label="رسم توضيحي يرمز إلى تنظيم الوصول بين فرق العمل">
-          <div className="art-index"><span>01</span><span>ACCESS, BY DESIGN</span></div>
-          <div className="orbit orbit-outer" />
-          <div className="orbit orbit-inner" />
-          <div className="art-center">
-            <span className="center-ring"><Waves size={30} strokeWidth={1.5} /></span>
-            <span className="center-label">Pertomax<br />Operations</span>
-          </div>
-          <div className="orbit-node node-one"><Building2 size={19} /><span>شركة</span></div>
-          <div className="orbit-node node-two"><Compass size={19} /><span>فرع</span></div>
-          <div className="orbit-node node-three"><BadgeCheck size={19} /><span>مقدّم خدمة</span></div>
-          <div className="art-caption"><span className="caption-rule" /> بنية واضحة للصلاحيات<br />من اليوم الأول</div>
-          <span className="art-spark spark-a" />
-          <span className="art-spark spark-b" />
-          <span className="art-spark spark-c" />
-          <div className="art-stamp">EGYPT<br /><b>01</b><br />FOUNDATION</div>
-        </div>
-        <div className="hero-footnote"><span>القاهرة · مصر</span><span>منظومة تشغيل بهوية محلية</span></div>
-      </section>
-
-      <section className="principles" id="platform">
-        <div className="section-heading">
-          <span className="section-kicker">01 / الفكرة</span>
-          <h2>تشغيل منظم<br /><span>يبدأ بالثقة.</span></h2>
-        </div>
-        <div className="principle-intro">
-          <p>نبني مساحة عمل تجمع أطراف التشغيل في صورة مفهومة: من يدير؟ أين يعمل؟ وما النطاق الذي يخصه؟</p>
-          <span className="principle-note"><span className="note-dot" /> لا بيانات تجريبية ولا صلاحيات مفترضة</span>
-        </div>
-        <div className="principle-list">
-          <article className="principle-row">
-            <span className="row-num">١</span><span className="row-icon"><Building2 size={20} /></span>
-            <div><h3>هيكل مفهوم</h3><p>شركات وفروع ومقدّمو خدمات ضمن نطاقات واضحة.</p></div><ChevronLeft size={18} className="row-arrow" />
-          </article>
-          <article className="principle-row">
-            <span className="row-num">٢</span><span className="row-icon"><LockKeyhole size={20} /></span>
-            <div><h3>وصول بمسؤولية</h3><p>الحساب الجديد لا يصبح مالكًا للمنصة أو لأي جهة.</p></div><ChevronLeft size={18} className="row-arrow" />
-          </article>
-          <article className="principle-row">
-            <span className="row-num">٣</span><span className="row-icon"><CircleDashed size={20} /></span>
-            <div><h3>تأسيس موثوق</h3><p>تفعيل مساحة العمل بعد اعتماد الإعدادات والصلاحيات.</p></div><ChevronLeft size={18} className="row-arrow" />
-          </article>
-        </div>
-      </section>
-
-      <section className="access-section" id="access">
-        <div className="access-orbit" aria-hidden="true"><span /><span /><span /><i /></div>
-        <div className="access-copy">
-          <span className="section-kicker section-kicker-light">02 / الصلاحيات</span>
-          <h2>الانتماء لا يُفترض.<br /><em>يُعتمد.</em></h2>
-          <p>بعد إنشاء الحساب، تبقى صلاحيات الوصول معلّقة حتى يعيّنها مسؤول موثوق. لن تظهر لك سجلات جهة أو فرع قبل إتمام الإعداد والتحقق.</p>
-          <div className="access-points">
-            <span><CircleCheck size={17} /> لا ملكية تلقائية</span>
-            <span><CircleCheck size={17} /> لا سجلات قبل التحقق</span>
-          </div>
-          <Link href="/sign-up" className="button button-light" data-testid="link-access-sign-up">إنشاء حساب جديد <ArrowLeft size={16} /></Link>
-        </div>
-        <span className="access-mark">P / EG</span>
-      </section>
-
-      <section className="start-section">
-        <div className="start-panel">
-          <span className="start-icon"><Sparkles size={19} /></span>
-          <div><span className="section-kicker">03 / الخطوة الأولى</span><h2>أنشئ حسابك، ثم انتظر التعيين الموثوق.</h2><p>سجّل بيانات الدخول. سيظل الوصول للجهات والفروع غير متاح حتى اعتماد صلاحياتك.</p></div>
-          <Link href="/sign-up" className="button" data-testid="link-start-sign-up">متابعة التسجيل <ArrowUpLeft size={17} /></Link>
-        </div>
-      </section>
-
-      <footer className="footer" dir="rtl">
-        <Brand compact />
-        <span>منظومة تشغيل قيد التأسيس — مصر</span>
-        <span className="footer-year">PERTOMAX EG <i /> {new Date().getFullYear()}</span>
-      </footer>
-    </main>
-  );
-}
-
-function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
-  const isSignUp = mode === 'sign-up';
-  return (
-    <main className="auth-page" dir="rtl">
-      <Topbar minimal />
-      <section className="auth-layout">
-        <div className="auth-context">
-          <span className="section-kicker">{isSignUp ? 'حساب جديد / 01' : 'مرحبًا بعودتك / 01'}</span>
-          <h1>{isSignUp ? <>ابدأ من<br /><em>هنا.</em></> : <>مساحتك<br /><em>بانتظارك.</em></>}</h1>
-          <p>{isSignUp ? 'أنشئ بيانات الدخول الخاصة بك. سيبقى حسابك دون صلاحيات تشغيل حتى يعيّنها مسؤول موثوق.' : 'سجّل الدخول للمتابعة إلى حالة مساحة العمل والصلاحيات المرتبطة بحسابك.'}</p>
-          <div className="auth-trust"><ShieldCheck size={18} /><span>صلاحيات الوصول تُسند يدويًا وبشكل موثوق</span></div>
-        </div>
-        <div className="auth-form-wrap">
-          <div className="auth-card-head"><span className="auth-step">{isSignUp ? 'إنشاء حساب' : 'تسجيل الدخول'}</span><span className="auth-step-index">PERTOMAX / 01</span></div>
-          {clerkPubKey ? (
-            <div className="clerk-host">
-              {isSignUp
-                ? <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-                : <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />}
-            </div>
-          ) : (
-            <div className="auth-unavailable" role="status" data-testid="status-auth-setup">
-              <span className="status-symbol status-warn"><CircleAlert size={20} /></span>
-              <h2>تسجيل الدخول غير مهيأ بعد</h2>
-              <p>تعذر تحميل خدمة الحسابات. لم يتم إدخال بياناتك، ويمكنك العودة لاحقًا بعد إتمام إعداد الدخول.</p>
-              <Link href="/" className="button button-outline" data-testid="link-auth-return">العودة للرئيسية <ArrowLeft size={16} /></Link>
-            </div>
-          )}
-          <p className="auth-note"><LockKeyhole size={14} /> بيانات الدخول محمية. لا تُمنح صلاحيات إدارية تلقائيًا.</p>
-        </div>
-      </section>
-      <footer className="auth-footer"><span>PERTOMAX EG</span><span>مساحة تشغيل مصرية</span></footer>
-    </main>
-  );
-}
-
-function StatusLine({ label, children, tone = 'neutral' }: { label: string; children: ReactNode; tone?: 'ok' | 'warn' | 'bad' | 'neutral' }) {
-  const Icon = tone === 'ok' ? CircleCheck : tone === 'bad' ? CircleAlert : tone === 'warn' ? CircleDashed : CircleDashed;
-  return <div className={`status-line tone-${tone}`} data-testid={`status-${label}`}><span className="status-line-icon"><Icon size={17} /></span><span className="status-line-label">{label}</span><span className="status-line-value">{children}</span></div>;
-}
-
-function WorkspaceStatus() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const api = useHealthCheck();
-  const supabase = useSupabaseHealthCheck();
-  const { signOut } = useClerk();
-
-  if (!isLoaded) return <main className="workspace-loading" dir="rtl"><Topbar minimal /><div className="loading-panel"><span className="skeleton skeleton-title" /><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line short" /></div></main>;
-  if (!isSignedIn) return <main className="workspace-loading" dir="rtl"><Topbar minimal /><div className="signed-out-panel"><span className="status-symbol status-warn"><LockKeyhole size={21} /></span><h1>يلزم تسجيل الدخول</h1><p>سجّل الدخول أولًا لعرض حالة مساحة العمل.</p><Link href="/sign-in" className="button" data-testid="link-workspace-sign-in">تسجيل الدخول <ArrowLeft size={16} /></Link></div></main>;
-
-  const dbError = supabase.error?.data;
-  const dbStatus = supabase.data?.status ?? dbError?.status;
-  const dbMessage = supabase.data?.message ?? dbError?.message;
-  const authHttpStatus = supabase.data?.authHttpStatus ?? dbError?.authHttpStatus;
-  const authErrorCode = supabase.data?.authErrorCode ?? dbError?.authErrorCode;
-  const databaseLabel = dbStatus === 'connected'
-    ? `إعدادات Auth العامة متاحة${authHttpStatus ? ` · HTTP ${authHttpStatus}` : ''}`
-    : dbStatus === 'not_configured'
-      ? 'الإعداد غير مكتمل'
-      : dbStatus === 'project_mismatch'
-        ? 'مرجع المشروع غير متطابق'
-        : dbStatus === 'unauthorized'
-            ? `تعذر التحقق من الوصول${authHttpStatus ? ` · HTTP ${authHttpStatus}` : ''}${authErrorCode ? ` · ${authErrorCode}` : ''}`
-          : dbStatus === 'unavailable'
-            ? 'الخدمة غير متاحة'
-            : 'بانتظار التحقق';
-  const setupTone = dbStatus === 'unauthorized' || dbStatus === 'project_mismatch' ? 'bad' : 'warn';
-  const showSetupError =
-    api.isError ||
-    (supabase.isError &&
-      (dbStatus === 'unauthorized' || dbStatus === 'unavailable'));
-  const retry = () => { void supabase.refetch(); void api.refetch(); };
-
-  return (
-    <main className="workspace-page" dir="rtl">
-      <Topbar minimal />
-      <section className="workspace-shell">
-        <div className="workspace-heading">
-          <div><span className="section-kicker">مساحة العمل / حالة الوصول</span><h1>أهلًا بك في <em>Pertomax EG</em></h1><p>هذه شاشة حالة تأسيسية. نجاح الوصول إلى Auth لا يثبت صلاحية قراءة سجلات الجهات أو الفروع.</p></div>
-          <button className="signout-button" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="button-sign-out"><LogOut size={16} /> تسجيل الخروج</button>
-        </div>
-
-        <div className="workspace-grid">
-          <article className="permission-card">
-            <div className="permission-top"><span className="permission-icon"><LockKeyhole size={21} /></span><span className="permission-tag">الوصول مقيّد</span></div>
-            <span className="section-kicker">حالة الحساب</span>
-            <h2>صلاحيات الحساب<br /><em>غير متحققة بعد.</em></h2>
-            <p>لا يمكن تأكيد نطاق وصولك قبل تهيئة قاعدة البيانات. الحساب الجديد يبقى دون صلاحيات حتى يعيّنها مسؤول موثوق، ولا تُمنح ملكية المنصة تلقائيًا.</p>
-            <div className="permission-foot"><span className="permission-pulse" /> لا يتم عرض بيانات أو صلاحيات قبل التحقق</div>
-          </article>
-
-          <article className="setup-card">
-            <div className="setup-card-head"><div><span className="section-kicker">فحص تأسيسي</span><h2>إعداد الاتصال</h2></div><span className={`setup-state ${showSetupError ? 'setup-state-error' : ''}`}>{showSetupError ? 'يتطلب الانتباه' : supabase.isLoading || api.isLoading ? 'جارٍ الفحص' : 'الحالة الحالية'}</span></div>
-            <p className="setup-description">نفحص إعدادات Auth العامة بالمفتاح العام فقط. حالة تسجيل دخولك منفصلة، وقراءة بيانات الجداول غير مختبرة.</p>
-            <div className="status-list">
-              <StatusLine label="خدمة المنصة" tone={api.data?.status === 'ok' || api.data?.status === 'healthy' ? 'ok' : api.isError ? 'bad' : api.isLoading ? 'neutral' : 'warn'}>
-                {api.isLoading ? 'جارٍ الفحص' : api.isError ? 'تعذر الوصول' : api.data?.status === 'ok' || api.data?.status === 'healthy' ? 'متاحة' : api.data?.status ?? 'بانتظار التحقق'}
-              </StatusLine>
-              <StatusLine label="Supabase Auth (مفتاح عام)" tone={dbStatus === 'connected' ? 'ok' : setupTone}>
-                {supabase.isLoading ? 'جارٍ الفحص' : supabase.isError ? 'تعذر التحقق' : databaseLabel}
-              </StatusLine>
-              <StatusLine label="تسجيل دخول الحساب (Clerk)" tone={isSignedIn ? 'ok' : 'warn'}>
-                {isSignedIn ? 'مسجل الدخول' : 'غير مسجل'}
-              </StatusLine>
-              <StatusLine label="قراءة بيانات الجداول" tone="neutral">
-                لم تُختبر — لا توجد جلسة Supabase مصرح بها لهذا الفحص
-              </StatusLine>
-            </div>
-            {showSetupError && <div className="inline-error" role="alert" data-testid="status-setup-error"><CircleAlert size={16} /><span>لم يكتمل فحص الإعداد. حاول مرة أخرى أو تواصل مع مسؤول المنصة.</span></div>}
-            <div className={`setup-callout${dbStatus === 'connected' ? ' setup-callout-success' : ''}`} role="status" data-testid="status-setup-blocked">
-              <span className="callout-icon">{dbStatus === 'connected' ? <CircleCheck size={18} /> : <CircleAlert size={18} />}</span>
-              <div><b>{dbStatus === 'connected' ? 'Auth متاحة؛ صلاحية البيانات لم تُختبر' : 'إعداد مساحة العمل'}</b><p>{dbMessage ?? (dbStatus === 'connected' ? 'تم الوصول إلى إعدادات Auth العامة فقط. لم تُقرأ الجداول ولم يُراجع المخطط أو نطاق الصلاحيات.' : dbStatus === 'project_mismatch' ? 'مرجع مشروع Supabase لا يطابق المشروع المصرّح به. لم يتم تحميل أي سجلات.' : dbStatus === 'unauthorized' ? 'تعذر الوصول إلى إعدادات Auth العامة بالمفتاح العام. لم يتم تحميل أي سجلات.' : dbStatus === 'unavailable' ? 'خدمة Auth غير متاحة الآن. لم يتم تحميل أي سجلات.' : 'أكمل إعداد اتصال Supabase المعتمد حتى يمكن التحقق من Auth.')}</p></div>
-            </div>
-            {supabase.isLoading && <div className="status-skeleton"><span /><span /></div>}
-            <div className="setup-card-bottom">
-              <span>لم تُقرأ أي بيانات من الجداول.</span>
-              <button className="retry-button" onClick={retry} disabled={supabase.isFetching || api.isFetching} data-testid="button-retry-setup">{supabase.isFetching || api.isFetching ? 'جارٍ الفحص…' : 'إعادة الفحص'} <ArrowLeft size={15} /></button>
-            </div>
-          </article>
-        </div>
-
-        <div className="workspace-notice"><span className="notice-mark"><ShieldCheck size={18} /></span><p><b>حسابك لا يملك صلاحيات تلقائية.</b> تعيين الوصول إلى الشركات أو الفروع يتم لاحقًا بواسطة مسؤول موثوق بعد تهيئة المشروع والتحقق من النطاق الصحيح.</p></div>
-        <footer className="workspace-footer"><span>Pertomax EG · حالة الوصول</span><span>لا تظهر بيانات تشغيلية قبل التحقق</span></footer>
-      </section>
-    </main>
-  );
-}
-
-function ProtectedWorkspace() {
-  return <><Show when="signed-in"><WorkspaceStatus /></Show><Show when="signed-out"><RedirectHome /></Show></>;
-}
-
-function RedirectHome() {
-  const [, setLocation] = useLocation();
-  useEffect(() => { setLocation('/'); }, [setLocation]);
-  return <main className="workspace-loading" dir="rtl"><Topbar minimal /><div className="loading-panel"><span className="skeleton skeleton-title" /><span className="skeleton skeleton-line" /></div></main>;
-}
-
-function ClerkCacheInvalidator() {
-  const { addListener } = useClerk();
-  const cache = useQueryClient();
-  const prevId = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    const stop = addListener(({ user }) => {
-      const userId = user?.id ?? null;
-      if (prevId.current !== undefined && prevId.current !== userId) cache.clear();
-      prevId.current = userId;
-    });
-    return stop;
-  }, [addListener, cache]);
-  return null;
-}
-
-function NotFound() {
-  return <main className="not-found" dir="rtl"><Brand /><span className="section-kicker">404 / الصفحة غير موجودة</span><h1>لم نعثر على هذه الصفحة.</h1><Link href="/" className="button" data-testid="link-not-found-home">العودة للرئيسية <ArrowLeft size={16} /></Link></main>;
-}
-
-function HomeRedirect() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const [, setLocation] = useLocation();
-  useEffect(() => {
-    if (isLoaded && isSignedIn) setLocation('/workspace');
-  }, [isLoaded, isSignedIn, setLocation]);
-  return isLoaded && isSignedIn
-    ? <main className="workspace-loading" dir="rtl"><Topbar minimal /><div className="loading-panel"><span className="skeleton skeleton-title" /><span className="skeleton skeleton-line" /></div></main>
-    : <HomePage />;
-}
-
-function Router({ authEnabled = false }: { authEnabled?: boolean }) {
-  return <Switch>
-    <Route path="/" component={authEnabled ? HomeRedirect : HomePage} />
-    <Route path="/sign-in/*?" component={() => <AuthPage mode="sign-in" />} />
-    <Route path="/sign-up/*?" component={() => <AuthPage mode="sign-up" />} />
-    <Route path="/workspace" component={authEnabled ? ProtectedWorkspace : SetupBlockedWorkspace} />
-    <Route component={NotFound} />
-  </Switch>;
-}
-
-function SetupBlockedWorkspace() {
-  return <main className="workspace-loading" dir="rtl"><Topbar minimal /><div className="signed-out-panel"><span className="status-symbol status-warn"><CircleAlert size={21} /></span><span className="section-kicker">حالة الإعداد</span><h1>تعذر التحقق من الحساب</h1><p>خدمة تسجيل الدخول غير مهيأة بعد. لم يتم تحميل أي بيانات أو صلاحيات.</p><Link href="/" className="button button-outline" data-testid="link-workspace-return">العودة للرئيسية <ArrowLeft size={16} /></Link></div></main>;
-}
-
-function ClerkRoutes() {
-  const [, setLocation] = useLocation();
-  return <ClerkProvider
-    publishableKey={clerkPubKey}
-    proxyUrl={clerkProxyUrl}
-    signInUrl={`${basePath}/sign-in`}
-    signUpUrl={`${basePath}/sign-up`}
-    appearance={{
-      variables: {
-        colorPrimary: '#2d6659',
-        colorForeground: '#263842',
-        colorMutedForeground: '#6f7b7b',
-        colorBackground: '#fbfaf6',
-        colorInput: '#fffefa',
-        colorInputForeground: '#263842',
-        colorDanger: '#a4473d',
-        colorNeutral: '#d9d3c8',
-        fontFamily: "'IBM Plex Sans Arabic', 'DM Sans', sans-serif",
-        borderRadius: '0.75rem',
-      },
-      options: {
-        logoPlacement: 'inside',
-        logoLinkUrl: `${window.location.origin}${basePath}/`,
-        logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-      },
-      elements: {
-        card: 'clerk-card',
-        cardBox: 'clerk-card-box',
-        headerTitle: 'clerk-title',
-        headerSubtitle: 'clerk-subtitle',
-        formFieldLabel: 'clerk-label',
-        formFieldInput: 'clerk-input',
-        formButtonPrimary: 'clerk-primary',
-        footerActionLink: 'clerk-link',
-        footerActionText: 'clerk-footer-text',
-        socialButtonsBlockButtonText: 'clerk-social-text',
-      },
-    }}
-    localization={arabicLocalization}
-    routerPush={(to) => setLocation(stripBase(to))}
-    routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-  >
-    <ClerkCacheInvalidator />
-    <Router authEnabled />
-  </ClerkProvider>;
-}
-
-function App() {
-  useEffect(() => {
-    document.documentElement.lang = 'ar';
-    document.documentElement.dir = 'rtl';
-  }, []);
-  return <QueryClientProvider client={queryClient}><WouterRouter base={basePath}>{clerkPubKey ? <ClerkRoutes /> : <Router />}</WouterRouter></QueryClientProvider>;
-}
-
+function signUpHref() { const token = inviteTokenFromLocation(); return token ? `/sign-up?invite=${encodeURIComponent(token)}` : '/sign-up'; }
+function signInHref() { const token = inviteTokenFromLocation(); return token ? `/sign-in?next=${encodeURIComponent(`/accept-invitation?token=${encodeURIComponent(token)}`)}` : '/sign-in'; }
+function Brand({ compact = false }: { compact?: boolean }) { return <Link href="/" className={`brand-lockup ${compact ? 'brand-compact' : ''}`} aria-label="Pertomax EG — الرئيسية"><span className="brand-mark" aria-hidden="true"><span/><span/><span/></span><span className="brand-wordmark"><b>Pertomax</b><span>EG</span></span></Link>; }
+function Topbar({ minimal = false, onSignOut }: { minimal?: boolean; onSignOut?: () => void }) { return <header className="topbar" dir="rtl"><Brand/>{!minimal && <nav className="topnav" aria-label="التنقل الرئيسي"><a href="#platform">عن المنصة</a><a href="#access">إدارة الصلاحيات</a></nav>}<div className="topbar-actions">{onSignOut ? <button className="back-link logout-top" onClick={onSignOut}><LogOut size={16}/> تسجيل الخروج</button> : minimal ? <Link href="/" className="back-link"><ArrowLeft size={16}/> الرئيسية</Link> : <><Link href={signInHref()} className="signin-link">تسجيل الدخول</Link><Link href={signUpHref()} className="button button-small">إنشاء حساب <ArrowLeft size={15}/></Link></>}</div></header>; }
+function HomePage() { return <main className="landing" dir="rtl"><Topbar/><section className="hero"><div className="hero-copy page-enter"><div className="eyebrow"><span className="eyebrow-line"/> منصة تشغيل مصرية <span className="eyebrow-dot"/> نسخة تأسيسية</div><h1>مساحة عمل واحدة،<br/><em>وصول واضح.</em></h1><p className="hero-lede">Pertomax EG تجمع الشركات والفروع ومقدّمي الخدمات في مساحة تشغيل واضحة، بصلاحيات تُسند إلى أصحابها وتُدار من مكان واحد.</p><div className="hero-actions"><Link href={signUpHref()} className="button">ابدأ بإنشاء حساب <ArrowLeft size={17}/></Link><Link href={signInHref()} className="text-button">لديك حساب بالفعل؟ <span>سجّل الدخول</span></Link></div><div className="hero-assurance"><ShieldCheck size={16}/><span>إنشاء الحساب لا يمنح صلاحيات إدارية تلقائيًا</span></div></div><div className="hero-art page-enter-delay" aria-label="رسم توضيحي لتنظيم الوصول"><div className="art-index"><span>01</span><span>ACCESS, BY DESIGN</span></div><div className="orbit orbit-outer"/><div className="orbit orbit-inner"/><div className="art-center"><span className="center-ring"><Waves size={30}/></span><span className="center-label">Pertomax<br/>Operations</span></div><div className="orbit-node node-one"><Building2 size={19}/><span>شركة</span></div><div className="orbit-node node-two"><Compass size={19}/><span>فرع</span></div><div className="orbit-node node-three"><BadgeCheck size={19}/><span>مقدّم خدمة</span></div><div className="art-caption"><span className="caption-rule"/> بنية واضحة للصلاحيات<br/>من اليوم الأول</div><div className="art-stamp">EGYPT<br/><b>01</b><br/>FOUNDATION</div></div><div className="hero-footnote"><span>القاهرة · مصر</span><span>منظومة تشغيل بهوية محلية</span></div></section><section className="principles" id="platform"><div className="section-heading"><span className="section-kicker">01 / الفكرة</span><h2>تشغيل منظم<br/><span>يبدأ بالثقة.</span></h2></div><div className="principle-intro"><p>من يدير؟ أين يعمل؟ وما النطاق الذي يخصه؟ إجابات واضحة لكل جهة وفريق.</p><span className="principle-note"><i className="note-dot"/> لا بيانات تجريبية ولا صلاحيات مفترضة</span></div><div className="principle-list"><article className="principle-row"><span className="row-num">١</span><span className="row-icon"><Building2 size={20}/></span><div><h3>هيكل مفهوم</h3><p>شركات وفروع ومقدّمو خدمات ضمن نطاقات واضحة.</p></div><ChevronLeft size={18}/></article><article className="principle-row"><span className="row-num">٢</span><span className="row-icon"><LockKeyhole size={20}/></span><div><h3>وصول بمسؤولية</h3><p>الحساب الجديد لا يصبح مالكًا للمنصة أو لأي جهة.</p></div><ChevronLeft size={18}/></article><article className="principle-row"><span className="row-num">٣</span><span className="row-icon"><CircleDashed size={20}/></span><div><h3>تأسيس موثوق</h3><p>تفعيل مساحة العمل بعد اعتماد الإعدادات والصلاحيات.</p></div><ChevronLeft size={18}/></article></div></section><section className="access-section" id="access"><div className="access-orbit" aria-hidden="true"><span/><span/><span/><i/></div><div className="access-copy"><span className="section-kicker section-kicker-light">02 / الصلاحيات</span><h2>الانتماء لا يُفترض.<br/><em>يُعتمد.</em></h2><p>بعد إنشاء الحساب، تبقى صلاحيات الوصول معلّقة حتى يعيّنها مسؤول موثوق. لن تظهر لك سجلات جهة أو فرع قبل إتمام الإعداد والتحقق.</p><div className="access-points"><span><CircleCheck size={17}/> لا ملكية تلقائية</span><span><CircleCheck size={17}/> لا سجلات قبل التحقق</span></div><Link href={signUpHref()} className="button button-light">إنشاء حساب جديد <ArrowLeft size={16}/></Link></div><span className="access-mark">P / EG</span></section><section className="start-section"><div className="start-panel"><span className="start-icon"><ShieldCheck size={19}/></span><div><span className="section-kicker">03 / الخطوة الأولى</span><h2>أنشئ حسابك، ثم انتظر التعيين الموثوق.</h2><p>سيظل الوصول للجهات والفروع غير متاح حتى اعتماد صلاحياتك.</p></div><Link href={signUpHref()} className="button">متابعة التسجيل <ArrowUpLeft size={17}/></Link></div></section><footer className="footer"><Brand compact/><span>منظومة تشغيل قيد التأسيس — مصر</span><span className="footer-year">PERTOMAX EG · {new Date().getFullYear()}</span></footer></main>; }
+function errorText(error: unknown) { return error instanceof Error ? error.message : 'تعذر إتمام الطلب. حاول مرة أخرى.'; }
+function AuthPage({ mode }: { mode: 'sign-in'|'sign-up' }) { const isUp=mode==='sign-up'; const [type,setType]=useState<'email'|'username'>('email'); const [error,setError]=useState(''); const [success,setSuccess]=useState(''); const [,go]=useLocation(); const signup=useSignUp(); const signin=useSignIn(); const authMe=useGetAuthMe({query:{queryKey:getGetAuthMeQueryKey(),enabled:false,retry:false}}); const cache=useQueryClient(); async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setError('');setSuccess('');const d=new FormData(e.currentTarget);try { if(isUp){const inviteToken=new URLSearchParams(window.location.search).get('invite');const inviteNext=inviteToken?`/accept-invitation?token=${encodeURIComponent(inviteToken)}`:'/workspace';const res=await signup.mutateAsync({data:{identifierType:type,...(type==='email'?{email:String(d.get('identifier'))}:{username:String(d.get('identifier')),recoveryEmail:String(d.get('recoveryEmail'))}),displayName:String(d.get('displayName')),password:String(d.get('password')),redirectTo:authCallbackUrl(inviteNext)}});if(res.status==='created'){await cache.invalidateQueries({queryKey:getGetAuthMeQueryKey()});const session=await authMe.refetch();if(session.isSuccess&&session.data){go(inviteToken?inviteNext:'/workspace');return;}}setSuccess(res.message||'تم إنشاء الحساب. يمكنك تسجيل الدخول بعد تأكيد البريد إذا طُلب ذلك.');}else {await signin.mutateAsync({data:{identifier:String(d.get('identifier')),password:String(d.get('password'))}});await cache.invalidateQueries({queryKey:getGetAuthMeQueryKey()});const next=new URLSearchParams(window.location.search).get('next');go(next&&next.startsWith('/')&&!next.startsWith('//')?next:'/workspace');}}catch(err){setError(errorText(err));}}
+return <main className="auth-page" dir="rtl"><Topbar minimal/><section className="auth-layout"><div className="auth-context"><span className="section-kicker">{isUp?'حساب جديد / 01':'مرحبًا بعودتك / 01'}</span><h1>{isUp?<>ابدأ من<br/><em>هنا.</em></>:<>مساحتك<br/><em>بانتظارك.</em></>}</h1><p>{isUp?'أنشئ بيانات الدخول الخاصة بك. سيبقى حسابك دون صلاحيات تشغيل حتى يعيّنها مسؤول موثوق.':'سجّل الدخول للمتابعة إلى حالة مساحة العمل والصلاحيات المرتبطة بحسابك.'}</p><div className="auth-trust"><ShieldCheck size={18}/><span>صلاحيات الوصول تُسند يدويًا وبشكل موثوق</span></div></div><div className="auth-form-wrap"><div className="auth-card-head"><span className="auth-step">{isUp?'إنشاء حساب':'تسجيل الدخول'}</span><span className="auth-step-index">PERTOMAX / 01</span></div><form className="form-card" onSubmit={submit}><div className="auth-type-switch" role="group" aria-label="نوع بيانات الدخول"><button type="button" className={type==='email'?'selected':''} onClick={()=>setType('email')}>بريد إلكتروني</button><button type="button" className={type==='username'?'selected':''} onClick={()=>setType('username')}>اسم مستخدم</button></div>{isUp&&<label>الاسم الكامل<input name="displayName" required autoComplete="name" placeholder="الاسم كما سيظهر للفريق"/></label>}<label>{isUp?(type==='email'?'البريد الإلكتروني':'اسم المستخدم'):'البريد الإلكتروني أو اسم المستخدم'}<input name="identifier" required autoComplete={isUp?(type==='email'?'email':'username'):'username'} type={isUp&&type==='email'?'email':'text'} placeholder={isUp?(type==='email'?'name@company.com':'اختر اسم مستخدم'):'أدخل البريد أو اسم المستخدم'}/></label>{isUp&&type==='username'&&<label>بريد الاسترداد<input name="recoveryEmail" required type="email" autoComplete="email" placeholder="بريد حقيقي لاستعادة الحساب"/><small>لن يظهر هذا البريد كخيار لتسجيل الدخول.</small></label>}<label>كلمة المرور<input name="password" required type="password" minLength={12} autoComplete={isUp?'new-password':'current-password'} placeholder={isUp?'12 حرفًا على الأقل':'أدخل كلمة المرور'}/></label>{error&&<div role="alert" className="form-alert"><CircleAlert size={17}/>{error}</div>}{success&&<div role="status" className="form-success"><CircleCheck size={17}/>{success}</div>}<button className="button form-submit" type="submit" disabled={signup.isPending||signin.isPending}>{signup.isPending||signin.isPending?'جارٍ الإرسال…':isUp?'إنشاء الحساب':'تسجيل الدخول'} <ArrowLeft size={16}/></button><div className="form-links">{!isUp&&<Link href="/reset-password">نسيت كلمة المرور؟</Link>}<span>{isUp?'لديك حساب؟':'ليس لديك حساب؟'} <Link href={isUp?signInHref():signUpHref()}>{isUp?'تسجيل الدخول':'إنشاء حساب'}</Link></span></div></form><p className="auth-note"><LockKeyhole size={14}/> الجلسة محمية بملف ارتباط آمن. لا تُمنح صلاحيات تلقائيًا.</p></div></section><footer className="auth-footer"><span>PERTOMAX EG</span><span>مساحة تشغيل مصرية</span></footer></main>}
+function ResetPage(){const [message,setMessage]=useState('');const [error,setError]=useState('');const recovery=useRequestPasswordRecovery();const update=useUpdatePassword();const params=new URLSearchParams(window.location.search);const newPassword=params.get('update')==='1'||params.has('token')||params.has('code');async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setError('');setMessage('');const d=new FormData(e.currentTarget);try{if(newPassword){const r=await update.mutateAsync({data:{password:String(d.get('password'))}});setMessage(r.message||'تم تحديث كلمة المرور.');}else{const r=await recovery.mutateAsync({data:{identifier:String(d.get('identifier')),redirectTo:authCallbackUrl('/reset-password?update=1')}});setMessage(r.message||'إذا تطابقت البيانات، ستصلك تعليمات الاستعادة على البريد المسجل.');}}catch(err){setError(errorText(err));}}return <main className="auth-page" dir="rtl"><Topbar minimal/><section className="reset-wrap"><span className="section-kicker">استعادة الوصول / 02</span><h1>{newPassword?'تعيين كلمة مرور جديدة':'استعادة كلمة المرور'}</h1><p>{newPassword?'اختر كلمة مرور قوية لمتابعة استخدام مساحة العمل.':'أدخل البريد الإلكتروني أو اسم المستخدم. ستُرسل التعليمات إلى بريد الحساب المسجل فقط.'}</p><form className="form-card" onSubmit={submit}>{newPassword?<label>كلمة المرور الجديدة<input required name="password" type="password" minLength={12} autoComplete="new-password"/></label>:<label>البريد الإلكتروني أو اسم المستخدم<input required name="identifier" autoComplete="username"/></label>}{error&&<div className="form-alert" role="alert"><CircleAlert size={17}/>{error}</div>}{message&&<div className="form-success" role="status"><CircleCheck size={17}/>{message}</div>}<button className="button form-submit" disabled={recovery.isPending||update.isPending}>{recovery.isPending||update.isPending?'جارٍ الإرسال…':newPassword?'حفظ كلمة المرور':'إرسال تعليمات الاستعادة'} <ArrowLeft size={16}/></button><Link className="text-button" href={signInHref()}>العودة إلى تسجيل الدخول</Link></form></section></main>}
+function field(obj:unknown,key:string):unknown{return obj&&typeof obj==='object'?(obj as Record<string,unknown>)[key]:undefined;}
+function deepHasRole(o:unknown,roles:string[]):boolean{if(!o||typeof o!=='object')return false;if(Array.isArray(o))return o.some(x=>deepHasRole(x,roles));const rec=o as Record<string,unknown>;if(rec.isPlatformOwner===true||rec.platformOwner===true||rec.platform_owner===true)return true;const platformRole=rec.platformRole??rec.platform_role;if(typeof platformRole==='string'&&['owner','platform_owner','platform-owner'].includes(platformRole.toLowerCase()))return true;const r=rec.role??rec.type??rec.kind;if(typeof r==='string'&&roles.includes(r.toLowerCase()))return true;return Object.values(rec).some(v=>typeof v==='string'&&roles.includes(v.toLowerCase())||v&&typeof v==='object'&&deepHasRole(v,roles));}
+function isSuspended(ctx:unknown):boolean{if(!ctx||typeof ctx!=='object')return false;const root=ctx as Record<string,unknown>;const blocked=new Set(['suspended','inactive','blocked']);const accountFields=['accountStatus','account_status','userStatus','user_status','state','status'];if(accountFields.some(k=>typeof root[k]==='string'&&blocked.has(String(root[k]).toLowerCase())))return true;return ['account','user','profile','auth'].some(k=>isSuspended(root[k]));}
+function Layout({children,userName,onExit}:{children:ReactNode;userName?:string;onExit:()=>void}){return <div className="workspace-page" dir="rtl"><Topbar minimal onSignOut={onExit}/><main className="workspace-shell"><div className="workspace-heading"><div><span className="section-kicker">مساحة العمل / الإدارة</span><h1>أهلًا، <em>{userName||'بك'}</em></h1><p>إدارة الجهات والفروع وصلاحيات الوصول المعتمدة.</p></div><span className="workspace-role"><ShieldCheck size={15}/> Pertomax EG</span></div>{children}<footer className="workspace-footer"><span>Pertomax EG · الإدارة</span><span>الوصول بحسب التفويض المعتمد</span></footer></main></div>}
+function StatePanel({kind='info',title,children,action}:{kind?:string;title:string;children:ReactNode;action?:ReactNode}){return <section className={`state-panel state-${kind}`}><span className="status-symbol">{kind==='error'?<CircleAlert aria-hidden="true"/>:kind==='success'?<CircleCheck aria-hidden="true"/>:<LockKeyhole aria-hidden="true"/>}</span><h2>{title}</h2><p>{children}</p>{action}</section>}
+const kindName:Record<string,string>={company:'شركة',station:'محطة',provider:'مقدّم خدمة'};const statusName:Record<string,string>={pending:'قيد المراجعة',active:'نشط',suspended:'موقوف'};const roleName:Record<string,string>={organization_owner:'مالك الجهة',manager:'مدير',finance:'مالي',worker:'موظف',viewer:'مشاهد'};
+function Workspace(){const me=useGetAuthMe({query:{queryKey:getGetAuthMeQueryKey(),retry:false,staleTime:20_000}});const boot=useGetOwnerBootstrapStatus({query:{enabled:!!me.data&&me.data.state==='pending',queryKey:getGetOwnerBootstrapStatusQueryKey(),retry:false}});const signout=useSignOut();const cache=useQueryClient();const user=me.data;const owner=deepHasRole(user?.accessContext,['platform_owner','platform-owner','platform owner']);const suspended=!!user&&isSuspended(user.accessContext);const bootstrap=useBootstrapOwner({mutation:{onSuccess:async()=>{await cache.invalidateQueries({queryKey:getGetAuthMeQueryKey()});await cache.invalidateQueries({queryKey:getGetOwnerBootstrapStatusQueryKey()});}}});const [,setLocation]=useLocation();const exit=async()=>{await signout.mutateAsync();cache.clear();setLocation('/sign-in');};if(me.isLoading)return <main className="workspace-loading" dir="rtl"><Topbar minimal/><div className="loading-panel"><span className="skeleton skeleton-title"/><span className="skeleton skeleton-line"/><span className="skeleton skeleton-line short"/></div></main>;if(me.isError){const status=field(me.error,'status');if(status===403)return <Layout onExit={exit}><StatePanel kind="error" title="الحساب معطّل أو موقوف">تم حظر الوصول إلى مساحة العمل. تواصل مع مسؤول المنصة إذا كنت تعتقد أن هذا خطأ.</StatePanel></Layout>;return <Layout onExit={exit}><StatePanel kind="error" title="تعذر التحقق من الحساب">لم نتمكن من قراءة جلسة الدخول. حاول مجددًا أو سجّل الدخول من جديد.<Link href={signInHref()} className="text-button">تسجيل الدخول</Link></StatePanel><button className="button" onClick={()=>void me.refetch()}><RefreshCw size={16}/> إعادة المحاولة</button></Layout>}if(!user)return <main className="workspace-loading"><Topbar minimal/><StatePanel title="يلزم تسجيل الدخول">سجّل الدخول أولًا لعرض مساحة العمل.<Link href={signInHref()} className="button">تسجيل الدخول</Link></StatePanel></main>;if(user.state!=='active')return <Layout userName={user.displayName} onExit={exit}><div className="workspace-grid"><StatePanel title="حسابك بانتظار الاعتماد">تم إنشاء الحساب بنجاح. سيظهر هنا نطاق العمل بعد تعيين صلاحياتك من مسؤول موثوق.</StatePanel>{boot.data?.available&&<BootstrapSetup busy={bootstrap.isPending} onSubmit={async token=>{await bootstrap.mutateAsync({data:{token}})}}/>}</div></Layout>;if(suspended)return <Layout userName={user.displayName} onExit={exit}><StatePanel kind="error" title="الحساب موقوف">تم إيقاف هذا الحساب. لا يمكن الوصول إلى بيانات الجهات أو الفروع. تواصل مع مسؤول المنصة.</StatePanel></Layout>;return <Layout userName={user.displayName} onExit={exit}><OrganizationDesk userId={user.id} isOwner={owner} context={user.accessContext}/></Layout>}
+function BootstrapSetup({busy,onSubmit}:{busy:boolean;onSubmit:(token:string)=>Promise<void>}){const [token,setToken]=useState('');const [error,setError]=useState('');return <section className="management-card bootstrap-card"><div className="card-heading"><span className="section-kicker">تهيئة المنصة</span><h2>إعداد مالك المنصة</h2><p>يتطلب هذا الإجراء رمز التأسيس الخاص. لن تُمنح الملكية تلقائيًا.</p></div><form onSubmit={async e=>{e.preventDefault();setError('');try{await onSubmit(token)}catch{setError('تعذر التحقق من الرمز.')}}}><label>رمز التأسيس الخاص<input value={token} onChange={e=>setToken(e.target.value)} required minLength={32} maxLength={256} type="password" autoComplete="off"/></label>{error&&<div className="form-alert" role="alert">{error}</div>}<button className="button" disabled={busy}>{busy?'جارٍ التحقق…':'متابعة الإعداد'}</button></form></section>}
+function OrganizationDesk({userId,isOwner,context}:{userId:string;isOwner:boolean;context:unknown}){const list=useListOrganizations();const create=useCreateOrganization();const updateStatus=useUpdateOrganizationStatus();const updateOrg=useUpdateOrganization();const [selected,setSelected]=useState('');const [showCreate,setShowCreate]=useState(false);const [createMsg,setCreateMsg]=useState('');const [err,setErr]=useState('');const orgs=list.data?.items??[];const selectedOrg=orgs.find(o=>o.id===selected)??orgs[0];const raw=field(context,'organizationId')??field(context,'organization_id');const allowedIds=Array.isArray(field(context,'organizationIds'))?field(context,'organizationIds') as string[]:typeof raw==='string'?[raw]:null;const visible=isOwner?orgs:allowedIds?orgs.filter(o=>allowedIds.includes(o.id)):orgs;useEffect(()=>{if(selectedOrg&&selected!==selectedOrg.id)setSelected(selectedOrg.id)},[selectedOrg?.id]);const cache=useQueryClient();const invalidate=async()=>{await cache.invalidateQueries({queryKey:getListOrganizationsQueryKey()});};async function make(e:FormEvent<HTMLFormElement>){e.preventDefault();setErr('');const d=new FormData(e.currentTarget);try{await create.mutateAsync({data:{name:String(d.get('name')),kind:String(d.get('kind')) as 'company'|'station'|'provider'}});setCreateMsg('تم إرسال طلب الجهة.');setShowCreate(false);await invalidate()}catch(x){setErr(errorText(x))}}
+if(list.isLoading)return <div className="loading-panel"><span className="skeleton skeleton-title"/><span className="skeleton skeleton-line"/><span className="skeleton skeleton-line short"/></div>;if(list.isError)return <StatePanel kind="error" title="تعذر تحميل الجهات">{errorText(list.error)} <button className="button button-outline" onClick={()=>void list.refetch()}>إعادة المحاولة</button></StatePanel>;
+return <div className="desk"><div className="desk-toolbar"><div><span className="section-kicker">الجهات والصلاحيات</span><h2>{isOwner?'إدارة الجهات':'جهاتك المصرّح بها'}</h2></div>{isOwner&&<button className="button" onClick={()=>{setShowCreate(x=>!x);setCreateMsg('')}}><Plus size={16}/> إنشاء جهة</button>}</div>{createMsg&&<div className="form-success" role="status"><CircleCheck size={16}/>{createMsg}</div>}{err&&<div className="form-alert" role="alert">{err}</div>}{showCreate&&<section className="management-card inline-form"><div className="card-heading"><span className="section-kicker">طلب جديد</span><h3>إنشاء جهة</h3></div><form onSubmit={make}><label>اسم الجهة<input name="name" required minLength={2} maxLength={160}/></label><label>نوع الجهة<select name="kind"><option value="company">شركة</option><option value="station">محطة</option><option value="provider">مقدّم خدمة</option></select></label><div className="form-actions"><button className="button" disabled={create.isPending}>{create.isPending?'جارٍ الحفظ…':'إرسال الطلب'}</button><button type="button" className="button button-outline" onClick={()=>setShowCreate(false)}>إلغاء</button></div></form></section>}{visible.length===0?<StatePanel title="لا توجد جهات متاحة">لا تظهر إلا الجهات التي مُنح حسابك صلاحية الوصول إليها.</StatePanel>:<><div className="org-strip" role="tablist" aria-label="الجهات">{visible.map(o=><button role="tab" aria-selected={selectedOrg?.id===o.id} className={`org-tab ${selectedOrg?.id===o.id?'active':''}`} key={o.id} onClick={()=>setSelected(o.id)}><span className="org-tab-icon"><Building2 size={18}/></span><span><b>{o.name}</b><small>{kindName[o.kind]}</small></span><StatusPill status={o.status}/></button>)}</div>{selectedOrg&&<OrganizationDetail key={selectedOrg.id} org={selectedOrg} userId={userId} isOwner={isOwner} onChange={async (status)=>{try{await updateStatus.mutateAsync({organizationId:selectedOrg.id,data:{status}});await invalidate()}catch(x){setErr(errorText(x))}}} onRename={async name=>{try{await updateOrg.mutateAsync({organizationId:selectedOrg.id,data:{name}});await invalidate()}catch(x){setErr(errorText(x))}}}/>}</>}</div>}
+function StatusPill({status}:{status:string}){return <span className={`status-pill pill-${status}`}>{statusName[status]??status}</span>}
+function OrganizationDetail({org,userId,isOwner,onChange,onRename}:{org:any;userId:string;isOwner:boolean;onChange:(s:'pending'|'active'|'suspended')=>Promise<void>;onRename:(s:string)=>Promise<void>}){const [rename,setRename]=useState(false);const [name,setName]=useState(org.name);const [panel,setPanel]=useState<'branch'|'member'|'invite'|null>(null);const [editingMember,setEditingMember]=useState<any>(null);const [copied,setCopied]=useState('');const [err,setErr]=useState('');const branchQ=useListBranches(org.id,{query:{queryKey:getListBranchesQueryKey(org.id),enabled:!!org.id,refetchOnMount:'always'}});const membersQ=useListMemberships(org.id,{query:{queryKey:getListMembershipsQueryKey(org.id),enabled:!!org.id,refetchOnMount:'always'}});const invitationsAllowed=isOwner||(membersQ.data?.items??[]).some(m=>m.user_id===userId&&m.active&&['organization_owner','manager'].includes(m.role)&&m.scope==='organization');const invitesQ=useListInvitations(org.id,{query:{queryKey:getListInvitationsQueryKey(org.id),enabled:!!org.id&&invitationsAllowed,refetchOnMount:'always'}});const createBranch=useCreateBranch();const updateBranch=useUpdateBranch();const branchStatus=useUpdateBranchStatus();const setMember=useSetMembership();const createInvite=useCreateInvitation();const revoke=useRevokeInvitation();const setUser=useSetUserStatus();const cache=useQueryClient();const branches=branchQ.data?.items??[];const members=membersQ.data?.items??[];const invites=invitesQ.data?.items??[];const refresh=async()=>{await Promise.all([cache.invalidateQueries({queryKey:getListBranchesQueryKey(org.id)}),cache.invalidateQueries({queryKey:getListMembershipsQueryKey(org.id)}),cache.invalidateQueries({queryKey:getListInvitationsQueryKey(org.id)})])};const selfMembership=members.find(m=>m.user_id===userId&&m.active);const manager=selfMembership?.role==='manager'?selfMembership:null;const allowedBranches=selfMembership?.scope==='branches'?selfMembership.branchIds:null;const scopedBranches=allowedBranches?branches.filter(b=>allowedBranches.includes(b.id)):branches;const canManage=isOwner||members.some(m=>m.user_id===userId&&m.active&&['organization_owner','manager'].includes(m.role)&&m.scope==='organization');const visibleMembers=allowedBranches?members.filter(m=>m.branchIds.some(id=>allowedBranches.includes(id))):members;const visibleInvites=allowedBranches?invites.filter(i=>i.branch_ids.some(id=>allowedBranches.includes(id))):invites;const branchAdmin=isOwner||selfMembership?.role==='organization_owner'&&selfMembership.scope==='organization'||!!manager&&manager.scope==='organization';
+async function submitBranch(e:FormEvent<HTMLFormElement>){e.preventDefault();let d=new FormData(e.currentTarget);try{await createBranch.mutateAsync({organizationId:org.id,data:{name:String(d.get('name')),...(d.get('address')?{address:String(d.get('address'))}:{})}});await refresh();setPanel(null)}catch(x){setErr(errorText(x))}}
+async function submitMember(e:FormEvent<HTMLFormElement>){e.preventDefault();const d=new FormData(e.currentTarget);const scope=String(d.get('scope')) as 'organization'|'branches';try{await setMember.mutateAsync({organizationId:org.id,data:{userId:String(d.get('userId')),role:String(d.get('role')) as 'organization_owner'|'manager'|'finance'|'worker'|'viewer',scope,branchIds:scope==='branches'?d.getAll('branchIds').map(String):[],active:editingMember?.active??true}});await refresh();setPanel(null);setEditingMember(null);setEditingMember(null)}catch(x){setErr(errorText(x))}}
+async function submitInvite(e:FormEvent<HTMLFormElement>){e.preventDefault();const d=new FormData(e.currentTarget);const scope=String(d.get('scope')) as 'organization'|'branches';try{const result=await createInvite.mutateAsync({organizationId:org.id,data:{email:String(d.get('email')),role:String(d.get('role')) as 'organization_owner'|'manager'|'finance'|'worker'|'viewer',scope,branchIds:scope==='branches'?d.getAll('branchIds').map(String):[]}});setCopied(result.inviteUrl);await refresh();setPanel(null)}catch(x){setErr(errorText(x))}}
+async function copyUrl(){try{await navigator.clipboard.writeText(copied)}catch{setErr('تعذر النسخ. انسخ الرابط يدويًا من الحقل.')}}
+return <section className="org-detail"><div className="org-detail-head"><div><span className="section-kicker">{kindName[org.kind]} / {org.currency}</span><h2>{org.name}</h2><div className="org-meta"><StatusPill status={org.status}/><span>مصر · EGP</span></div></div><div className="detail-actions">{isOwner&&<><button className="button button-outline button-small" onClick={()=>setRename(x=>!x)}>تعديل الاسم</button>{org.status==='pending'&&<button className="button button-small" onClick={()=>void onChange('active')}>اعتماد الجهة</button>}{org.status==='active'&&<button className="button button-outline button-small danger-outline" onClick={()=>void onChange('suspended')}>إيقاف الجهة</button>}{org.status==='suspended'&&<button className="button button-small" onClick={()=>void onChange('active')}>إعادة التفعيل</button>}</>}</div></div>{rename&&<form className="rename-form" onSubmit={async e=>{e.preventDefault();await onRename(name);setRename(false)}}><label>اسم الجهة<input value={name} onChange={e=>setName(e.target.value)} required minLength={2}/></label><button className="button button-small">حفظ</button><button type="button" className="button button-outline button-small" onClick={()=>setRename(false)}>إلغاء</button></form>}{copied&&<div className="invite-created" role="status"><div><CircleCheck size={18}/><b>تم إنشاء دعوة لمرة واحدة</b><small>انسخ الرابط الآن؛ لن يُحفظ في مساحة العمل.</small></div><input aria-label="رابط الدعوة" readOnly value={copied}/><button className="button button-small" onClick={()=>void copyUrl()}><Copy size={15}/> نسخ الرابط</button><button className="icon-button" aria-label="إخفاء الرابط" onClick={()=>setCopied('')}><X size={16}/></button></div>}{err&&<div className="form-alert" role="alert">{err}<button className="icon-button" onClick={()=>setErr('')} aria-label="إغلاق التنبيه"><X size={15}/></button></div>}<div className="detail-columns"><section className="management-card"><div className="section-head"><div><span className="section-kicker">البنية</span><h3>الفروع <small>{scopedBranches.length}</small></h3></div>{branchAdmin&&<button className="icon-button add-button" aria-label="إضافة فرع" onClick={()=>setPanel(panel==='branch'?null:'branch')}><Plus size={18}/></button>}</div>{panel==='branch'&&branchAdmin&&<form className="compact-form" onSubmit={submitBranch}><label>اسم الفرع<input name="name" required minLength={2}/></label><label>العنوان <span className="optional">اختياري</span><input name="address" maxLength={500}/></label><button className="button button-small" disabled={createBranch.isPending}>حفظ الفرع</button></form>}{branchQ.isLoading?<div className="skeleton skeleton-line"/>:branchQ.isError?<InlineError retry={()=>void branchQ.refetch()}/>:scopedBranches.length===0?<div className="empty-inline"><MapPin size={17}/><span>لا توجد فروع ضمن النطاق المتاح.</span></div>:<ul className="record-list">{scopedBranches.map(b=><li key={b.id}><span className="record-icon"><MapPin size={16}/></span><span className="record-main"><b>{b.name}</b><small>{b.address||'لا يوجد عنوان مسجل'}</small></span><StatusPill status={b.status}/>{branchAdmin&&<><button className="text-action" aria-label={`تعديل الفرع ${b.name}`} onClick={async()=>{const nextName=window.prompt('اسم الفرع',b.name);if(!nextName)return;const address=window.prompt('عنوان الفرع',b.address);try{await updateBranch.mutateAsync({branchId:b.id,data:{organizationId:org.id,name:nextName,...(address?{address}:{})}});await cache.invalidateQueries({queryKey:getListBranchesQueryKey(org.id)})}catch(x){setErr(errorText(x))}}}>تعديل</button>{b.status==='pending'&&<button className="text-action branch-approve" disabled={branchStatus.isPending} onClick={async()=>{try{await branchStatus.mutateAsync({branchId:b.id,data:{organizationId:org.id,status:'active'}});await cache.invalidateQueries({queryKey:getListBranchesQueryKey(org.id)})}catch(x){setErr(errorText(x))}}}>اعتماد</button>}{b.status==='active'&&<button className="text-action danger-text" disabled={branchStatus.isPending} onClick={async()=>{try{await branchStatus.mutateAsync({branchId:b.id,data:{organizationId:org.id,status:'suspended'}});await cache.invalidateQueries({queryKey:getListBranchesQueryKey(org.id)})}catch(x){setErr(errorText(x))}}}>إيقاف</button>}{b.status==='suspended'&&<button className="text-action" disabled={branchStatus.isPending} onClick={async()=>{try{await branchStatus.mutateAsync({branchId:b.id,data:{organizationId:org.id,status:'active'}});await cache.invalidateQueries({queryKey:getListBranchesQueryKey(org.id)})}catch(x){setErr(errorText(x))}}}>إعادة التفعيل</button>}</>}</li>)}</ul>}</section><section className="management-card"><div className="section-head"><div><span className="section-kicker">الوصول</span><h3>الأعضاء <small>{visibleMembers.length}</small></h3></div>{canManage&&<button className="icon-button add-button" aria-label="إضافة عضوية" onClick={()=>{setEditingMember(null);setPanel(panel==='member'?null:'member')}}><Plus size={18}/></button>}</div>{panel==='member'&&canManage&&<form className="compact-form" onSubmit={submitMember}><label>معرّف المستخدم<input name="userId" required readOnly={!!editingMember} defaultValue={editingMember?.user_id??''} placeholder="معرّف الحساب"/></label><label>الدور<select name="role" defaultValue={editingMember?.role??'worker'}>{Object.entries(roleName).filter(([k])=>isOwner||k!=='organization_owner').map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><ScopeFields branches={scopedBranches} organizationAllowed={isOwner||!allowedBranches} initialScope={editingMember?.scope} initialIds={editingMember?.branchIds}/><button className="button button-small" disabled={setMember.isPending}>{editingMember?'حفظ الصلاحيات':'حفظ العضوية'}</button></form>}{membersQ.isLoading?<div className="skeleton skeleton-line"/>:membersQ.isError?<InlineError retry={()=>void membersQ.refetch()}/>:visibleMembers.length===0?<div className="empty-inline"><Users size={17}/><span>لا توجد عضويات مسجلة.</span></div>:<ul className="record-list">{visibleMembers.map(m=><li key={m.id}><span className={`avatar-initial ${m.active?'':'inactive'}`}>{(m.profile?.display_name??m.user_id).slice(0,1)}</span><span className="record-main"><b>{m.profile?.display_name??m.user_id}</b><small>{roleName[m.role]} · {m.scope==='organization'?'نطاق الجهة':`${m.branchIds.length} فرع`}</small></span>{canManage&&m.user_id!==userId&&<button className="text-action" onClick={()=>{setEditingMember(m);setPanel('member')}}>تعديل الصلاحية</button>}{(isOwner||canManage)&&m.user_id!==userId&&<button className={`text-action ${m.active?'danger-text':''}`} onClick={async()=>{try{if(isOwner&&m.profile)await setUser.mutateAsync({userId:m.user_id,data:{status:m.profile.active?'suspended':'active'}});await setMember.mutateAsync({organizationId:org.id,data:{userId:m.user_id,role:m.role,scope:m.scope,branchIds:m.branchIds,active:!m.active}});await cache.invalidateQueries({queryKey:getGetAuthMeQueryKey()});await refresh()}catch(x){setErr(errorText(x))}}}>{m.active?'إيقاف':'تفعيل'}</button>}</li>)}</ul>}</section><section className="management-card"><div className="section-head"><div><span className="section-kicker">الدعوات</span><h3>دعوات الفريق <small>{canManage?visibleInvites.filter(x=>!x.accepted_at&&!x.revoked_at).length:'مقيّد'}</small></h3></div>{canManage&&<button className="icon-button add-button" aria-label="إنشاء دعوة" onClick={()=>setPanel(panel==='invite'?null:'invite')}><Plus size={18}/></button>}</div>{panel==='invite'&&canManage&&<form className="compact-form" onSubmit={submitInvite}><label>البريد الإلكتروني<input type="email" name="email" required/><Mail size={15}/></label><label>الدور<select name="role">{Object.entries(roleName).filter(([k])=>isOwner||k!=='organization_owner').map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><ScopeFields branches={scopedBranches} organizationAllowed={isOwner||!allowedBranches}/><button className="button button-small" disabled={createInvite.isPending}>إنشاء الدعوة</button></form>}{!canManage?<div className="empty-inline"><LockKeyhole size={17}/><span>عرض الدعوات متاح لمسؤولي نطاق الجهة فقط.</span></div>:invitesQ.isLoading?<div className="skeleton skeleton-line"/>:invitesQ.isError?<InlineError retry={()=>void invitesQ.refetch()}/>:visibleInvites.length===0?<div className="empty-inline"><Mail size={17}/><span>لا توجد دعوات حتى الآن.</span></div>:<ul className="record-list">{visibleInvites.map(inv=><li key={inv.id}><span className="record-icon"><Mail size={16}/></span><span className="record-main"><b>{inv.invited_email}</b><small>{roleName[inv.role]??inv.role} · {inv.accepted_at?'تم القبول':inv.revoked_at?'ملغاة':`تنتهي ${new Date(inv.expires_at).toLocaleDateString('ar-EG')}`}</small></span>{!inv.accepted_at&&!inv.revoked_at&&canManage&&<button className="text-action danger-text" onClick={async()=>{try{await revoke.mutateAsync({invitationId:inv.id});await refresh()}catch(x){setErr(errorText(x))}}}>إلغاء</button>}</li>)}</ul>}</section></div></section>}
+function ScopeFields({branches,organizationAllowed=true,initialScope,initialIds=[]}:{branches:{id:string;name:string}[];organizationAllowed?:boolean;initialScope?:'organization'|'branches';initialIds?:string[]}){const [scope,setScope]=useState<'organization'|'branches'>(initialScope??(organizationAllowed?'organization':'branches'));return <><label>نطاق الصلاحية<select name="scope" value={scope} onChange={e=>setScope(e.target.value as 'organization'|'branches')} disabled={!organizationAllowed}><option value="organization">الجهة بالكامل</option><option value="branches">فروع محددة</option></select></label>{scope==='branches'&&<fieldset className="branch-checks"><legend>الفروع المسموح بها</legend>{branches.map(b=><label key={b.id}><input type="checkbox" name="branchIds" value={b.id} defaultChecked={initialIds.includes(b.id)}/>{b.name}</label>)}{branches.length===0&&<small>لا توجد فروع متاحة للاختيار.</small>}</fieldset>}</>}
+function InlineError({retry}:{retry:()=>void}){return <div className="inline-error" role="alert"><CircleAlert size={16}/> تعذر تحميل البيانات <button className="text-action" onClick={retry}>إعادة المحاولة</button></div>}
+function AcceptInvite(){const [message,setMessage]=useState('');const [error,setError]=useState('');const accept=useAcceptInvitation();const cache=useQueryClient();const params=new URLSearchParams(window.location.search);const token=params.get('invite')??params.get('token')??'';const acceptancePath=`/accept-invitation?token=${encodeURIComponent(token)}`;return <section className="invite-accept"><h2>قبول دعوة الفريق</h2><p>تأكد من تسجيل الدخول إلى الحساب المرتبط بالبريد المدعو قبل المتابعة.</p><Link className="text-button" href={`/sign-in?next=${encodeURIComponent(acceptancePath)}`}>تسجيل الدخول بالحساب المدعو</Link>{error&&<div className="form-alert" role="alert">{error}</div>}{message&&<div className="form-success" role="status">{message}</div>}<button className="button" disabled={!token||accept.isPending} onClick={async()=>{try{const r=await accept.mutateAsync({data:{token}});setMessage(r.message);await cache.invalidateQueries({queryKey:getGetAuthMeQueryKey()})}catch(x){setError(errorText(x))}}}>{accept.isPending?'جارٍ التحقق…':'قبول الدعوة'}</button>{!token&&<div className="form-alert">رابط الدعوة غير مكتمل.</div>}</section>}
+function Routes(){return <Switch><Route path="/" component={HomePage}/><Route path="/sign-in" component={()=> <AuthPage mode="sign-in"/>}/><Route path="/sign-up" component={()=> <AuthPage mode="sign-up"/>}/><Route path="/reset-password" component={ResetPage}/><Route path="/workspace" component={Workspace}/><Route path="/accept-invitation" component={AcceptInvite}/><Route component={()=> <main className="not-found" dir="rtl"><Brand/><span className="section-kicker">404 / الصفحة غير موجودة</span><h1>لم نعثر على هذه الصفحة.</h1><Link href="/" className="button">العودة للرئيسية <ArrowLeft size={16}/></Link></main>}/></Switch>}
+function App(){useEffect(()=>{document.documentElement.lang='ar';document.documentElement.dir='rtl'},[]);return <QueryClientProvider client={queryClient}><WouterRouter base={basePath}><Routes/></WouterRouter></QueryClientProvider>}
 export default App;

@@ -37,3 +37,417 @@ export interface SupabaseHealthStatus {
   message?: string;
 }
 
+export interface ApiError {
+  message: string;
+}
+
+export interface MessageResult {
+  message: string;
+}
+
+export type SignUpRequestIdentifierType = typeof SignUpRequestIdentifierType[keyof typeof SignUpRequestIdentifierType];
+
+
+export const SignUpRequestIdentifierType = {
+  email: 'email',
+  username: 'username',
+} as const;
+
+export interface SignUpRequest {
+  identifierType: SignUpRequestIdentifierType;
+  email?: string;
+  /**
+     * @minLength 3
+     * @maxLength 32
+     */
+  username?: string;
+  recoveryEmail?: string;
+  /** @maxLength 120 */
+  displayName?: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+  redirectTo: string;
+}
+
+export type SignUpResultStatus = typeof SignUpResultStatus[keyof typeof SignUpResultStatus];
+
+
+export const SignUpResultStatus = {
+  created: 'created',
+  confirmation_required: 'confirmation_required',
+} as const;
+
+export interface SignUpResult {
+  status: SignUpResultStatus;
+  message: string;
+}
+
+export interface SignInRequest {
+  /**
+     * @minLength 3
+     * @maxLength 254
+     */
+  identifier: string;
+  /** @maxLength 128 */
+  password: string;
+}
+
+export interface AuthActionResult {
+  status: string;
+  message: string;
+}
+
+export interface RecoveryRequest {
+  /**
+     * @minLength 3
+     * @maxLength 254
+     */
+  identifier: string;
+  redirectTo: string;
+}
+
+export interface PasswordUpdateRequest {
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+}
+
+/**
+ * @nullable
+ */
+export type AuthMeLoginIdentifierType = typeof AuthMeLoginIdentifierType[keyof typeof AuthMeLoginIdentifierType] | null;
+
+
+export const AuthMeLoginIdentifierType = {
+  email: 'email',
+  username: 'username',
+} as const;
+
+export type AuthMeState = typeof AuthMeState[keyof typeof AuthMeState];
+
+
+export const AuthMeState = {
+  active: 'active',
+  pending: 'pending',
+} as const;
+
+export interface AuthMe {
+  id: string;
+  displayName: string;
+  /** @nullable */
+  username?: string | null;
+  /** @nullable */
+  loginIdentifierType?: AuthMeLoginIdentifierType;
+  state: AuthMeState;
+  accessContext: unknown;
+}
+
+export interface BootstrapStatus {
+  available: boolean;
+}
+
+export interface BootstrapOwnerRequest {
+  /**
+     * @minLength 32
+     * @maxLength 256
+     */
+  token: string;
+}
+
+export type CreateOrganizationRequestKind = typeof CreateOrganizationRequestKind[keyof typeof CreateOrganizationRequestKind];
+
+
+export const CreateOrganizationRequestKind = {
+  company: 'company',
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export interface CreateOrganizationRequest {
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  kind: CreateOrganizationRequestKind;
+}
+
+export type OrganizationKind = typeof OrganizationKind[keyof typeof OrganizationKind];
+
+
+export const OrganizationKind = {
+  company: 'company',
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export type OrganizationCountryCode = typeof OrganizationCountryCode[keyof typeof OrganizationCountryCode];
+
+
+export const OrganizationCountryCode = {
+  EG: 'EG',
+} as const;
+
+export type OrganizationCurrency = typeof OrganizationCurrency[keyof typeof OrganizationCurrency];
+
+
+export const OrganizationCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export type OrganizationStatus = typeof OrganizationStatus[keyof typeof OrganizationStatus];
+
+
+export const OrganizationStatus = {
+  pending: 'pending',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface Organization {
+  id: string;
+  name: string;
+  kind: OrganizationKind;
+  country_code: OrganizationCountryCode;
+  currency: OrganizationCurrency;
+  status: OrganizationStatus;
+  created_at: string;
+}
+
+export interface OrganizationList {
+  items: Organization[];
+}
+
+export interface UpdateOrganizationRequest {
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+}
+
+export type StatusRequestStatus = typeof StatusRequestStatus[keyof typeof StatusRequestStatus];
+
+
+export const StatusRequestStatus = {
+  pending: 'pending',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface StatusRequest {
+  status: StatusRequestStatus;
+}
+
+export type BranchStatusRequestStatus = typeof BranchStatusRequestStatus[keyof typeof BranchStatusRequestStatus];
+
+
+export const BranchStatusRequestStatus = {
+  pending: 'pending',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface BranchStatusRequest {
+  organizationId: string;
+  status: BranchStatusRequestStatus;
+}
+
+export interface StatusResult {
+  status: string;
+  message: string;
+}
+
+export interface CreatedResult {
+  id: string;
+  message: string;
+}
+
+export interface CreateBranchRequest {
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  /** @maxLength 500 */
+  address?: string;
+}
+
+export type BranchStatus = typeof BranchStatus[keyof typeof BranchStatus];
+
+
+export const BranchStatus = {
+  pending: 'pending',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface Branch {
+  id: string;
+  organization_id: string;
+  name: string;
+  address: string;
+  status: BranchStatus;
+  created_at: string;
+}
+
+export interface BranchList {
+  items: Branch[];
+}
+
+export interface UpdateBranchRequest {
+  organizationId: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  /** @maxLength 500 */
+  address?: string;
+}
+
+export interface MembershipProfile {
+  user_id: string;
+  display_name: string;
+  /** @nullable */
+  username?: string | null;
+  active: boolean;
+  /** @nullable */
+  account_status?: string | null;
+}
+
+export type MembershipRole = typeof MembershipRole[keyof typeof MembershipRole];
+
+
+export const MembershipRole = {
+  organization_owner: 'organization_owner',
+  manager: 'manager',
+  finance: 'finance',
+  worker: 'worker',
+  viewer: 'viewer',
+} as const;
+
+export type MembershipScope = typeof MembershipScope[keyof typeof MembershipScope];
+
+
+export const MembershipScope = {
+  organization: 'organization',
+  branches: 'branches',
+} as const;
+
+export interface Membership {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  role: MembershipRole;
+  scope: MembershipScope;
+  active: boolean;
+  profile?: MembershipProfile | null;
+  branchIds: string[];
+}
+
+export interface MembershipList {
+  items: Membership[];
+}
+
+export type SetMembershipRequestRole = typeof SetMembershipRequestRole[keyof typeof SetMembershipRequestRole];
+
+
+export const SetMembershipRequestRole = {
+  organization_owner: 'organization_owner',
+  manager: 'manager',
+  finance: 'finance',
+  worker: 'worker',
+  viewer: 'viewer',
+} as const;
+
+export type SetMembershipRequestScope = typeof SetMembershipRequestScope[keyof typeof SetMembershipRequestScope];
+
+
+export const SetMembershipRequestScope = {
+  organization: 'organization',
+  branches: 'branches',
+} as const;
+
+export interface SetMembershipRequest {
+  userId: string;
+  role: SetMembershipRequestRole;
+  scope: SetMembershipRequestScope;
+  branchIds: string[];
+  active?: boolean;
+}
+
+export type CreateInvitationRequestRole = typeof CreateInvitationRequestRole[keyof typeof CreateInvitationRequestRole];
+
+
+export const CreateInvitationRequestRole = {
+  organization_owner: 'organization_owner',
+  manager: 'manager',
+  finance: 'finance',
+  worker: 'worker',
+  viewer: 'viewer',
+} as const;
+
+export type CreateInvitationRequestScope = typeof CreateInvitationRequestScope[keyof typeof CreateInvitationRequestScope];
+
+
+export const CreateInvitationRequestScope = {
+  organization: 'organization',
+  branches: 'branches',
+} as const;
+
+export interface CreateInvitationRequest {
+  email: string;
+  role: CreateInvitationRequestRole;
+  scope: CreateInvitationRequestScope;
+  branchIds: string[];
+}
+
+export interface Invitation {
+  id: string;
+  invited_email: string;
+  role: string;
+  scope: string;
+  branch_ids: string[];
+  created_at: string;
+  expires_at: string;
+  /** @nullable */
+  accepted_at?: string | null;
+  /** @nullable */
+  revoked_at?: string | null;
+}
+
+export interface InvitationList {
+  items: Invitation[];
+}
+
+export interface InvitationCreatedResult {
+  id: string;
+  inviteUrl: string;
+  expiresInDays: number;
+  message: string;
+}
+
+export interface AcceptInvitationRequest {
+  /**
+     * @minLength 32
+     * @maxLength 128
+     */
+  token: string;
+}
+
+/**
+ * Request rejected or unavailable
+ */
+export type ApiErrorResponse = ApiError;
+
+export type AuthCallbackParams = {
+code?: string;
+next?: string;
+};
+

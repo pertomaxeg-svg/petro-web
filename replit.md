@@ -4,13 +4,14 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080 in this Repl)
+- The web artifact runs through `artifacts/pertomax-eg-web: web` (port 25467).
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
+- `pnpm --filter @workspace/api-server run build` — build the API
+- `PORT=25467 BASE_PATH=/ pnpm --filter @workspace/pertomax-eg-web run build` — build the web artifact
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required secret: `SUPABASE_DB_URL` — PostgreSQL connection URI for the approved Supabase project; do not use Replit-managed `DATABASE_URL`.
-- Supabase connection: `SUPABASE_URL` and `SUPABASE_ANON_KEY` (store the key in Replit Secrets)
+- Supabase Auth connection: `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Replit Secrets. The optional `PERTOMAX_OWNER_BOOTSTRAP_TOKEN` must also remain in Replit Secrets.
 
 ## Stack
 
@@ -30,8 +31,13 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 
 ## Architecture decisions
 
-- Supabase is contacted from the API server; its API key is never sent to a browser.
-- The initial connection check is read-only and does not create or modify database tables.
+- Supabase Auth and data access run through the API server using HttpOnly cookies; the public key is never sent to a browser.
+- Use Supabase Auth as the application's identity provider. Do not use Clerk for this app, but leave shared Replit integrations and other projects untouched.
+- Sign-in accepts an email or username with a password. Username accounts require a real recovery email, which is only for password recovery; do not offer Google or other social sign-in.
+- `petro_profiles.user_id` links to Supabase `auth.users`; do not join or migrate identities from Clerk.
+- Supabase service/readiness checks are read-only. Apply schema changes only when explicitly authorized, through idempotent migrations that preserve existing tables and RLS.
+- New accounts remain pending until a trusted administrator assigns access. Require verified email and the private bootstrap token before initializing a platform owner; never auto-promote the first account.
+- Keep full PostgreSQL TLS verification enabled with the approved Supabase root CA.
 
 ## Execution constraints
 
@@ -51,7 +57,7 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - The interface and user-facing messages are Arabic, RTL, responsive, and use Egyptian pounds (EGP).
 - New accounts remain pending until a trusted administrator assigns access. Never grant platform ownership to the first user or create default credentials.
 - Tenant and branch data must be limited to the authenticated user's explicit memberships and permissions.
-- Phase one covers authentication, access assignment, organizations, branches, plan approval/status, versioned pricing, and administrative audit history. Do not present wallets, payments, or settlements as implemented.
+- Phase one covers authentication, access assignment, organizations, branches, invitations, account status, and administrative audit history. Do not present wallets, payments, or settlements as implemented.
 - Keep this phase order: (1) runtime and connections, (2) accounts, permissions, entities, branches, and plans, (3) vehicles, drivers, and chips, (4) catalog, services, and inventory, (5) worker apps, (6) finance, wallets, and settlements, (7) reports, support, and integration tests. Do not start later phases before their turn.
 - Current user-provided commercial rules: annual company plans are EGP 500, 750, and 1,000 per vehicle; chip issuance is EGP 100; service-provider default subscription is EGP 5,000 per branch/year; stations join free with no commission. Price changes must create a new version and preserve prior prices.
 
@@ -59,7 +65,7 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 
 Pertomax EG is an Egyptian platform for managing companies, stations, service providers, branches, access approvals, and versioned annual plans. Organization data is isolated by membership and branch permissions.
 
-- Sign-in requirement: username and password only for all accounts; email is for recovery only; do not offer Google or other social sign-in buttons. Do not call this complete until the configured identity provider and end-to-end tests prove it.
+- Sign-in requirement: email or username and password. Username accounts require a verified recovery email that cannot be used as their login identifier. Do not offer Google or other social sign-in buttons. Do not call the flow fully tested until a verified account is available for end-to-end tests.
 
 ## User preferences
 
