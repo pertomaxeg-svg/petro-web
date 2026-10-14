@@ -8,6 +8,7 @@
 
 export interface RecoveryRequest {
   /**
+     * Username or registered recovery email; never accepted for sign-in
      * @minLength 3
      * @maxLength 254
      */

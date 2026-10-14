@@ -13,7 +13,6 @@ export interface AuthMe {
   displayName: string;
   /** @nullable */
   username?: string | null;
-  /** @nullable */
   loginIdentifierType?: AuthMeLoginIdentifierType;
   state: AuthMeState;
   accessContext: unknown;

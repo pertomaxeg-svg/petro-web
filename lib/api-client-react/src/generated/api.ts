@@ -244,7 +244,7 @@ export const getSignUpUrl = () => {
 }
 
 /**
- * @summary Create an email or username account
+ * @summary Create a username account with an email reserved for confirmation and recovery
  */
 export const signUp = async (signUpRequest: SignUpRequest, options?: Parameters<typeof customFetch>[1]): Promise<SignUpResult> => {
 
@@ -310,7 +310,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SignUpMutationVariables = {data: BodyType<SignUpRequest>}
 
     /**
- * @summary Create an email or username account
+ * @summary Create a username account with an email reserved for confirmation and recovery
  */
 export const useSignUp = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signUp>>, TError,SignUpMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -332,7 +332,7 @@ export const getSignInUrl = () => {
 }
 
 /**
- * @summary Sign in with email or username and password
+ * @summary Sign in with username and password only
  */
 export const signIn = async (signInRequest: SignInRequest, options?: Parameters<typeof customFetch>[1]): Promise<AuthActionResult> => {
 
@@ -398,7 +398,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SignInMutationVariables = {data: BodyType<SignInRequest>}
 
     /**
- * @summary Sign in with email or username and password
+ * @summary Sign in with username and password only
  */
 export const useSignIn = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signIn>>, TError,SignInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -747,7 +747,7 @@ export const getGetOwnerBootstrapStatusUrl = () => {
 }
 
 /**
- * @summary Check whether protected first-owner setup is available
+ * @summary Check whether the signed-in, designated account may perform one-time owner setup
  */
 export const getOwnerBootstrapStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<BootstrapStatus> => {
 
@@ -794,7 +794,7 @@ export type GetOwnerBootstrapStatusQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Check whether protected first-owner setup is available
+ * @summary Check whether the signed-in, designated account may perform one-time owner setup
  */
 
 export function useGetOwnerBootstrapStatus<TData = Awaited<ReturnType<typeof getOwnerBootstrapStatus>>, TError = ErrorType<unknown>>(
@@ -824,7 +824,7 @@ export const getBootstrapOwnerUrl = () => {
 }
 
 /**
- * @summary Explicitly initialize a platform owner with the private bootstrap token
+ * @summary Initialize the designated, confirmed platform owner once with the private bootstrap token
  */
 export const bootstrapOwner = async (bootstrapOwnerRequest: BootstrapOwnerRequest, options?: Parameters<typeof customFetch>[1]): Promise<AuthActionResult> => {
 
@@ -890,7 +890,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type BootstrapOwnerMutationVariables = {data: BodyType<BootstrapOwnerRequest>}
 
     /**
- * @summary Explicitly initialize a platform owner with the private bootstrap token
+ * @summary Initialize the designated, confirmed platform owner once with the private bootstrap token
  */
 export const useBootstrapOwner = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bootstrapOwner>>, TError,BootstrapOwnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

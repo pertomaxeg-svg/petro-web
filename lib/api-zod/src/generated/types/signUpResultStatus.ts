@@ -10,6 +10,5 @@ export type SignUpResultStatus = typeof SignUpResultStatus[keyof typeof SignUpRe
 
 
 export const SignUpResultStatus = {
-  created: 'created',
   confirmation_required: 'confirmation_required',
 } as const;

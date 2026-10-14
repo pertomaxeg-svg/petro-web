@@ -31,7 +31,7 @@ export const SupabaseHealthCheckResponse = zod.object({
 
 
 /**
- * @summary Create an email or username account
+ * @summary Create a username account with an email reserved for confirmation and recovery
  */
 export const signUpBodyUsernameMin = 3;
 export const signUpBodyUsernameMax = 32;
@@ -44,34 +44,32 @@ export const signUpBodyPasswordMax = 128;
 
 
 export const SignUpBody = zod.object({
-  "identifierType": zod.enum(['email', 'username']),
-  "email": zod.string().email().optional(),
-  "username": zod.string().min(signUpBodyUsernameMin).max(signUpBodyUsernameMax).optional(),
-  "recoveryEmail": zod.string().email().optional(),
-  "displayName": zod.string().max(signUpBodyDisplayNameMax).optional(),
+  "username": zod.string().min(signUpBodyUsernameMin).max(signUpBodyUsernameMax),
+  "recoveryEmail": zod.string().email(),
+  "displayName": zod.string().max(signUpBodyDisplayNameMax),
   "password": zod.string().min(signUpBodyPasswordMin).max(signUpBodyPasswordMax),
   "redirectTo": zod.string().url()
 })
 
 export const SignUpResponse = zod.object({
-  "status": zod.enum(['created', 'confirmation_required']),
+  "status": zod.enum(['confirmation_required']),
   "message": zod.string()
 })
 
 
 /**
- * @summary Sign in with email or username and password
+ * @summary Sign in with username and password only
  */
-export const signInBodyIdentifierMin = 3;
-export const signInBodyIdentifierMax = 254;
+export const signInBodyUsernameMin = 3;
+export const signInBodyUsernameMax = 32;
 
 export const signInBodyPasswordMax = 128;
 
 
 
 export const SignInBody = zod.object({
-  "identifier": zod.string().min(signInBodyIdentifierMin).max(signInBodyIdentifierMax),
-  "password": zod.string().max(signInBodyPasswordMax)
+  "username": zod.string().min(signInBodyUsernameMin).max(signInBodyUsernameMax),
+  "password": zod.string().min(1).max(signInBodyPasswordMax)
 })
 
 export const SignInResponse = zod.object({
@@ -95,7 +93,7 @@ export const requestPasswordRecoveryBodyIdentifierMax = 254;
 
 
 export const RequestPasswordRecoveryBody = zod.object({
-  "identifier": zod.string().min(requestPasswordRecoveryBodyIdentifierMin).max(requestPasswordRecoveryBodyIdentifierMax),
+  "identifier": zod.string().min(requestPasswordRecoveryBodyIdentifierMin).max(requestPasswordRecoveryBodyIdentifierMax).describe('Username or registered recovery email; never accepted for sign-in'),
   "redirectTo": zod.string().url()
 })
 
@@ -128,14 +126,14 @@ export const GetAuthMeResponse = zod.object({
   "id": zod.string().uuid(),
   "displayName": zod.string(),
   "username": zod.string().nullish(),
-  "loginIdentifierType": zod.union([zod.literal('email'),zod.literal('username'),zod.literal(null)]).nullish(),
+  "loginIdentifierType": zod.enum(['username']).optional(),
   "state": zod.enum(['active', 'pending']),
   "accessContext": zod.unknown()
 })
 
 
 /**
- * @summary Check whether protected first-owner setup is available
+ * @summary Check whether the signed-in, designated account may perform one-time owner setup
  */
 export const GetOwnerBootstrapStatusResponse = zod.object({
   "available": zod.boolean()
@@ -143,7 +141,7 @@ export const GetOwnerBootstrapStatusResponse = zod.object({
 
 
 /**
- * @summary Explicitly initialize a platform owner with the private bootstrap token
+ * @summary Initialize the designated, confirmed platform owner once with the private bootstrap token
  */
 export const bootstrapOwnerBodyTokenMin = 32;
 export const bootstrapOwnerBodyTokenMax = 256;

@@ -69,32 +69,18 @@ function validSameOriginCallback(req: Request, redirectTo: string | null): strin
   }
 }
 
-async function resolveLoginEmail(identifier: string): Promise<string | null> {
-  if (isEmail(identifier)) {
-    const result = await pool.query<{ email: string; login_identifier_type: string | null }>(
-      `select u.email, p.login_identifier_type
-       from auth.users u
-       left join public.petro_profiles p on p.user_id = u.id
-       where lower(u.email) = lower($1)
-       limit 1`,
-      [identifier],
-    );
-    const row = result.rows[0];
-    if (!row || row.login_identifier_type === "username" || !row.email) return null;
-    return row.email;
-  }
-
-  if (!isUsername(identifier.toLowerCase())) return null;
-
+async function resolveLoginEmail(username: string): Promise<string | null> {
+  const normalizedUsername = username.toLowerCase();
+  if (!isUsername(normalizedUsername)) return null;
   const result = await pool.query<{ email: string }>(
     `select u.email
      from public.petro_profiles p
      join auth.users u on u.id = p.user_id
-     where p.username = lower($1)
+     where p.username = $1
        and p.login_identifier_type = 'username'
        and u.email is not null
      limit 1`,
-    [identifier],
+    [normalizedUsername],
   );
   return result.rows[0]?.email ?? null;
 }
@@ -102,10 +88,12 @@ async function resolveLoginEmail(identifier: string): Promise<string | null> {
 async function resolveRecoveryEmail(identifier: string): Promise<string | null> {
   if (isEmail(identifier)) {
     const result = await pool.query<{ email: string }>(
-      `select email
-       from auth.users
-       where lower(email) = lower($1)
-         and email is not null
+      `select u.email
+       from auth.users u
+       join public.petro_profiles p on p.user_id = u.id
+       where lower(u.email) = lower($1)
+         and u.email is not null
+         and p.login_identifier_type = 'username'
        limit 1`,
       [identifier],
     );
@@ -117,17 +105,28 @@ async function resolveRecoveryEmail(identifier: string): Promise<string | null> 
     `select u.email
      from public.petro_profiles p
      join auth.users u on u.id = p.user_id
-     where p.username = lower($1)
+     where p.username = $1
        and p.login_identifier_type = 'username'
        and u.email is not null
      limit 1`,
-    [identifier],
+    [identifier.toLowerCase()],
   );
   return result.rows[0]?.email ?? null;
 }
 
 function safeErrorMessage(): string {
   return "تعذر إتمام الطلب حاليًا. حاول مرة أخرى بعد قليل.";
+}
+
+function ownerBootstrapConfig(): { token: string; username: string } | null {
+  const token = process.env["PERTOMAX_OWNER_BOOTSTRAP_TOKEN"];
+  const username = process.env["PERTOMAX_OWNER_BOOTSTRAP_USERNAME"]
+    ?.trim()
+    .toLowerCase();
+  if (!token || token.length < 32 || !username || !isUsername(username)) {
+    return null;
+  }
+  return { token, username };
 }
 
 router.post("/auth/sign-up", async (req, res): Promise<void> => {
@@ -142,75 +141,58 @@ router.post("/auth/sign-up", async (req, res): Promise<void> => {
     return;
   }
 
-  const identifierType = req.body["identifierType"];
   const password = readPassword(req.body, "password");
   const displayName = readString(req.body, "displayName", 120);
+  const username = readString(req.body, "username", 32)?.toLowerCase();
+  const recoveryEmail = readString(req.body, "recoveryEmail", 254)?.toLowerCase();
   const redirectTo = validSameOriginCallback(
     req,
     readString(req.body, "redirectTo", 2048),
   );
 
   if (
-    (identifierType !== "email" && identifierType !== "username") ||
+    !username ||
+    !isUsername(username) ||
+    !recoveryEmail ||
+    !isEmail(recoveryEmail) ||
+    !displayName ||
+    displayName.toLowerCase() === recoveryEmail ||
     typeof password !== "string" ||
     password.length < 12 ||
     password.length > 128 ||
     !redirectTo
   ) {
-    responseMessage(res, 400, "تحقق من بيانات التسجيل وكلمة المرور ورابط التأكيد.");
+    responseMessage(res, 400, "تحقق من اسم المستخدم وبريد الاستعادة والاسم وكلمة المرور.");
     return;
-  }
-
-  let email: string;
-  let username: string | undefined;
-  if (identifierType === "email") {
-    const suppliedEmail = readString(req.body, "email", 254);
-    if (!suppliedEmail || !isEmail(suppliedEmail)) {
-      responseMessage(res, 400, "أدخل بريدًا إلكترونيًا صالحًا.");
-      return;
-    }
-    email = suppliedEmail.toLowerCase();
-  } else {
-    const suppliedUsername = readString(req.body, "username", 32)?.toLowerCase();
-    const recoveryEmail = readString(req.body, "recoveryEmail", 254);
-    if (
-      !suppliedUsername ||
-      !isUsername(suppliedUsername) ||
-      !recoveryEmail ||
-      !isEmail(recoveryEmail)
-    ) {
-      responseMessage(res, 400, "اسم المستخدم أو بريد الاستعادة غير صالح.");
-      return;
-    }
-    username = suppliedUsername;
-    email = recoveryEmail.toLowerCase();
   }
 
   try {
     const supabase = createSupabaseServerClient(req, res);
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: recoveryEmail,
       password,
       options: {
         emailRedirectTo: redirectTo,
         data: {
-          login_identifier_type: identifierType,
-          ...(username ? { username } : {}),
-          ...(displayName ? { display_name: displayName } : {}),
+          login_identifier_type: "username",
+          username,
+          display_name: displayName,
         },
       },
     });
 
     if (error || !data.user) {
-      responseMessage(res, 400, "تعذر إنشاء الحساب بالبيانات المقدمة. تحقق منها أو سجّل الدخول.");
+      res.status(202).json({
+        status: "confirmation_required",
+        message: "تم استلام الطلب. إذا كان التسجيل صالحًا، فستصل رسالة التأكيد إلى بريد الاستعادة المُدخل.",
+      });
       return;
     }
 
+    if (data.session) await supabase.auth.signOut({ scope: "local" });
     res.status(202).json({
-      status: data.session ? "created" : "confirmation_required",
-      message: data.session
-        ? "تم إنشاء الحساب. سيظل الوصول للجهات معلقًا حتى تعيين الصلاحيات."
-        : "تم استلام التسجيل. افتح رسالة التأكيد لإكمال إنشاء الحساب.",
+      status: "confirmation_required",
+      message: "تم استلام الطلب. إذا كان التسجيل صالحًا، فستصل رسالة التأكيد إلى بريد الاستعادة المُدخل.",
     });
   } catch {
     responseMessage(res, 503, safeErrorMessage());
@@ -224,17 +206,18 @@ router.post("/auth/sign-in", async (req, res): Promise<void> => {
     return;
   }
 
-  const identifier = readString(req.body, "identifier", 254);
+  const username = readString(req.body, "username", 32)?.toLowerCase();
   const password = readPassword(req.body, "password");
-  if (!identifier || !password) {
-    responseMessage(res, 400, "أدخل البريد الإلكتروني أو اسم المستخدم وكلمة المرور.");
+  const genericFailure = "تعذر تسجيل الدخول بالبيانات المقدمة.";
+  if (!username || !isUsername(username) || !password) {
+    responseMessage(res, 401, genericFailure);
     return;
   }
 
   try {
-    const email = await resolveLoginEmail(identifier);
+    const email = await resolveLoginEmail(username);
     if (!email) {
-      responseMessage(res, 401, "بيانات الدخول غير صحيحة.");
+      responseMessage(res, 401, genericFailure);
       return;
     }
 
@@ -243,22 +226,32 @@ router.post("/auth/sign-in", async (req, res): Promise<void> => {
       email,
       password,
     });
-    if (error || !data.user) {
-      responseMessage(res, 401, "بيانات الدخول غير صحيحة.");
+    if (error || !data.user || !data.user.email_confirmed_at) {
+      if (data.user) await supabase.auth.signOut({ scope: "local" });
+      responseMessage(res, 401, genericFailure);
       return;
     }
 
-    const profile = await pool.query<{ active: boolean; account_status: string | null }>(
-      `select active, account_status
+    const profile = await pool.query<{
+      active: boolean;
+      account_status: string | null;
+      login_identifier_type: string | null;
+    }>(
+      `select active, account_status, login_identifier_type
        from public.petro_profiles
        where user_id = $1
        limit 1`,
       [data.user.id],
     );
     const account = profile.rows[0];
-    if (account && !account.active && account.account_status !== "pending") {
+    if (
+      !account ||
+      account.login_identifier_type !== "username" ||
+      account.account_status === "suspended" ||
+      (!account.active && account.account_status !== "pending")
+    ) {
       await supabase.auth.signOut({ scope: "local" });
-      responseMessage(res, 403, "هذا الحساب معطل. تواصل مع مسؤول المنصة.");
+      responseMessage(res, 401, genericFailure);
       return;
     }
 
@@ -303,20 +296,14 @@ router.post("/auth/recovery", async (req, res): Promise<void> => {
 
   try {
     const email = await resolveRecoveryEmail(identifier);
-    if (!email) {
-      res.status(202).json({
-        message: "إذا كانت البيانات مرتبطة بحساب، فستصل تعليمات الاستعادة إلى البريد المسجل.",
-      });
-      return;
-    }
-
     const supabase = createSupabaseServerClient(req, res);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo,
-    });
-    if (error) {
-      responseMessage(res, 503, "تعذر إرسال تعليمات الاستعادة حاليًا.");
-      return;
+    try {
+      await supabase.auth.resetPasswordForEmail(
+        email ?? "unmatched-account@invalid.invalid",
+        { redirectTo },
+      );
+    } catch {
+      // Return the same response for known and unknown accounts; never log the address.
     }
 
     res.status(202).json({
@@ -404,7 +391,11 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       return;
     }
 
-    if (!profile.active && profile.account_status !== "pending") {
+    if (
+      profile.login_identifier_type !== "username" ||
+      profile.account_status === "suspended" ||
+      (!profile.active && profile.account_status !== "pending")
+    ) {
       await supabase.auth.signOut({ scope: "local" });
       responseMessage(res, 403, "هذا الحساب معطل. تواصل مع مسؤول المنصة.");
       return;
@@ -433,24 +424,65 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/auth/bootstrap-status", async (_req, res): Promise<void> => {
+router.get("/auth/bootstrap-status", async (req, res): Promise<void> => {
   setNoStore(res);
-  const bootstrapToken = process.env["PERTOMAX_OWNER_BOOTSTRAP_TOKEN"];
-  if (!bootstrapToken || bootstrapToken.length < 32) {
+  const config = ownerBootstrapConfig();
+  if (!config) {
     res.json({ available: false });
     return;
   }
 
   try {
-    const result = await pool.query<{ owner_exists: boolean }>(
-      `select exists(
-         select 1
-         from public.petro_platform_roles r
-         join public.petro_profiles p on p.user_id = r.user_id
-         where r.role = 'owner' and r.active and p.active
-       ) as owner_exists`,
+    const supabase = createSupabaseServerClient(req, res);
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
+      res.json({ available: false });
+      return;
+    }
+
+    const result = await pool.query<{
+      owner_role_exists: boolean;
+      bootstrap_used: boolean;
+      target_eligible: boolean;
+    }>(
+      `select
+         exists(
+           select 1 from public.petro_platform_roles r
+           where r.role = 'owner'
+         ) as owner_role_exists,
+         exists(
+           select 1 from public.petro_audit_events e
+           where e.action = 'platform.owner_bootstrapped'
+         ) as bootstrap_used,
+         exists(
+           select 1
+           from public.petro_profiles p
+           join auth.users u on u.id = p.user_id
+           where p.user_id = $1
+             and p.username = $2
+             and p.login_identifier_type = 'username'
+             and p.active = false
+             and p.account_status = 'pending'
+             and u.email_confirmed_at is not null
+             and not exists (
+               select 1 from public.petro_platform_roles r
+               where r.user_id = p.user_id
+             )
+             and not exists (
+               select 1 from public.petro_memberships m
+               where m.user_id = p.user_id and m.active
+             )
+         ) as target_eligible`,
+      [authData.user.id, config.username],
     );
-    res.json({ available: !result.rows[0]?.owner_exists });
+    const state = result.rows[0];
+    res.json({
+      available:
+        !!state &&
+        !state.owner_role_exists &&
+        !state.bootstrap_used &&
+        state.target_eligible,
+    });
   } catch {
     responseMessage(res, 503, "تعذر التحقق من حالة الإعداد.");
   }
@@ -463,17 +495,17 @@ router.post("/auth/bootstrap-owner", async (req, res): Promise<void> => {
     return;
   }
 
-  const configuredToken = process.env["PERTOMAX_OWNER_BOOTSTRAP_TOKEN"];
+  const config = ownerBootstrapConfig();
   const providedToken = readString(req.body, "token", 256);
-  if (!configuredToken || configuredToken.length < 32 || !providedToken) {
-    responseMessage(res, 403, "إعداد مالك المنصة غير متاح.");
+  if (!config || !providedToken) {
+    responseMessage(res, 403, "إعداد مالك المنصة غير متاح أو غير مصرح به.");
     return;
   }
 
-  const expected = Buffer.from(configuredToken);
+  const expected = Buffer.from(config.token);
   const provided = Buffer.from(providedToken);
   if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) {
-    responseMessage(res, 403, "تعذر اعتماد هذا الطلب.");
+    responseMessage(res, 403, "إعداد مالك المنصة غير متاح أو غير مصرح به.");
     return;
   }
 
@@ -489,48 +521,87 @@ router.post("/auth/bootstrap-owner", async (req, res): Promise<void> => {
     try {
       await client.query("BEGIN");
       await client.query("select pg_advisory_xact_lock(hashtext('pertomax-eg-owner-bootstrap'))");
-      const ownerResult = await client.query<{ owner_exists: boolean }>(
-        `select exists(
-           select 1
-           from public.petro_platform_roles r
-           join public.petro_profiles p on p.user_id = r.user_id
-           where r.role = 'owner' and r.active and p.active
-         ) as owner_exists`,
+      const stateResult = await client.query<{
+        owner_role_exists: boolean;
+        bootstrap_used: boolean;
+      }>(
+        `select
+           exists(
+             select 1 from public.petro_platform_roles r
+             where r.role = 'owner'
+           ) as owner_role_exists,
+           exists(
+             select 1 from public.petro_audit_events e
+             where e.action = 'platform.owner_bootstrapped'
+           ) as bootstrap_used`,
       );
-      if (ownerResult.rows[0]?.owner_exists) {
+      const state = stateResult.rows[0];
+      if (state?.owner_role_exists || state?.bootstrap_used) {
         await client.query("ROLLBACK");
-        responseMessage(res, 409, "مالك المنصة موجود بالفعل.");
+        responseMessage(res, 403, "إعداد مالك المنصة غير متاح أو غير مصرح به.");
         return;
       }
 
-      const emailVerification = await client.query<{ verified: boolean }>(
-        `select email_confirmed_at is not null as verified
-         from auth.users
-         where id = $1`,
+      const targetResult = await client.query<{
+        username: string;
+        login_identifier_type: string;
+        active: boolean;
+        account_status: string | null;
+        verified: boolean;
+        has_platform_role: boolean;
+        has_active_membership: boolean;
+      }>(
+        `select
+           p.username,
+           p.login_identifier_type,
+           p.active,
+           p.account_status,
+           u.email_confirmed_at is not null as verified,
+           exists(
+             select 1 from public.petro_platform_roles r
+             where r.user_id = p.user_id
+           ) as has_platform_role,
+           exists(
+             select 1 from public.petro_memberships m
+             where m.user_id = p.user_id and m.active
+           ) as has_active_membership
+         from public.petro_profiles p
+         join auth.users u on u.id = p.user_id
+         where p.user_id = $1
+         for update of p`,
         [authData.user.id],
       );
-      if (!emailVerification.rows[0]?.verified) {
+      const target = targetResult.rows[0];
+      if (
+        !target ||
+        target.username !== config.username ||
+        target.login_identifier_type !== "username" ||
+        target.active ||
+        target.account_status !== "pending" ||
+        !target.verified ||
+        target.has_platform_role ||
+        target.has_active_membership
+      ) {
         await client.query("ROLLBACK");
-        responseMessage(res, 403, "أكمل تأكيد البريد قبل إعداد مالك المنصة.");
+        responseMessage(res, 403, "إعداد مالك المنصة غير متاح أو غير مصرح به.");
         return;
       }
 
       const profileResult = await client.query(
         `update public.petro_profiles
          set active = true, account_status = 'active'
-         where user_id = $1`,
+         where user_id = $1 and active = false and account_status = 'pending'`,
         [authData.user.id],
       );
       if (profileResult.rowCount !== 1) {
         await client.query("ROLLBACK");
-        responseMessage(res, 409, "أكمل إنشاء الحساب وتأكيد البريد قبل الإعداد.");
+        responseMessage(res, 403, "إعداد مالك المنصة غير متاح أو غير مصرح به.");
         return;
       }
 
       await client.query(
         `insert into public.petro_platform_roles (user_id, role, active)
-         values ($1, 'owner', true)
-         on conflict (user_id, role) do update set active = true`,
+         values ($1, 'owner', true)`,
         [authData.user.id],
       );
       await client.query(

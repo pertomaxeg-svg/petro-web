@@ -51,7 +51,7 @@ paths:
     post:
       operationId: signUp
       tags: [auth]
-      summary: Create an email or username account
+      summary: Create a username account with an email reserved for confirmation and recovery
       requestBody:
         required: true
         content:
@@ -60,7 +60,7 @@ paths:
               $ref: "#/components/schemas/SignUpRequest"
       responses:
         "202":
-          description: Account created or email confirmation required
+          description: Generic confirmation response that does not disclose account existence
           content:
             application/json:
               schema:
@@ -75,7 +75,7 @@ paths:
     post:
       operationId: signIn
       tags: [auth]
-      summary: Sign in with email or username and password
+      summary: Sign in with username and password only
       requestBody:
         required: true
         content:
@@ -90,8 +90,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthActionResult"
         "401":
-          $ref: "#/components/responses/ApiError"
-        "403":
           $ref: "#/components/responses/ApiError"
         "429":
           $ref: "#/components/responses/ApiError"
@@ -167,7 +165,7 @@ paths:
     get:
       operationId: getOwnerBootstrapStatus
       tags: [auth]
-      summary: Check whether protected first-owner setup is available
+      summary: Check whether the signed-in, designated account may perform one-time owner setup
       responses:
         "200":
           description: Bootstrap availability only; no owner identity is disclosed
@@ -179,7 +177,7 @@ paths:
     post:
       operationId: bootstrapOwner
       tags: [auth]
-      summary: Explicitly initialize a platform owner with the private bootstrap token
+      summary: Initialize the designated, confirmed platform owner once with the private bootstrap token
       requestBody:
         required: true
         content:
@@ -196,8 +194,6 @@ paths:
         "401":
           $ref: "#/components/responses/ApiError"
         "403":
-          $ref: "#/components/responses/ApiError"
-        "409":
           $ref: "#/components/responses/ApiError"
   /auth/callback:
     get:
@@ -586,12 +582,6 @@ components:
     SignUpRequest:
       type: object
       properties:
-        identifierType:
-          type: string
-          enum: [email, username]
-        email:
-          type: string
-          format: email
         username:
           type: string
           minLength: 3
@@ -609,27 +599,28 @@ components:
         redirectTo:
           type: string
           format: uri
-      required: [identifierType, password, redirectTo]
+      required: [username, recoveryEmail, displayName, password, redirectTo]
     SignUpResult:
       type: object
       properties:
         status:
           type: string
-          enum: [created, confirmation_required]
+          enum: [confirmation_required]
         message:
           type: string
       required: [status, message]
     SignInRequest:
       type: object
       properties:
-        identifier:
+        username:
           type: string
           minLength: 3
-          maxLength: 254
+          maxLength: 32
         password:
           type: string
+          minLength: 1
           maxLength: 128
-      required: [identifier, password]
+      required: [username, password]
     AuthActionResult:
       type: object
       properties:
@@ -643,6 +634,7 @@ components:
       properties:
         identifier:
           type: string
+          description: Username or registered recovery email; never accepted for sign-in
           minLength: 3
           maxLength: 254
         redirectTo:
@@ -668,8 +660,8 @@ components:
         username:
           type: [string, "null"]
         loginIdentifierType:
-          type: [string, "null"]
-          enum: [email, username, null]
+          type: string
+          enum: [username]
         state:
           type: string
           enum: [active, pending]

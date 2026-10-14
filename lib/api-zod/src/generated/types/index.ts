@@ -51,7 +51,6 @@ export * from './setMembershipRequestRole';
 export * from './setMembershipRequestScope';
 export * from './signInRequest';
 export * from './signUpRequest';
-export * from './signUpRequestIdentifierType';
 export * from './signUpResult';
 export * from './signUpResultStatus';
 export * from './statusRequest';

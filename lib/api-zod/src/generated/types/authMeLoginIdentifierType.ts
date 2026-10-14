@@ -6,13 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * @nullable
- */
-export type AuthMeLoginIdentifierType = typeof AuthMeLoginIdentifierType[keyof typeof AuthMeLoginIdentifierType] | null;
+export type AuthMeLoginIdentifierType = typeof AuthMeLoginIdentifierType[keyof typeof AuthMeLoginIdentifierType];
 
 
 export const AuthMeLoginIdentifierType = {
-  email: 'email',
   username: 'username',
 } as const;

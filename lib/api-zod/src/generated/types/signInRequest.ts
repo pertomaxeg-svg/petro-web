@@ -9,9 +9,12 @@
 export interface SignInRequest {
   /**
      * @minLength 3
-     * @maxLength 254
+     * @maxLength 32
      */
-  identifier: string;
-  /** @maxLength 128 */
+  username: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
   password: string;
 }

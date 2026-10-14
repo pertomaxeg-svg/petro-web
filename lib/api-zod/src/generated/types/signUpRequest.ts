@@ -5,19 +5,16 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { SignUpRequestIdentifierType } from './signUpRequestIdentifierType';
 
 export interface SignUpRequest {
-  identifierType: SignUpRequestIdentifierType;
-  email?: string;
   /**
      * @minLength 3
      * @maxLength 32
      */
-  username?: string;
-  recoveryEmail?: string;
+  username: string;
+  recoveryEmail: string;
   /** @maxLength 120 */
-  displayName?: string;
+  displayName: string;
   /**
      * @minLength 12
      * @maxLength 128

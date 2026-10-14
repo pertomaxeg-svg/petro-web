@@ -45,25 +45,15 @@ export interface MessageResult {
   message: string;
 }
 
-export type SignUpRequestIdentifierType = typeof SignUpRequestIdentifierType[keyof typeof SignUpRequestIdentifierType];
-
-
-export const SignUpRequestIdentifierType = {
-  email: 'email',
-  username: 'username',
-} as const;
-
 export interface SignUpRequest {
-  identifierType: SignUpRequestIdentifierType;
-  email?: string;
   /**
      * @minLength 3
      * @maxLength 32
      */
-  username?: string;
-  recoveryEmail?: string;
+  username: string;
+  recoveryEmail: string;
   /** @maxLength 120 */
-  displayName?: string;
+  displayName: string;
   /**
      * @minLength 12
      * @maxLength 128
@@ -76,7 +66,6 @@ export type SignUpResultStatus = typeof SignUpResultStatus[keyof typeof SignUpRe
 
 
 export const SignUpResultStatus = {
-  created: 'created',
   confirmation_required: 'confirmation_required',
 } as const;
 
@@ -88,10 +77,13 @@ export interface SignUpResult {
 export interface SignInRequest {
   /**
      * @minLength 3
-     * @maxLength 254
+     * @maxLength 32
      */
-  identifier: string;
-  /** @maxLength 128 */
+  username: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
   password: string;
 }
 
@@ -102,6 +94,7 @@ export interface AuthActionResult {
 
 export interface RecoveryRequest {
   /**
+     * Username or registered recovery email; never accepted for sign-in
      * @minLength 3
      * @maxLength 254
      */
@@ -117,14 +110,10 @@ export interface PasswordUpdateRequest {
   password: string;
 }
 
-/**
- * @nullable
- */
-export type AuthMeLoginIdentifierType = typeof AuthMeLoginIdentifierType[keyof typeof AuthMeLoginIdentifierType] | null;
+export type AuthMeLoginIdentifierType = typeof AuthMeLoginIdentifierType[keyof typeof AuthMeLoginIdentifierType];
 
 
 export const AuthMeLoginIdentifierType = {
-  email: 'email',
   username: 'username',
 } as const;
 
@@ -141,7 +130,6 @@ export interface AuthMe {
   displayName: string;
   /** @nullable */
   username?: string | null;
-  /** @nullable */
   loginIdentifierType?: AuthMeLoginIdentifierType;
   state: AuthMeState;
   accessContext: unknown;
