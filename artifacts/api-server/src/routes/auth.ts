@@ -2,6 +2,11 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { pool } from "@workspace/db";
 import {
+  clearSignInAttempts,
+  consumeSignInAttempt,
+  createSignInRateLimitKey,
+} from "../lib/signInRateLimit";
+import {
   createSupabaseServerClient,
   isRecord,
   readString,
@@ -13,7 +18,7 @@ const router: IRouter = Router();
 type Limit = { count: number; resetAt: number };
 const limits = new Map<string, Limit>();
 
-function consumeLimit(req: Request, action: string, maximum: number, windowMs: number): boolean {
+function consumeInMemoryLimit(req: Request, action: string, maximum: number, windowMs: number): boolean {
   const now = Date.now();
   const key = `${action}:${req.ip ?? "unknown"}`;
   const current = limits.get(key);
@@ -131,7 +136,7 @@ function ownerBootstrapConfig(): { token: string; username: string } | null {
 
 router.post("/auth/sign-up", async (req, res): Promise<void> => {
   setNoStore(res);
-  if (!consumeLimit(req, "signup", 4, 15 * 60_000)) {
+  if (!consumeInMemoryLimit(req, "signup", 4, 15 * 60_000)) {
     responseMessage(res, 429, "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.");
     return;
   }
@@ -201,12 +206,33 @@ router.post("/auth/sign-up", async (req, res): Promise<void> => {
 
 router.post("/auth/sign-in", async (req, res): Promise<void> => {
   setNoStore(res);
-  if (!consumeLimit(req, "signin", 10, 15 * 60_000)) {
-    responseMessage(res, 429, "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.");
+  const rawUsername =
+    readString(req.body, "username", 320)?.trim().normalize("NFKC").toLowerCase() ?? "";
+  const rateLimitKey = (() => {
+    try {
+      return createSignInRateLimitKey(req.ip ?? "unknown", rawUsername);
+    } catch {
+      return null;
+    }
+  })();
+  if (!rateLimitKey) {
+    responseMessage(res, 503, safeErrorMessage());
     return;
   }
 
-  const username = readString(req.body, "username", 32)?.toLowerCase();
+  try {
+    const limit = await consumeSignInAttempt(rateLimitKey);
+    if (!limit.allowed) {
+      res.setHeader("Retry-After", String(limit.retryAfterSeconds));
+      responseMessage(res, 429, "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.");
+      return;
+    }
+  } catch {
+    responseMessage(res, 503, safeErrorMessage());
+    return;
+  }
+
+  const username = rawUsername;
   const password = readPassword(req.body, "password");
   const genericFailure = "تعذر تسجيل الدخول بالبيانات المقدمة.";
   if (!username || !isUsername(username) || !password) {
@@ -214,6 +240,7 @@ router.post("/auth/sign-in", async (req, res): Promise<void> => {
     return;
   }
 
+  let supabase: ReturnType<typeof createSupabaseServerClient> | undefined;
   try {
     const email = await resolveLoginEmail(username);
     if (!email) {
@@ -221,7 +248,7 @@ router.post("/auth/sign-in", async (req, res): Promise<void> => {
       return;
     }
 
-    const supabase = createSupabaseServerClient(req, res);
+    supabase = createSupabaseServerClient(req, res);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -255,6 +282,7 @@ router.post("/auth/sign-in", async (req, res): Promise<void> => {
       return;
     }
 
+    await clearSignInAttempts(rateLimitKey);
     res.json({
       status: account?.active ? "active" : "pending",
       message: account?.active
@@ -262,6 +290,7 @@ router.post("/auth/sign-in", async (req, res): Promise<void> => {
         : "تم تسجيل الدخول. الحساب بانتظار اعتماد الصلاحيات.",
     });
   } catch {
+    if (supabase) await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
     responseMessage(res, 503, safeErrorMessage());
   }
 });
@@ -279,7 +308,7 @@ router.post("/auth/sign-out", async (req, res): Promise<void> => {
 
 router.post("/auth/recovery", async (req, res): Promise<void> => {
   setNoStore(res);
-  if (!consumeLimit(req, "recovery", 4, 60 * 60_000)) {
+  if (!consumeInMemoryLimit(req, "recovery", 4, 60 * 60_000)) {
     responseMessage(res, 429, "طلبات استعادة كثيرة. انتظر قبل المحاولة مجددًا.");
     return;
   }
@@ -490,7 +519,7 @@ router.get("/auth/bootstrap-status", async (req, res): Promise<void> => {
 
 router.post("/auth/bootstrap-owner", async (req, res): Promise<void> => {
   setNoStore(res);
-  if (!consumeLimit(req, "owner-bootstrap", 5, 60 * 60_000)) {
+  if (!consumeInMemoryLimit(req, "owner-bootstrap", 5, 60 * 60_000)) {
     responseMessage(res, 429, "محاولات كثيرة. انتظر قبل المحاولة مجددًا.");
     return;
   }

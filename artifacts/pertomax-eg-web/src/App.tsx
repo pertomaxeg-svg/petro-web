@@ -34,7 +34,63 @@ function Layout({children,userName,onExit}:{children:ReactNode;userName?:string;
 function StatePanel({kind='info',title,children,action}:{kind?:string;title:string;children:ReactNode;action?:ReactNode}){return <section className={`state-panel state-${kind}`}><span className="status-symbol">{kind==='error'?<CircleAlert aria-hidden="true"/>:kind==='success'?<CircleCheck aria-hidden="true"/>:<LockKeyhole aria-hidden="true"/>}</span><h2>{title}</h2><p>{children}</p>{action}</section>}
 const kindName:Record<string,string>={company:'شركة',station:'محطة',provider:'مقدّم خدمة'};const statusName:Record<string,string>={pending:'قيد المراجعة',active:'نشط',suspended:'موقوف'};const roleName:Record<string,string>={organization_owner:'مالك الجهة',manager:'مدير',finance:'مالي',worker:'موظف',viewer:'مشاهد'};
 function Workspace(){const me=useGetAuthMe({query:{queryKey:getGetAuthMeQueryKey(),retry:false,staleTime:20_000}});const boot=useGetOwnerBootstrapStatus({query:{enabled:!!me.data&&me.data.state==='pending',queryKey:getGetOwnerBootstrapStatusQueryKey(),retry:false}});const signout=useSignOut();const cache=useQueryClient();const user=me.data;const owner=deepHasRole(user?.accessContext,['platform_owner','platform-owner','platform owner']);const suspended=!!user&&isSuspended(user.accessContext);const bootstrap=useBootstrapOwner({mutation:{onSuccess:async()=>{await cache.invalidateQueries({queryKey:getGetAuthMeQueryKey()});await cache.invalidateQueries({queryKey:getGetOwnerBootstrapStatusQueryKey()});}}});const [,setLocation]=useLocation();const exit=async()=>{await signout.mutateAsync();cache.clear();setLocation('/sign-in');};if(me.isLoading)return <main className="workspace-loading" dir="rtl"><Topbar minimal/><div className="loading-panel"><span className="skeleton skeleton-title"/><span className="skeleton skeleton-line"/><span className="skeleton skeleton-line short"/></div></main>;if(me.isError){const status=field(me.error,'status');if(status===403)return <Layout onExit={exit}><StatePanel kind="error" title="الحساب معطّل أو موقوف">تم حظر الوصول إلى مساحة العمل. تواصل مع مسؤول المنصة إذا كنت تعتقد أن هذا خطأ.</StatePanel></Layout>;return <Layout onExit={exit}><StatePanel kind="error" title="تعذر التحقق من الحساب">لم نتمكن من قراءة جلسة الدخول. حاول مجددًا أو سجّل الدخول من جديد.<Link href={signInHref()} className="text-button">تسجيل الدخول</Link></StatePanel><button className="button" onClick={()=>void me.refetch()}><RefreshCw size={16}/> إعادة المحاولة</button></Layout>}if(!user)return <main className="workspace-loading"><Topbar minimal/><StatePanel title="يلزم تسجيل الدخول">سجّل الدخول أولًا لعرض مساحة العمل.<Link href={signInHref()} className="button">تسجيل الدخول</Link></StatePanel></main>;if(user.state!=='active')return <Layout userName={user.displayName} onExit={exit}><div className="workspace-grid"><StatePanel title="حسابك بانتظار الاعتماد">تم إنشاء الحساب بنجاح. سيظهر هنا نطاق العمل بعد تعيين صلاحياتك من مسؤول موثوق.</StatePanel>{boot.data?.available&&<BootstrapSetup busy={bootstrap.isPending} onSubmit={async token=>{await bootstrap.mutateAsync({data:{token}})}}/>}</div></Layout>;if(suspended)return <Layout userName={user.displayName} onExit={exit}><StatePanel kind="error" title="الحساب موقوف">تم إيقاف هذا الحساب. لا يمكن الوصول إلى بيانات الجهات أو الفروع. تواصل مع مسؤول المنصة.</StatePanel></Layout>;return <Layout userName={user.displayName} onExit={exit}><OrganizationDesk userId={user.id} isOwner={owner} context={user.accessContext}/></Layout>}
-function BootstrapSetup({busy,onSubmit}:{busy:boolean;onSubmit:(token:string)=>Promise<void>}){const [token,setToken]=useState('');const [error,setError]=useState('');return <section className="management-card bootstrap-card"><div className="card-heading"><span className="section-kicker">تهيئة المنصة</span><h2>إعداد مالك المنصة</h2><p>يتطلب هذا الإجراء رمز التأسيس الخاص. لن تُمنح الملكية تلقائيًا.</p></div><form onSubmit={async e=>{e.preventDefault();setError('');try{await onSubmit(token)}catch{setError('تعذر التحقق من الرمز.')}}}><label>رمز التأسيس الخاص<input value={token} onChange={e=>setToken(e.target.value)} required minLength={32} maxLength={256} type="password" autoComplete="off"/></label>{error&&<div className="form-alert" role="alert">{error}</div>}<button className="button" disabled={busy}>{busy?'جارٍ التحقق…':'متابعة الإعداد'}</button></form></section>}
+function BootstrapSetup({
+  busy,
+  onSubmit,
+}: {
+  busy: boolean;
+  onSubmit: (token: string) => Promise<void>;
+}) {
+  const [token, setToken] = useState("");
+  const [error, setError] = useState("");
+
+  return (
+    <section className="management-card bootstrap-card">
+      <div className="card-heading">
+        <span className="section-kicker">تهيئة المنصة</span>
+        <h2>إعداد مالك المنصة</h2>
+        <p>يتطلب هذا الإجراء رمز التأسيس الخاص. لن تُمنح الملكية تلقائيًا.</p>
+      </div>
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setError("");
+          const submittedToken = token;
+          setToken("");
+          try {
+            await onSubmit(submittedToken);
+          } catch {
+            setError("تعذر التحقق من الرمز.");
+          } finally {
+            setToken("");
+          }
+        }}
+      >
+        <label>
+          رمز التأسيس الخاص
+          <input
+            value={token}
+            onChange={(event) => setToken(event.target.value)}
+            required
+            minLength={32}
+            maxLength={256}
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+        {error && (
+          <div className="form-alert" role="alert">
+            {error}
+          </div>
+        )}
+        <button className="button" disabled={busy}>
+          {busy ? "جارٍ التحقق…" : "متابعة الإعداد"}
+        </button>
+      </form>
+    </section>
+  );
+}
 function OrganizationDesk({userId,isOwner,context}:{userId:string;isOwner:boolean;context:unknown}){const list=useListOrganizations();const create=useCreateOrganization();const updateStatus=useUpdateOrganizationStatus();const updateOrg=useUpdateOrganization();const [selected,setSelected]=useState('');const [showCreate,setShowCreate]=useState(false);const [createMsg,setCreateMsg]=useState('');const [err,setErr]=useState('');const orgs=list.data?.items??[];const selectedOrg=orgs.find(o=>o.id===selected)??orgs[0];const raw=field(context,'organizationId')??field(context,'organization_id');const allowedIds=Array.isArray(field(context,'organizationIds'))?field(context,'organizationIds') as string[]:typeof raw==='string'?[raw]:null;const visible=isOwner?orgs:allowedIds?orgs.filter(o=>allowedIds.includes(o.id)):orgs;useEffect(()=>{if(selectedOrg&&selected!==selectedOrg.id)setSelected(selectedOrg.id)},[selectedOrg?.id]);const cache=useQueryClient();const invalidate=async()=>{await cache.invalidateQueries({queryKey:getListOrganizationsQueryKey()});};async function make(e:FormEvent<HTMLFormElement>){e.preventDefault();setErr('');const d=new FormData(e.currentTarget);try{await create.mutateAsync({data:{name:String(d.get('name')),kind:String(d.get('kind')) as 'company'|'station'|'provider'}});setCreateMsg('تم إرسال طلب الجهة.');setShowCreate(false);await invalidate()}catch(x){setErr(errorText(x))}}
 if(list.isLoading)return <div className="loading-panel"><span className="skeleton skeleton-title"/><span className="skeleton skeleton-line"/><span className="skeleton skeleton-line short"/></div>;if(list.isError)return <StatePanel kind="error" title="تعذر تحميل الجهات">{errorText(list.error)} <button className="button button-outline" onClick={()=>void list.refetch()}>إعادة المحاولة</button></StatePanel>;
 return <div className="desk"><div className="desk-toolbar"><div><span className="section-kicker">الجهات والصلاحيات</span><h2>{isOwner?'إدارة الجهات':'جهاتك المصرّح بها'}</h2></div>{isOwner&&<button className="button" onClick={()=>{setShowCreate(x=>!x);setCreateMsg('')}}><Plus size={16}/> إنشاء جهة</button>}</div>{createMsg&&<div className="form-success" role="status"><CircleCheck size={16}/>{createMsg}</div>}{err&&<div className="form-alert" role="alert">{err}</div>}{showCreate&&<section className="management-card inline-form"><div className="card-heading"><span className="section-kicker">طلب جديد</span><h3>إنشاء جهة</h3></div><form onSubmit={make}><label>اسم الجهة<input name="name" required minLength={2} maxLength={160}/></label><label>نوع الجهة<select name="kind"><option value="company">شركة</option><option value="station">محطة</option><option value="provider">مقدّم خدمة</option></select></label><div className="form-actions"><button className="button" disabled={create.isPending}>{create.isPending?'جارٍ الحفظ…':'إرسال الطلب'}</button><button type="button" className="button button-outline" onClick={()=>setShowCreate(false)}>إلغاء</button></div></form></section>}{visible.length===0?<StatePanel title="لا توجد جهات متاحة">لا تظهر إلا الجهات التي مُنح حسابك صلاحية الوصول إليها.</StatePanel>:<><div className="org-strip" role="tablist" aria-label="الجهات">{visible.map(o=><button role="tab" aria-selected={selectedOrg?.id===o.id} className={`org-tab ${selectedOrg?.id===o.id?'active':''}`} key={o.id} onClick={()=>setSelected(o.id)}><span className="org-tab-icon"><Building2 size={18}/></span><span><b>{o.name}</b><small>{kindName[o.kind]}</small></span><StatusPill status={o.status}/></button>)}</div>{selectedOrg&&<OrganizationDetail key={selectedOrg.id} org={selectedOrg} userId={userId} isOwner={isOwner} onChange={async (status)=>{try{await updateStatus.mutateAsync({organizationId:selectedOrg.id,data:{status}});await invalidate()}catch(x){setErr(errorText(x))}}} onRename={async name=>{try{await updateOrg.mutateAsync({organizationId:selectedOrg.id,data:{name}});await invalidate()}catch(x){setErr(errorText(x))}}}/>}</>}</div>}
