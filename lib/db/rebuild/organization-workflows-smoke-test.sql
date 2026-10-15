@@ -5,7 +5,8 @@ CREATE TEMP TABLE workflow_test_ids (
   org_a uuid, org_b uuid, branch_a uuid, branch_b uuid,
   join_a uuid, join_b uuid, join_c uuid, join_d uuid,
   change_a uuid, conflict_change uuid,
-  bank_account uuid, bank_v1 uuid, bank_v2 uuid, document_id uuid
+  bank_account uuid, bank_v1 uuid, bank_v2 uuid, document_id uuid,
+  pending_join uuid, pending_document uuid, pending_withdraw uuid, central_pending_join uuid
 ) ON COMMIT DROP;
 GRANT SELECT, UPDATE ON pg_temp.workflow_test_ids TO authenticated;
 INSERT INTO pg_temp.workflow_test_ids DEFAULT VALUES;
@@ -17,7 +18,13 @@ VALUES
  ('00000000-0000-4000-8000-000000000303','wf-applicant-b@example.invalid','{"username":"wf_applicant_b","display_name":"Applicant B"}',now()),
  ('00000000-0000-4000-8000-000000000304','wf-applicant-c@example.invalid','{"username":"wf_applicant_c","display_name":"Applicant C"}',now()),
  ('00000000-0000-4000-8000-000000000305','wf-applicant-d@example.invalid','{"username":"wf_applicant_d","display_name":"Applicant D"}',now()),
- ('00000000-0000-4000-8000-000000000306','wf-manager@example.invalid','{"username":"wf_manager","display_name":"Workflow Manager"}',now());
+ ('00000000-0000-4000-8000-000000000306','wf-manager@example.invalid','{"username":"wf_manager","display_name":"Workflow Manager"}',now()),
+ ('00000000-0000-4000-8000-000000000307','wf-pending-self@example.invalid','{"username":"wf_pending_self","display_name":"Pending Self"}',now()),
+ ('00000000-0000-4000-8000-000000000308','wf-unconfirmed@example.invalid','{"username":"wf_unconfirmed","display_name":"Unconfirmed"}',NULL),
+ ('00000000-0000-4000-8000-000000000309','wf-suspended@example.invalid','{"username":"wf_suspended","display_name":"Suspended"}',now()),
+ ('00000000-0000-4000-8000-000000000310','wf-pending-withdraw@example.invalid','{"username":"wf_pending_withdraw","display_name":"Pending Withdraw"}',now()),
+  ('00000000-0000-4000-8000-000000000311','wf-pending-central@example.invalid','{"username":"wf_pending_central","display_name":"Pending Central"}',now()),
+  ('00000000-0000-4000-8000-000000000312','wf-pending-member@example.invalid','{"username":"wf_pending_member","display_name":"Pending With Membership"}',now());
 
 UPDATE public.petro_profiles SET active=true,account_status='active'
 WHERE user_id IN (
@@ -25,6 +32,14 @@ WHERE user_id IN (
  '00000000-0000-4000-8000-000000000303','00000000-0000-4000-8000-000000000304',
  '00000000-0000-4000-8000-000000000305','00000000-0000-4000-8000-000000000306'
 );
+UPDATE public.petro_profiles SET active=false,account_status='pending'
+WHERE user_id IN (
+ '00000000-0000-4000-8000-000000000307','00000000-0000-4000-8000-000000000308',
+  '00000000-0000-4000-8000-000000000310','00000000-0000-4000-8000-000000000311',
+  '00000000-0000-4000-8000-000000000312'
+);
+UPDATE public.petro_profiles SET active=false,account_status='suspended'
+WHERE user_id='00000000-0000-4000-8000-000000000309';
 INSERT INTO public.petro_platform_roles(user_id,role,active)
 VALUES ('00000000-0000-4000-8000-000000000301','owner',true);
 
@@ -136,6 +151,29 @@ BEGIN
   END;
 END
 $approve_join_a$;
+RESET ROLE;
+
+-- A pending account with an existing active membership must not use the
+-- unassigned-applicant path, even if its Auth email is confirmed.
+INSERT INTO public.petro_memberships(user_id,organization_id,role,scope,active)
+VALUES('00000000-0000-4000-8000-000000000312',
+  (SELECT org_a FROM pg_temp.workflow_test_ids),'manager','organization',true);
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000312';
+DO $pending_member_is_not_applicant$
+BEGIN
+  IF petro_private.confirmed_pending_join_user() THEN
+    RAISE EXCEPTION 'pending account with an active membership passed self-service eligibility';
+  END IF;
+  BEGIN
+    PERFORM public.petro_create_org_join_request(NULL,
+      '{"name":"غير مؤهل","kind":"company","code":"WF-NO-MEMBERSHIP","address":"عنوان"}'::jsonb,
+      '{"code":"WF-NO-MEMBERSHIP-B","name":"فرع","address":"عنوان","hours":{}}'::jsonb);
+    RAISE EXCEPTION 'pending account with an active membership created a self request';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END
+$pending_member_is_not_applicant$;
 RESET ROLE;
 
 -- Applicant B is rejected; applicant C creates a second entity used for cross-branch denial.
@@ -483,16 +521,259 @@ END
 $anon_denial$;
 RESET ROLE;
 
+-- Confirmed pending accounts can manage only their own join request and private files.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000307';
+DO $pending_self_request$
+DECLARE req uuid; doc jsonb; did uuid; path text; result jsonb; created_org uuid;
+  organization_payload jsonb := '{"name":"شركة طلب ذاتي معلّق","kind":"company","code":"WF-PENDING-SELF","contactName":"مسؤول اختبار","contactPhone":"+201000000077","contactEmail":"wf-pending-self@example.invalid","address":"عنوان اختبار"}'::jsonb;
+  branch_payload jsonb := '{"code":"WF-PENDING-BRANCH","name":"فرع طلب ذاتي","address":"عنوان فرع اختبار","governorate":"القاهرة","latitude":30.04,"longitude":31.23,"hours":{},"contactName":"مسؤول اختبار","contactPhone":"+201000000077"}'::jsonb;
+BEGIN
+  IF NOT petro_private.confirmed_pending_join_user()
+     OR petro_private.user_active()
+     OR EXISTS (SELECT 1 FROM public.petro_memberships WHERE user_id=auth.uid() AND active) THEN
+    RAISE EXCEPTION 'pending confirmed fixture is not isolated or eligible';
+  END IF;
+  req:=public.petro_create_org_join_request(NULL,organization_payload,branch_payload);
+  IF NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests
+    WHERE id=req AND applicant_id=auth.uid() AND created_by=auth.uid() AND status='draft')
+     OR EXISTS (SELECT 1 FROM public.petro_memberships WHERE user_id=auth.uid() AND active) THEN
+    RAISE EXCEPTION 'self-service draft created a membership or was not visible to its applicant';
+  END IF;
+  UPDATE pg_temp.workflow_test_ids SET pending_join=req;
+
+  BEGIN
+    PERFORM public.petro_create_org_join_request(
+      '00000000-0000-4000-8000-000000000302',organization_payload,branch_payload);
+    RAISE EXCEPTION 'pending applicant selected another beneficiary';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.petro_org_join_requests SET applicant_id='00000000-0000-4000-8000-000000000302'
+      WHERE id=req;
+    RAISE EXCEPTION 'pending applicant directly changed the request beneficiary';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.petro_create_org_join_request(NULL,
+      '{"name":"تكرار","kind":"company","code":"WF-PENDING-DUP","address":"عنوان"}'::jsonb,
+      '{"code":"WF-PENDING-DUP-B","name":"فرع","address":"عنوان","hours":{}}'::jsonb);
+    RAISE EXCEPTION 'pending applicant created a duplicate open request';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+
+  doc:=public.petro_create_document_upload('join_request',req,'supporting_document','pending-proof.pdf',
+    'application/pdf',512,'2027-12-31');
+  did:=(doc->>'id')::uuid; path:=doc->>'objectPath';
+  INSERT INTO storage.objects(bucket_id,name,owner_id)
+  VALUES('petro-private-documents',path,auth.uid());
+  PERFORM public.petro_complete_document_upload(did,repeat('b',64));
+  IF NOT EXISTS (SELECT 1 FROM public.petro_documents
+      WHERE id=did AND join_request_id=req AND uploader_id=auth.uid() AND status='attached')
+     OR NOT EXISTS (SELECT 1 FROM storage.objects
+      WHERE bucket_id='petro-private-documents' AND name=path) THEN
+    RAISE EXCEPTION 'pending applicant could not upload or read its own private file';
+  END IF;
+  UPDATE pg_temp.workflow_test_ids SET pending_document=did;
+
+  PERFORM public.petro_update_org_join_request(req,1,organization_payload,branch_payload);
+  PERFORM public.petro_submit_org_join_request(req,2);
+  IF NOT EXISTS (SELECT 1 FROM public.petro_documents
+      WHERE id=did AND status='pending_review') THEN
+    RAISE EXCEPTION 'submitted document was not placed into review';
+  END IF;
+END
+$pending_self_request$;
+RESET ROLE;
+
+-- A different organization account cannot see, edit, submit, or download the pending applicant's request.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000303';
+DO $pending_cross_user_denial$
+DECLARE req uuid; did uuid; path text;
+BEGIN
+  SELECT pending_join,pending_document INTO req,did FROM pg_temp.workflow_test_ids;
+  SELECT storage_path INTO path FROM public.petro_documents WHERE id=did;
+  IF EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=req)
+     OR EXISTS (SELECT 1 FROM public.petro_documents WHERE id=did)
+     OR (path IS NOT NULL AND EXISTS (SELECT 1 FROM storage.objects
+        WHERE bucket_id='petro-private-documents' AND name=path)) THEN
+    RAISE EXCEPTION 'another organization account can read a pending applicant file or request';
+  END IF;
+  BEGIN
+    PERFORM public.petro_update_org_join_request(req,3,
+      '{"name":"تغيير غير مخول","kind":"company","code":"WF-UNAUTHORIZED","address":"عنوان"}'::jsonb,
+      '{"code":"WF-UNAUTHORIZED-B","name":"فرع","address":"عنوان","hours":{}}'::jsonb);
+    RAISE EXCEPTION 'another organization account edited a pending join request';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.petro_create_document_upload('join_request',req,'proof','cross.pdf',
+      'application/pdf',512,NULL);
+    RAISE EXCEPTION 'another organization account attached a file to a pending join request';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END
+$pending_cross_user_denial$;
+RESET ROLE;
+
+-- An unconfirmed or suspended account cannot use the limited pending-applicant route.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000308';
+DO $unconfirmed_denial$
+BEGIN
+  IF petro_private.confirmed_pending_join_user()
+     OR EXISTS (SELECT 1 FROM public.petro_org_join_requests
+       WHERE id=(SELECT pending_join FROM pg_temp.workflow_test_ids)) THEN
+    RAISE EXCEPTION 'unconfirmed account received pending-applicant access';
+  END IF;
+  BEGIN
+    PERFORM public.petro_create_org_join_request(NULL,
+      '{"name":"غير مؤكد","kind":"company","code":"WF-UNCONFIRMED","address":"عنوان"}'::jsonb,
+      '{"code":"WF-UNCONFIRMED-B","name":"فرع","address":"عنوان","hours":{}}'::jsonb);
+    RAISE EXCEPTION 'unconfirmed account created a join request';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END
+$unconfirmed_denial$;
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000309';
+DO $suspended_denial$
+BEGIN
+  IF petro_private.confirmed_pending_join_user() THEN
+    RAISE EXCEPTION 'suspended account was recognized as an eligible pending applicant';
+  END IF;
+  BEGIN
+    PERFORM public.petro_create_org_join_request(NULL,
+      '{"name":"موقوف","kind":"company","code":"WF-SUSPENDED","address":"عنوان"}'::jsonb,
+      '{"code":"WF-SUSPENDED-B","name":"فرع","address":"عنوان","hours":{}}'::jsonb);
+    RAISE EXCEPTION 'suspended account created a join request';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END
+$suspended_denial$;
+RESET ROLE;
+
+-- A confirmed applicant can withdraw a submitted request before a decision.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000310';
+DO $pending_withdraw$
+DECLARE req uuid;
+BEGIN
+  req:=public.petro_create_org_join_request(NULL,
+    '{"name":"طلب قابل للسحب","kind":"provider","code":"WF-PENDING-WITHDRAW","address":"عنوان"}'::jsonb,
+    '{"code":"WF-PENDING-WITHDRAW-B","name":"فرع","address":"عنوان","hours":{}}'::jsonb);
+  PERFORM public.petro_submit_org_join_request(req,1);
+  PERFORM public.petro_withdraw_org_join_request(req,2);
+  IF NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=req AND status='withdrawn')
+     OR EXISTS (SELECT 1 FROM public.petro_memberships WHERE user_id=auth.uid() AND active) THEN
+    RAISE EXCEPTION 'pending applicant could not withdraw or withdrawal created a membership';
+  END IF;
+  UPDATE pg_temp.workflow_test_ids SET pending_withdraw=req;
+END
+$pending_withdraw$;
+RESET ROLE;
+
+-- Central staff retain the existing on-behalf path for a confirmed pending applicant.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000301';
+DO $central_pending_target$
+DECLARE req uuid;
+BEGIN
+  req:=public.petro_create_org_join_request(
+    '00000000-0000-4000-8000-000000000311',
+    '{"name":"طلب مركزي لمتقدم معلّق","kind":"station","code":"WF-CENTRAL-PENDING","address":"عنوان"}'::jsonb,
+    '{"code":"WF-CENTRAL-PENDING-B","name":"فرع","address":"عنوان","hours":{}}'::jsonb);
+  IF NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests
+    WHERE id=req AND applicant_id='00000000-0000-4000-8000-000000000311'
+      AND created_by='00000000-0000-4000-8000-000000000301' AND status='draft') THEN
+    RAISE EXCEPTION 'central on-behalf request for pending confirmed user failed';
+  END IF;
+  UPDATE pg_temp.workflow_test_ids SET central_pending_join=req;
+END
+$central_pending_target$;
+RESET ROLE;
+
+-- Only a central reviewer can request completion and approve once; approval creates membership, never platform ownership.
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000301';
+DO $pending_review_approval$
+DECLARE req uuid; result jsonb; org_id uuid;
+BEGIN
+  SELECT pending_join INTO req FROM pg_temp.workflow_test_ids;
+  PERFORM public.petro_review_org_join_request(req,3,'needs_completion','يرجى استكمال بيانات الاختبار');
+  UPDATE pg_temp.workflow_test_ids SET pending_join=req;
+END
+$pending_review_approval$;
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000307';
+DO $pending_resubmission$
+DECLARE req uuid; version_now bigint; reason text;
+BEGIN
+  SELECT pending_join INTO req FROM pg_temp.workflow_test_ids;
+  SELECT version,decision_reason INTO version_now,reason
+    FROM public.petro_org_join_requests WHERE id=req;
+  IF reason<>'يرجى استكمال بيانات الاختبار' THEN
+    RAISE EXCEPTION 'applicant could not see the review reason';
+  END IF;
+  PERFORM public.petro_update_org_join_request(req,version_now,
+    '{"name":"شركة طلب ذاتي معلّق","kind":"company","code":"WF-PENDING-SELF","contactName":"مسؤول اختبار","contactPhone":"+201000000077","contactEmail":"wf-pending-self@example.invalid","address":"عنوان اختبار"}'::jsonb,
+    '{"code":"WF-PENDING-BRANCH","name":"فرع طلب ذاتي","address":"عنوان فرع اختبار","governorate":"القاهرة","latitude":30.04,"longitude":31.23,"hours":{},"contactName":"مسؤول اختبار","contactPhone":"+201000000077"}'::jsonb);
+  SELECT version INTO version_now FROM public.petro_org_join_requests WHERE id=req;
+  PERFORM public.petro_submit_org_join_request(req,version_now);
+END
+$pending_resubmission$;
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000301';
+DO $pending_final_approval$
+DECLARE req uuid; current_version bigint; result jsonb; org_id uuid;
+BEGIN
+  SELECT pending_join INTO req FROM pg_temp.workflow_test_ids;
+  SELECT version INTO current_version FROM public.petro_org_join_requests WHERE id=req;
+  result:=public.petro_review_org_join_request(req,current_version,'approve','اعتماد طلب اختبار معلّق');
+  org_id:=(result->>'organizationId')::uuid;
+  IF NOT EXISTS (SELECT 1 FROM public.petro_memberships
+      WHERE user_id='00000000-0000-4000-8000-000000000307'
+        AND organization_id=org_id AND role='organization_owner'
+        AND scope='organization' AND active) THEN
+    RAISE EXCEPTION 'approval did not create the expected organization membership (org_id non-null: %)', org_id IS NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.petro_platform_roles
+      WHERE user_id='00000000-0000-4000-8000-000000000307' AND role='owner') THEN
+    RAISE EXCEPTION 'join approval escalated to platform owner';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.petro_profiles
+      WHERE user_id='00000000-0000-4000-8000-000000000307'
+        AND active AND account_status='active') THEN
+    RAISE EXCEPTION 'approved membership did not activate the authorized applicant account';
+  END IF;
+  BEGIN
+    PERFORM public.petro_review_org_join_request(req,current_version+1,'approve','محاولة اعتماد مكرر');
+    RAISE EXCEPTION 'a join request was approved more than once';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;
+  END;
+END
+$pending_final_approval$;
+RESET ROLE;
+
 -- Verify applicant, org, branch, and link decision states at transaction end.
 DO $final_assertions$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=(SELECT join_a FROM pg_temp.workflow_test_ids) AND status='approved')
       OR NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=(SELECT join_b FROM pg_temp.workflow_test_ids) AND status='rejected')
       OR NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=(SELECT join_d FROM pg_temp.workflow_test_ids) AND status='approved')
+      OR NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=(SELECT pending_join FROM pg_temp.workflow_test_ids) AND status='approved')
+      OR NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=(SELECT pending_withdraw FROM pg_temp.workflow_test_ids) AND status='withdrawn')
+      OR NOT EXISTS (SELECT 1 FROM public.petro_org_join_requests WHERE id=(SELECT central_pending_join FROM pg_temp.workflow_test_ids) AND status='draft')
      OR (SELECT count(*) FROM storage.buckets WHERE id='petro-private-documents' AND public=false)<>1
      OR EXISTS (SELECT 1 FROM public.petro_platform_roles WHERE user_id IN (
        '00000000-0000-4000-8000-000000000302','00000000-0000-4000-8000-000000000303',
-       '00000000-0000-4000-8000-000000000304','00000000-0000-4000-8000-000000000305') AND role='owner')
+       '00000000-0000-4000-8000-000000000304','00000000-0000-4000-8000-000000000305',
+       '00000000-0000-4000-8000-000000000307','00000000-0000-4000-8000-000000000310',
+       '00000000-0000-4000-8000-000000000311') AND role='owner')
     THEN RAISE EXCEPTION 'workflow final assertions failed'; END IF;
 END
 $final_assertions$;

@@ -38,13 +38,13 @@ function joinPayload(d:FormData):CreateOrganizationJoinRequest {
   };
 }
 function JoinForm({request,centralMode=false,onClose,onSaved}:{request?:OrganizationJoinRequest;centralMode?:boolean;onClose:()=>void;onSaved:()=>Promise<void>}) {
-  const [problem,setProblem]=useState(""); const [notice,setNotice]=useState(""); const [working,setWorking]=useState(false); const [targetUsername,setTargetUsername]=useState(""); const submitLock=useRef(false);
+  const [problem,setProblem]=useState(""); const [notice,setNotice]=useState(""); const [working,setWorking]=useState(false); const [targetUsername,setTargetUsername]=useState(""); const submitLock=useRef(false); const saveIntent=useRef<"draft"|"submit">("draft");
   const [draftId,setDraftId]=useState<string>(); const [draftVersion,setDraftVersion]=useState<number>(); const [uploadedFiles,setUploadedFiles]=useState<Set<string>>(()=>new Set());
   const create=useMutation({mutationFn:(data:CreateOrganizationJoinRequest)=>createOrganizationJoinRequest(data)}); const update=useMutation({mutationFn:({id,data}: {id:string;data:Parameters<typeof updateOrganizationJoinRequest>[1]})=>updateOrganizationJoinRequest(id,data)});
   const send=useMutation({mutationFn:({id,version}: {id:string;version:number})=>submitOrganizationJoinRequest(id,{expectedVersion:version})});
   const org=(request?.organization_data??{}) as Record<string,unknown>, branch=(request?.initial_branch_data??{}) as Record<string,unknown>;
   const hours=(branch.hours??{}) as Record<string,{closed?:boolean;open?:string;close?:string}>;
-  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();if(submitLock.current)return;submitLock.current=true;setWorking(true);setProblem("");setNotice("");const form=e.currentTarget,data=new FormData(form),payload=joinPayload(data);let id=request?.id??draftId;try{
+  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();if(submitLock.current)return;const intent=saveIntent.current;saveIntent.current="draft";submitLock.current=true;setWorking(true);setProblem("");setNotice("");const form=e.currentTarget,data=new FormData(form),payload=joinPayload(data);let id=request?.id??draftId;try{
     if(id){
       const current=await import("@workspace/api-client-react").then(m=>m.getOrganizationJoinRequest(id!));
       if(current.status==="submitted"||current.status==="approved"){setNotice("تم إرسال هذا الطلب بالفعل.");await onSaved();onClose();return;}
@@ -67,6 +67,7 @@ function JoinForm({request,centralMode=false,onClose,onSaved}:{request?:Organiza
       completed.add(key);setUploadedFiles(new Set(completed));
     }
     const details=await import("@workspace/api-client-react").then(m=>m.getOrganizationJoinRequest(id!));setDraftVersion(details.version);
+    if(intent==="draft"){setNotice("تم حفظ المسودة. لم تُرسل للمراجعة ولم تُنشأ جهة أو عضوية.");await onSaved();return;}
     await send.mutateAsync({id,version:details.version});
     setNotice("تم إرسال طلب الانضمام والمرفقات للمراجعة.");await onSaved();onClose();
   }catch(err){setProblem(errorMessage(err));if(id)await onSaved();}finally{submitLock.current=false;setWorking(false);}}
@@ -88,8 +89,8 @@ function JoinForm({request,centralMode=false,onClose,onSaved}:{request?:Organiza
       <label>خط العرض<input name="latitude" type="number" step="any" min="-90" max="90" dir="ltr" defaultValue={String(branch.latitude??"")}/></label><label>خط الطول<input name="longitude" type="number" step="any" min="-180" max="180" dir="ltr" defaultValue={String(branch.longitude??"")}/></label>
       <label>مسؤول الفرع<input name="branchContactName" defaultValue={String(branch.contactName??"")}/></label><label>هاتف الفرع<input name="branchContactPhone" dir="ltr" defaultValue={String(branch.contactPhone??"")}/></label>
      </div><fieldset className="ow-hours"><legend>ساعات العمل</legend>{days.map(([key,name])=><div className="ow-day" key={key}><b>{name}</b><label><input type="checkbox" name={`${key}_closed`} defaultChecked={!!hours[key]?.closed}/> مغلق</label><label>يفتح<input name={`${key}_open`} type="time" defaultValue={hours[key]?.open??""}/></label><label>يغلق<input name={`${key}_close`} type="time" defaultValue={hours[key]?.close??""}/></label></div>)}</fieldset>
-     <fieldset className="ow-supporting-docs"><legend>مستندات داعمة (اختياري)</legend><div className="ow-fields"><label>نوع المستند<input name="supportingDocumentType" minLength={2} maxLength={80} placeholder="اكتب وصفًا واضحًا"/></label><label className="ow-file-label"><Upload size={16}/> اختر ملفات<input name="supportingDocuments" type="file" multiple accept="application/pdf,image/png,image/jpeg"/></label></div><small>تُرفق الملفات بالطلب ولا تصبح قابلة للمراجعة قبل إرسال الطلب. لا تُرفع إلا للمخزن الخاص.</small></fieldset>
-    {problem&&<Alert error>{problem}</Alert>}{notice&&<Alert>{notice}</Alert>}<div className="ow-actions"><button className="ow-button" disabled={busy}>{busy?"جارٍ الإرسال…":"حفظ وإرسال للمراجعة"}</button><button type="button" className="ow-button ow-quiet" onClick={onClose}>إلغاء</button></div></form>
+     <fieldset className="ow-supporting-docs"><legend>مستندات داعمة (اختياري)</legend><div className="ow-fields"><label>نوع المستند<input name="supportingDocumentType" minLength={2} maxLength={80} placeholder="اكتب وصفًا واضحًا"/></label><label className="ow-file-label"><Upload size={16}/> اختر ملفات<input name="supportingDocuments" type="file" multiple accept="application/pdf,image/png,image/jpeg"/></label></div><small>تُحفظ الملفات في المخزن الخاص وترتبط بالطلب؛ لا تُراجع إلا بعد إرساله. الملفات المقبولة PDF أو PNG أو JPEG.</small></fieldset>
+    {problem&&<Alert error>{problem}</Alert>}{notice&&<Alert>{notice}</Alert>}<div className="ow-actions"><button className="ow-button ow-quiet" disabled={busy} onClick={()=>{saveIntent.current="draft";}}>{busy?"جارٍ الحفظ…":"حفظ المسودة"}</button><button className="ow-button" disabled={busy} onClick={()=>{saveIntent.current="submit";}}>{busy?"جارٍ الحفظ والإرسال…":"حفظ وإرسال للمراجعة"}</button><button type="button" className="ow-button ow-quiet" onClick={onClose}>إلغاء</button></div></form>
   </section>;
 }
 
@@ -102,7 +103,7 @@ export function OrganizationJoinWorkspace() {
   return <section className="ow-workspace" aria-labelledby="ow-workspace-title">
     <div className="ow-section-heading"><div><span className="ow-eyebrow">طلبات الجهات</span><h2 id="ow-workspace-title">الانضمام إلى المنصة</h2><p>قدّم بيانات جهة وفرعها الأولي، ثم تابع حالة المراجعة من هنا.</p></div><button className="ow-button" onClick={()=>{setShow(v=>!v);setSelected("");}}><Building2 size={16}/>{show?"إغلاق النموذج":"طلب انضمام"}</button></div>
     {show&&<JoinForm request={items.find(x=>x.id===selected)} onClose={()=>setShow(false)} onSaved={refresh}/>}
-    {query.isLoading?<Loading/>:query.isError?<div className="ow-state"><CircleAlert/><h3>تعذر تحميل سجل الطلبات</h3><p>{errorMessage(query.error)}</p><button className="ow-button ow-quiet" onClick={()=>void query.refetch()}><RefreshCw size={15}/> إعادة المحاولة</button></div>:items.length===0?<div className="ow-empty"><span><Building2 size={22}/></span><div><b>لا توجد طلبات انضمام</b><p>يمكنك تقديم طلب جهة من الزر أعلاه. لن تُنشأ سجلات قبل إرسال النموذج.</p></div></div>:<div className="ow-request-list">{items.map(item=><JoinHistoryRow key={item.id} item={item} editing={selected===item.id} onEdit={()=>{setSelected(item.id);setShow(true);}} onWithdraw={async()=>{await withdraw.mutateAsync({id:item.id,version:item.version});await refresh();}} busy={withdraw.isPending}/>)}</div>}
+    {query.isLoading?<Loading/>:query.isError?<div className="ow-state"><CircleAlert/><h3>تعذر تحميل سجل الطلبات</h3><p>{errorMessage(query.error)}</p><button className="ow-button ow-quiet" onClick={()=>void query.refetch()}><RefreshCw size={15}/> إعادة المحاولة</button></div>:items.length===0?<div className="ow-empty"><span><Building2 size={22}/></span><div><b>لا توجد طلبات انضمام</b><p>يمكنك حفظ مسودة أو إرسال طلب للمراجعة. لا تُنشأ جهة أو عضوية قبل اعتماد الإدارة.</p></div></div>:<div className="ow-request-list">{items.map(item=><JoinHistoryRow key={item.id} item={item} editing={selected===item.id} onEdit={()=>{setSelected(item.id);setShow(true);}} onWithdraw={async()=>{await withdraw.mutateAsync({id:item.id,version:item.version});await refresh();}} busy={withdraw.isPending}/>)}</div>}
   </section>;
 }
 function JoinHistoryRow({item,editing,onEdit,onWithdraw,busy}:{item:OrganizationJoinRequest;editing:boolean;onEdit:()=>void;onWithdraw:()=>Promise<void>;busy:boolean}){

@@ -147,7 +147,7 @@ function pickDocumentFields(doc: Record<string, unknown>): Record<string, unknow
 
 router.get("/organization-join-requests", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const query = parseBody(ListOrganizationJoinRequestsQueryParams, req.query);
   if (!query) {
@@ -170,7 +170,7 @@ router.get("/organization-join-requests", async (req, res): Promise<void> => {
 
 router.post("/organization-join-requests", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const body = parseBody(CreateOrganizationJoinRequestBody, req.body);
   if (!body) {
@@ -217,7 +217,7 @@ router.post("/organization-join-requests", async (req, res): Promise<void> => {
 
 router.get("/organization-join-requests/:requestId", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const requestId = req.params["requestId"];
   if (!safeId(requestId)) {
@@ -242,7 +242,7 @@ router.get("/organization-join-requests/:requestId", async (req, res): Promise<v
 
 router.patch("/organization-join-requests/:requestId", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const requestId = req.params["requestId"];
   const body = parseBody(UpdateOrganizationJoinRequestBody, req.body);
@@ -265,7 +265,7 @@ router.patch("/organization-join-requests/:requestId", async (req, res): Promise
 
 router.get("/organization-join-requests/:requestId/documents", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const requestId = req.params["requestId"];
   if (!safeId(requestId)) { fail(res, 400, "معرّف الطلب غير صالح."); return; }
@@ -278,7 +278,7 @@ router.get("/organization-join-requests/:requestId/documents", async (req, res):
 
 router.post("/organization-join-requests/:requestId/submit", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const requestId = req.params["requestId"];
   const body = isRecord(req.body) && Number.isInteger(req.body["expectedVersion"])
@@ -301,7 +301,7 @@ router.post("/organization-join-requests/:requestId/submit", async (req, res): P
 
 router.post("/organization-join-requests/:requestId/withdraw", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const requestId = req.params["requestId"];
   const expectedVersion = isRecord(req.body) ? req.body["expectedVersion"] : null;
@@ -613,7 +613,7 @@ router.post("/bank-account-versions/:versionId/withdraw", async (req, res): Prom
 
 router.get("/documents", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const filterKeys = ["organizationId", "branchId", "joinRequestId", "changeRequestId", "bankVersionId"] as const;
   const filters: Array<[string, string]> = [];
@@ -642,7 +642,7 @@ router.get("/documents", async (req, res): Promise<void> => {
 
 router.post("/documents", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const body = parseBody(CreateDocumentUploadIntentBody, req.body);
   if (!body) { fail(res, 400, "بيانات المستند غير صالحة."); return; }
@@ -670,7 +670,7 @@ router.put(
   raw({ type: "application/octet-stream", limit: "10mb" }),
   async (req, res): Promise<void> => {
     setNoStore(res);
-    const session = await requireSession(req, res);
+    const session = await requireSession(req, res, false);
     if (!session) return;
     const documentId = req.params["documentId"];
     if (!safeId(documentId) || !Buffer.isBuffer(req.body)) { fail(res, 400, "الملف غير صالح."); return; }
@@ -710,7 +710,7 @@ router.put(
 
 router.get("/documents/:documentId/download", async (req, res): Promise<void> => {
   setNoStore(res);
-  const session = await requireSession(req, res);
+  const session = await requireSession(req, res, false);
   if (!session) return;
   const documentId = req.params["documentId"];
   if (!safeId(documentId)) { fail(res, 400, "معرّف المستند غير صالح."); return; }

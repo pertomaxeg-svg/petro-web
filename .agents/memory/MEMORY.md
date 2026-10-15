@@ -3,3 +3,4 @@
 - [Supabase PostgreSQL TLS](supabase-postgres-tls.md) — Trust the approved Supabase root CA and keep PostgreSQL certificate verification enabled.
 - [Supabase Auth test accounts](supabase-auth-test-accounts.md) — Check confirmation settings before signup tests; do not send test emails to unverified recipients.
 - [PostgreSQL default function grants](postgresql-default-function-grants.md) — Schema-scoped defaults do not remove inherited global `PUBLIC EXECUTE` for new functions.
+- [Sanitized worktree Git context](sanitized-worktree-git-context.md) — Verify Git root and ref; a missing worktree marker can redirect commands to root `main`.

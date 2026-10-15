@@ -171,18 +171,46 @@ if ! cmp -s "$tmp_dir/default-acl-before-0006.txt" "$tmp_dir/default-acl-after-0
   diff -u "$tmp_dir/default-acl-before-0006.txt" "$tmp_dir/default-acl-after-0006.txt" >&2 || true
   exit 1
 fi
-psql --no-psqlrc --set ON_ERROR_STOP=1 \
-  --file="$script_dir/organization-workflows-smoke-test.sql" >/dev/null
+if [ -n "${PERTOMAX_DEFAULT_ACL_DUMP_0006:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_DEFAULT_ACL_DUMP_0006")"
+  default_acl_snapshot >"$PERTOMAX_DEFAULT_ACL_DUMP_0006"
+fi
 if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0006:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0006")"
   pg_dump --no-owner --no-privileges --schema-only \
-    --schema=public --schema=petro_private \
+    --schema=public --schema=petro_private |
+    sed -E \
+      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0006"
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0007.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0007_confirmed_pending_join_applicants.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0007.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0007.txt" "$tmp_dir/default-acl-after-0007.txt"; then
+  echo "0007 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0007.txt" "$tmp_dir/default-acl-after-0007.txt" >&2 || true
+  exit 1
+fi
+if [ -n "${PERTOMAX_DEFAULT_ACL_DUMP_0007:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_DEFAULT_ACL_DUMP_0007")"
+  default_acl_snapshot >"$PERTOMAX_DEFAULT_ACL_DUMP_0007"
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/organization-workflows-smoke-test.sql" >/dev/null
+if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0007:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0007")"
+  pg_dump --no-owner --no-privileges --schema-only \
+    --schema=public --schema=petro_private |
+    sed -E \
+      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0007"
 fi
 
 echo "Fresh baseline matched: 11 tables, 57 constraints, 22 indexes, 23 functions, 12 RLS policies, 11 RLS-enabled tables."
 echo "DB-01 baseline RLS checks passed; 0004 was applied once to the disposable baseline and DB-02 invitation checks passed."
 echo "0005 organization/branch schema, reasoned audit, state separation, uniqueness, optimistic concurrency, role separation and tenant/branch isolation checks passed."
 echo "0006 organization requests, document metadata/private-storage RLS policies, bank versioning, review decisions, no-owner-escalation and optimistic-concurrency tests passed."
-echo "0004/0005/0006 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
+echo "0007 confirmed pending self-service, beneficiary immutability, private attachment isolation, withdrawal, completion, review, resubmission, one-time approval and central on-behalf regression tests passed."
+echo "0004/0005/0006/0007 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
 echo "Only a temporary local PostgreSQL cluster was used; no project Secrets or network connection were used."
