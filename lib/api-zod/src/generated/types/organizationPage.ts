@@ -7,6 +7,10 @@
  */
 import type { Organization } from './organization';
 
-export interface OrganizationList {
+export interface OrganizationPage {
   items: Organization[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }

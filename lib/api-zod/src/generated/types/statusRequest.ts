@@ -5,8 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { StatusRequestStatus } from './statusRequestStatus';
+import type { StatusRequestOperationalStatus } from './statusRequestOperationalStatus';
 
 export interface StatusRequest {
-  status: StatusRequestStatus;
+  /** @minimum 1 */
+  expectedVersion: number;
+  operationalStatus: StatusRequestOperationalStatus;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
 }

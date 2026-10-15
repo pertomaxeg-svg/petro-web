@@ -5,11 +5,49 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateOrganizationRequestKind } from './updateOrganizationRequestKind';
 
 export interface UpdateOrganizationRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
   /**
      * @minLength 2
      * @maxLength 160
      */
   name: string;
+  kind: UpdateOrganizationRequestKind;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  legalName: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  contactEmail: string | null;
+  /** @maxLength 500 */
+  address: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     * @nullable
+     */
+  reason?: string | null;
 }

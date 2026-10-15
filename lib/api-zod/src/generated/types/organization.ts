@@ -5,17 +5,35 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OrganizationApprovalStatus } from './organizationApprovalStatus';
 import type { OrganizationCountryCode } from './organizationCountryCode';
 import type { OrganizationCurrency } from './organizationCurrency';
 import type { OrganizationKind } from './organizationKind';
+import type { OrganizationOperationalStatus } from './organizationOperationalStatus';
 import type { OrganizationStatus } from './organizationStatus';
 
 export interface Organization {
   id: string;
   name: string;
   kind: OrganizationKind;
+  /** @nullable */
+  code: string | null;
+  /** @nullable */
+  legal_name: string | null;
+  /** @nullable */
+  contact_name: string | null;
+  /** @nullable */
+  contact_phone: string | null;
+  /** @nullable */
+  contact_email: string | null;
+  address: string;
   country_code: OrganizationCountryCode;
   currency: OrganizationCurrency;
   status: OrganizationStatus;
+  approval_status: OrganizationApprovalStatus;
+  operational_status: OrganizationOperationalStatus;
   created_at: Date;
+  updated_at: Date;
+  /** @minimum 1 */
+  version: number;
 }

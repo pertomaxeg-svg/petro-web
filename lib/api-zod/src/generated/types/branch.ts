@@ -5,13 +5,34 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BranchApprovalStatus } from './branchApprovalStatus';
+import type { BranchHours } from './branchHours';
+import type { BranchOperationalStatus } from './branchOperationalStatus';
 import type { BranchStatus } from './branchStatus';
 
 export interface Branch {
   id: string;
   organization_id: string;
+  /** @nullable */
+  code: string | null;
   name: string;
   address: string;
+  /** @nullable */
+  governorate: string | null;
+  /** @nullable */
+  latitude: number | null;
+  /** @nullable */
+  longitude: number | null;
+  hours: BranchHours;
+  /** @nullable */
+  contact_name: string | null;
+  /** @nullable */
+  contact_phone: string | null;
   status: BranchStatus;
+  approval_status: BranchApprovalStatus;
+  operational_status: BranchOperationalStatus;
   created_at: Date;
+  updated_at: Date;
+  /** @minimum 1 */
+  version: number;
 }

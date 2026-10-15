@@ -14,4 +14,32 @@ export interface CreateOrganizationRequest {
      */
   name: string;
   kind: CreateOrganizationRequestKind;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  legalName?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  contactEmail?: string | null;
+  /** @maxLength 500 */
+  address: string;
 }

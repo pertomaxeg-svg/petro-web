@@ -22,12 +22,15 @@ import type {
 import type {
   AcceptInvitationRequest,
   ApiErrorResponse,
+  ApprovalRequest,
   AuthActionResult,
   AuthCallbackParams,
   AuthMe,
   BootstrapOwnerRequest,
   BootstrapStatus,
+  BranchApprovalRequest,
   BranchList,
+  BranchPage,
   BranchStatusRequest,
   CreateBranchRequest,
   CreateInvitationRequest,
@@ -36,9 +39,12 @@ import type {
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
+  ListBranchesPaginatedParams,
+  ListOrganizationsParams,
   MembershipList,
   MessageResult,
-  OrganizationList,
+  Organization,
+  OrganizationPage,
   PasswordUpdateRequest,
   RecoveryRequest,
   SetMembershipRequest,
@@ -987,20 +993,27 @@ export function useAuthCallback<TData = Awaited<ReturnType<typeof authCallback>>
 
 
 
-export const getListOrganizationsUrl = () => {
+export const getListOrganizationsUrl = (params?: ListOrganizationsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/organizations`
+  return stringifiedParams.length > 0 ? `/api/organizations?${stringifiedParams}` : `/api/organizations`
 }
 
 /**
  * @summary List organizations visible through the current account's RLS scope
  */
-export const listOrganizations = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrganizationList> => {
+export const listOrganizations = async (params?: ListOrganizationsParams, options?: Parameters<typeof customFetch>[1]): Promise<OrganizationPage> => {
 
-  return customFetch<OrganizationList>(getListOrganizationsUrl(),
+  return customFetch<OrganizationPage>(getListOrganizationsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -1013,23 +1026,23 @@ export const listOrganizations = async ( options?: Parameters<typeof customFetch
 
 
 
-export const getListOrganizationsQueryKey = () => {
+export const getListOrganizationsQueryKey = (params?: ListOrganizationsParams,) => {
     return [
-    `/api/organizations`
+    `/api/organizations`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListOrganizationsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizations>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListOrganizationsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizations>>, TError = ErrorType<ApiErrorResponse>>(params?: ListOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListOrganizationsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizations>>> = ({ signal }) => listOrganizations({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizations>>> = ({ signal }) => listOrganizations(params, { signal, ...requestOptions });
 
 
 
@@ -1047,11 +1060,11 @@ export type ListOrganizationsQueryError = ErrorType<ApiErrorResponse>
  */
 
 export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrganizations>>, TError = ErrorType<ApiErrorResponse>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListOrganizationsQueryOptions(options)
+  const queryOptions = getListOrganizationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1152,6 +1165,83 @@ export const useCreateOrganization = <TError = ErrorType<ApiErrorResponse>,
       return useMutation(getCreateOrganizationMutationOptions(options));
     }
 
+export const getGetOrganizationUrl = (organizationId: string,) => {
+
+
+
+
+  return `/api/organizations/${organizationId}`
+}
+
+/**
+ * @summary Get an organization visible through the current account's RLS scope
+ */
+export const getOrganization = async (organizationId: string, options?: Parameters<typeof customFetch>[1]): Promise<Organization> => {
+
+  return customFetch<Organization>(getGetOrganizationUrl(organizationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrganizationQueryKey = (organizationId: string,) => {
+    return [
+    `/api/organizations/${organizationId}`
+    ] as const;
+    }
+
+
+export const getGetOrganizationQueryOptions = <TData = Awaited<ReturnType<typeof getOrganization>>, TError = ErrorType<ApiErrorResponse>>(organizationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganization>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrganizationQueryKey(organizationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrganization>>> = ({ signal }) => getOrganization(organizationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrganization>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrganizationQueryResult = NonNullable<Awaited<ReturnType<typeof getOrganization>>>
+export type GetOrganizationQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Get an organization visible through the current account's RLS scope
+ */
+
+export function useGetOrganization<TData = Awaited<ReturnType<typeof getOrganization>>, TError = ErrorType<ApiErrorResponse>>(
+ organizationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganization>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrganizationQueryOptions(organizationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getUpdateOrganizationUrl = (organizationId: string,) => {
 
 
@@ -1161,7 +1251,7 @@ export const getUpdateOrganizationUrl = (organizationId: string,) => {
 }
 
 /**
- * @summary Update the name of an organization the account can manage
+ * @summary Update organization details with optimistic concurrency and audit
  */
 export const updateOrganization = async (organizationId: string,
     updateOrganizationRequest: UpdateOrganizationRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
@@ -1228,7 +1318,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateOrganizationMutationVariables = {organizationId: string;data: BodyType<UpdateOrganizationRequest>}
 
     /**
- * @summary Update the name of an organization the account can manage
+ * @summary Update organization details with optimistic concurrency and audit
  */
 export const useUpdateOrganization = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganization>>, TError,UpdateOrganizationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1241,6 +1331,95 @@ export const useUpdateOrganization = <TError = ErrorType<ApiErrorResponse>,
       return useMutation(getUpdateOrganizationMutationOptions(options));
     }
 
+export const getApproveOrganizationUrl = (organizationId: string,) => {
+
+
+
+
+  return `/api/organizations/${organizationId}/approval`
+}
+
+/**
+ * @summary Approve a pending organization with a required reason
+ */
+export const approveOrganization = async (organizationId: string,
+    approvalRequest: ApprovalRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResult>(getApproveOrganizationUrl(organizationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approvalRequest)
+  }
+);}
+
+
+
+
+
+export const getApproveOrganizationMutationKey = () => ['approveOrganization'] as const;
+
+export const getApproveOrganizationMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveOrganization>>, TError,ApproveOrganizationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveOrganization>>, TError,ApproveOrganizationMutationVariables, TContext> => {
+
+const mutationKey = getApproveOrganizationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveOrganization>>, ApproveOrganizationMutationVariables> = (props) => {
+          const {organizationId,data} = props ?? {};
+
+          return  approveOrganization(organizationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveOrganizationMutationResult = NonNullable<Awaited<ReturnType<typeof approveOrganization>>>
+    export type ApproveOrganizationMutationBody = BodyType<ApprovalRequest>
+    export type ApproveOrganizationMutationError = ErrorType<ApiErrorResponse>
+    export type ApproveOrganizationMutationVariables = {organizationId: string;data: BodyType<ApprovalRequest>}
+
+    /**
+ * @summary Approve a pending organization with a required reason
+ */
+export const useApproveOrganization = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveOrganization>>, TError,ApproveOrganizationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveOrganization>>,
+        TError,
+        ApproveOrganizationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveOrganizationMutationOptions(options));
+    }
+
 export const getUpdateOrganizationStatusUrl = (organizationId: string,) => {
 
 
@@ -1250,7 +1429,7 @@ export const getUpdateOrganizationStatusUrl = (organizationId: string,) => {
 }
 
 /**
- * @summary Approve, suspend, or return an organization to pending status
+ * @summary Activate, suspend, or reactivate an approved organization
  */
 export const updateOrganizationStatus = async (organizationId: string,
     statusRequest: StatusRequest, options?: Parameters<typeof customFetch>[1]): Promise<StatusResult> => {
@@ -1317,7 +1496,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateOrganizationStatusMutationVariables = {organizationId: string;data: BodyType<StatusRequest>}
 
     /**
- * @summary Approve, suspend, or return an organization to pending status
+ * @summary Activate, suspend, or reactivate an approved organization
  */
 export const useUpdateOrganizationStatus = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganizationStatus>>, TError,UpdateOrganizationStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1496,6 +1675,90 @@ export const useCreateBranch = <TError = ErrorType<ApiErrorResponse>,
       return useMutation(getCreateBranchMutationOptions(options));
     }
 
+export const getListBranchesPaginatedUrl = (params: ListBranchesPaginatedParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/branches?${stringifiedParams}` : `/api/branches`
+}
+
+/**
+ * @summary Search and paginate branches within one RLS-visible organization
+ */
+export const listBranchesPaginated = async (params: ListBranchesPaginatedParams, options?: Parameters<typeof customFetch>[1]): Promise<BranchPage> => {
+
+  return customFetch<BranchPage>(getListBranchesPaginatedUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBranchesPaginatedQueryKey = (params?: ListBranchesPaginatedParams,) => {
+    return [
+    `/api/branches`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBranchesPaginatedQueryOptions = <TData = Awaited<ReturnType<typeof listBranchesPaginated>>, TError = ErrorType<ApiErrorResponse>>(params: ListBranchesPaginatedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBranchesPaginated>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBranchesPaginatedQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBranchesPaginated>>> = ({ signal }) => listBranchesPaginated(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchesPaginated>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBranchesPaginatedQueryResult = NonNullable<Awaited<ReturnType<typeof listBranchesPaginated>>>
+export type ListBranchesPaginatedQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Search and paginate branches within one RLS-visible organization
+ */
+
+export function useListBranchesPaginated<TData = Awaited<ReturnType<typeof listBranchesPaginated>>, TError = ErrorType<ApiErrorResponse>>(
+ params: ListBranchesPaginatedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBranchesPaginated>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBranchesPaginatedQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getUpdateBranchUrl = (branchId: string,) => {
 
 
@@ -1505,7 +1768,7 @@ export const getUpdateBranchUrl = (branchId: string,) => {
 }
 
 /**
- * @summary Update a branch in an organization the account can manage
+ * @summary Update branch details without changing its parent organization
  */
 export const updateBranch = async (branchId: string,
     updateBranchRequest: UpdateBranchRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
@@ -1572,7 +1835,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateBranchMutationVariables = {branchId: string;data: BodyType<UpdateBranchRequest>}
 
     /**
- * @summary Update a branch in an organization the account can manage
+ * @summary Update branch details without changing its parent organization
  */
 export const useUpdateBranch = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBranch>>, TError,UpdateBranchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1585,6 +1848,95 @@ export const useUpdateBranch = <TError = ErrorType<ApiErrorResponse>,
       return useMutation(getUpdateBranchMutationOptions(options));
     }
 
+export const getApproveBranchUrl = (branchId: string,) => {
+
+
+
+
+  return `/api/branches/${branchId}/approval`
+}
+
+/**
+ * @summary Approve a pending branch with a required reason
+ */
+export const approveBranch = async (branchId: string,
+    branchApprovalRequest: BranchApprovalRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResult>(getApproveBranchUrl(branchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(branchApprovalRequest)
+  }
+);}
+
+
+
+
+
+export const getApproveBranchMutationKey = () => ['approveBranch'] as const;
+
+export const getApproveBranchMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveBranch>>, TError,ApproveBranchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveBranch>>, TError,ApproveBranchMutationVariables, TContext> => {
+
+const mutationKey = getApproveBranchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveBranch>>, ApproveBranchMutationVariables> = (props) => {
+          const {branchId,data} = props ?? {};
+
+          return  approveBranch(branchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveBranchMutationResult = NonNullable<Awaited<ReturnType<typeof approveBranch>>>
+    export type ApproveBranchMutationBody = BodyType<BranchApprovalRequest>
+    export type ApproveBranchMutationError = ErrorType<ApiErrorResponse>
+    export type ApproveBranchMutationVariables = {branchId: string;data: BodyType<BranchApprovalRequest>}
+
+    /**
+ * @summary Approve a pending branch with a required reason
+ */
+export const useApproveBranch = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveBranch>>, TError,ApproveBranchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveBranch>>,
+        TError,
+        ApproveBranchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveBranchMutationOptions(options));
+    }
+
 export const getUpdateBranchStatusUrl = (branchId: string,) => {
 
 
@@ -1594,7 +1946,7 @@ export const getUpdateBranchStatusUrl = (branchId: string,) => {
 }
 
 /**
- * @summary Change a branch status and write an audit event
+ * @summary Change the operational status of an approved branch and write an audit event
  */
 export const updateBranchStatus = async (branchId: string,
     branchStatusRequest: BranchStatusRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
@@ -1661,7 +2013,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateBranchStatusMutationVariables = {branchId: string;data: BodyType<BranchStatusRequest>}
 
     /**
- * @summary Change a branch status and write an audit event
+ * @summary Change the operational status of an approved branch and write an audit event
  */
 export const useUpdateBranchStatus = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBranchStatus>>, TError,UpdateBranchStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

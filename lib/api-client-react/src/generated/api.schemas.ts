@@ -163,6 +163,48 @@ export interface CreateOrganizationRequest {
      */
   name: string;
   kind: CreateOrganizationRequestKind;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  legalName?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  contactEmail?: string | null;
+  /** @maxLength 500 */
+  address: string;
+}
+
+export interface PageInfo {
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 0 */
+  totalPages: number;
 }
 
 export type OrganizationKind = typeof OrganizationKind[keyof typeof OrganizationKind];
@@ -197,53 +239,169 @@ export const OrganizationStatus = {
   suspended: 'suspended',
 } as const;
 
+export type OrganizationApprovalStatus = typeof OrganizationApprovalStatus[keyof typeof OrganizationApprovalStatus];
+
+
+export const OrganizationApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+} as const;
+
+export type OrganizationOperationalStatus = typeof OrganizationOperationalStatus[keyof typeof OrganizationOperationalStatus];
+
+
+export const OrganizationOperationalStatus = {
+  inactive: 'inactive',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
 export interface Organization {
   id: string;
   name: string;
   kind: OrganizationKind;
+  /** @nullable */
+  code: string | null;
+  /** @nullable */
+  legal_name: string | null;
+  /** @nullable */
+  contact_name: string | null;
+  /** @nullable */
+  contact_phone: string | null;
+  /** @nullable */
+  contact_email: string | null;
+  address: string;
   country_code: OrganizationCountryCode;
   currency: OrganizationCurrency;
   status: OrganizationStatus;
+  approval_status: OrganizationApprovalStatus;
+  operational_status: OrganizationOperationalStatus;
   created_at: string;
+  updated_at: string;
+  /** @minimum 1 */
+  version: number;
 }
 
-export interface OrganizationList {
+export interface OrganizationPage {
   items: Organization[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
+
+export type UpdateOrganizationRequestKind = typeof UpdateOrganizationRequestKind[keyof typeof UpdateOrganizationRequestKind];
+
+
+export const UpdateOrganizationRequestKind = {
+  company: 'company',
+  station: 'station',
+  provider: 'provider',
+} as const;
 
 export interface UpdateOrganizationRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
   /**
      * @minLength 2
      * @maxLength 160
      */
   name: string;
+  kind: UpdateOrganizationRequestKind;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  legalName: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  contactEmail: string | null;
+  /** @maxLength 500 */
+  address: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     * @nullable
+     */
+  reason?: string | null;
 }
 
-export type StatusRequestStatus = typeof StatusRequestStatus[keyof typeof StatusRequestStatus];
+export interface ApprovalRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type StatusRequestOperationalStatus = typeof StatusRequestOperationalStatus[keyof typeof StatusRequestOperationalStatus];
 
 
-export const StatusRequestStatus = {
-  pending: 'pending',
+export const StatusRequestOperationalStatus = {
   active: 'active',
   suspended: 'suspended',
 } as const;
 
 export interface StatusRequest {
-  status: StatusRequestStatus;
+  /** @minimum 1 */
+  expectedVersion: number;
+  operationalStatus: StatusRequestOperationalStatus;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
 }
 
-export type BranchStatusRequestStatus = typeof BranchStatusRequestStatus[keyof typeof BranchStatusRequestStatus];
+export type BranchStatusRequestOperationalStatus = typeof BranchStatusRequestOperationalStatus[keyof typeof BranchStatusRequestOperationalStatus];
 
 
-export const BranchStatusRequestStatus = {
-  pending: 'pending',
+export const BranchStatusRequestOperationalStatus = {
   active: 'active',
   suspended: 'suspended',
 } as const;
 
 export interface BranchStatusRequest {
   organizationId: string;
-  status: BranchStatusRequestStatus;
+  /** @minimum 1 */
+  expectedVersion: number;
+  operationalStatus: BranchStatusRequestOperationalStatus;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface BranchApprovalRequest {
+  organizationId: string;
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
 }
 
 export interface StatusResult {
@@ -256,14 +414,66 @@ export interface CreatedResult {
   message: string;
 }
 
+export interface BranchDayHours {
+  closed: boolean;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  open?: string;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  close?: string;
+}
+
+export interface BranchHours {
+  sun?: BranchDayHours;
+  mon?: BranchDayHours;
+  tue?: BranchDayHours;
+  wed?: BranchDayHours;
+  thu?: BranchDayHours;
+  fri?: BranchDayHours;
+  sat?: BranchDayHours;
+}
+
 export interface CreateBranchRequest {
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
   /**
      * @minLength 2
      * @maxLength 160
      */
   name: string;
   /** @maxLength 500 */
-  address?: string;
+  address: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  governorate?: string | null;
+  /**
+     * @minimum -90
+     * @maximum 90
+     * @nullable
+     */
+  latitude?: number | null;
+  /**
+     * @minimum -180
+     * @maximum 180
+     * @nullable
+     */
+  longitude?: number | null;
+  hours: BranchHours;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone?: string | null;
 }
 
 export type BranchStatus = typeof BranchStatus[keyof typeof BranchStatus];
@@ -275,28 +485,113 @@ export const BranchStatus = {
   suspended: 'suspended',
 } as const;
 
+export type BranchApprovalStatus = typeof BranchApprovalStatus[keyof typeof BranchApprovalStatus];
+
+
+export const BranchApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+} as const;
+
+export type BranchOperationalStatus = typeof BranchOperationalStatus[keyof typeof BranchOperationalStatus];
+
+
+export const BranchOperationalStatus = {
+  inactive: 'inactive',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
 export interface Branch {
   id: string;
   organization_id: string;
+  /** @nullable */
+  code: string | null;
   name: string;
   address: string;
+  /** @nullable */
+  governorate: string | null;
+  /** @nullable */
+  latitude: number | null;
+  /** @nullable */
+  longitude: number | null;
+  hours: BranchHours;
+  /** @nullable */
+  contact_name: string | null;
+  /** @nullable */
+  contact_phone: string | null;
   status: BranchStatus;
+  approval_status: BranchApprovalStatus;
+  operational_status: BranchOperationalStatus;
   created_at: string;
+  updated_at: string;
+  /** @minimum 1 */
+  version: number;
 }
 
 export interface BranchList {
   items: Branch[];
 }
 
+export interface BranchPage {
+  items: Branch[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface UpdateBranchRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
   organizationId: string;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
   /**
      * @minLength 2
      * @maxLength 160
      */
   name: string;
   /** @maxLength 500 */
-  address?: string;
+  address: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  governorate?: string | null;
+  /**
+     * @minimum -90
+     * @maximum 90
+     * @nullable
+     */
+  latitude?: number | null;
+  /**
+     * @minimum -180
+     * @maximum 180
+     * @nullable
+     */
+  longitude?: number | null;
+  hours: BranchHours;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone?: string | null;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     * @nullable
+     */
+  reason?: string | null;
 }
 
 export interface MembershipProfile {
@@ -438,4 +733,128 @@ export type AuthCallbackParams = {
 code?: string;
 next?: string;
 };
+
+export type ListOrganizationsParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+/**
+ * @maxLength 100
+ */
+search?: string;
+kind?: ListOrganizationsKind;
+approvalStatus?: ListOrganizationsApprovalStatus;
+operationalStatus?: ListOrganizationsOperationalStatus;
+sortBy?: ListOrganizationsSortBy;
+sortDirection?: ListOrganizationsSortDirection;
+};
+
+export type ListOrganizationsKind = typeof ListOrganizationsKind[keyof typeof ListOrganizationsKind];
+
+
+export const ListOrganizationsKind = {
+  company: 'company',
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export type ListOrganizationsApprovalStatus = typeof ListOrganizationsApprovalStatus[keyof typeof ListOrganizationsApprovalStatus];
+
+
+export const ListOrganizationsApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+} as const;
+
+export type ListOrganizationsOperationalStatus = typeof ListOrganizationsOperationalStatus[keyof typeof ListOrganizationsOperationalStatus];
+
+
+export const ListOrganizationsOperationalStatus = {
+  inactive: 'inactive',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export type ListOrganizationsSortBy = typeof ListOrganizationsSortBy[keyof typeof ListOrganizationsSortBy];
+
+
+export const ListOrganizationsSortBy = {
+  name: 'name',
+  code: 'code',
+  kind: 'kind',
+  approvalStatus: 'approvalStatus',
+  operationalStatus: 'operationalStatus',
+  createdAt: 'createdAt',
+} as const;
+
+export type ListOrganizationsSortDirection = typeof ListOrganizationsSortDirection[keyof typeof ListOrganizationsSortDirection];
+
+
+export const ListOrganizationsSortDirection = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
+
+export type ListBranchesPaginatedParams = {
+organizationId: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+/**
+ * @maxLength 100
+ */
+search?: string;
+approvalStatus?: ListBranchesPaginatedApprovalStatus;
+operationalStatus?: ListBranchesPaginatedOperationalStatus;
+sortBy?: ListBranchesPaginatedSortBy;
+sortDirection?: ListBranchesPaginatedSortDirection;
+};
+
+export type ListBranchesPaginatedApprovalStatus = typeof ListBranchesPaginatedApprovalStatus[keyof typeof ListBranchesPaginatedApprovalStatus];
+
+
+export const ListBranchesPaginatedApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+} as const;
+
+export type ListBranchesPaginatedOperationalStatus = typeof ListBranchesPaginatedOperationalStatus[keyof typeof ListBranchesPaginatedOperationalStatus];
+
+
+export const ListBranchesPaginatedOperationalStatus = {
+  inactive: 'inactive',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export type ListBranchesPaginatedSortBy = typeof ListBranchesPaginatedSortBy[keyof typeof ListBranchesPaginatedSortBy];
+
+
+export const ListBranchesPaginatedSortBy = {
+  name: 'name',
+  code: 'code',
+  approvalStatus: 'approvalStatus',
+  operationalStatus: 'operationalStatus',
+  createdAt: 'createdAt',
+} as const;
+
+export type ListBranchesPaginatedSortDirection = typeof ListBranchesPaginatedSortDirection[keyof typeof ListBranchesPaginatedSortDirection];
+
+
+export const ListBranchesPaginatedSortDirection = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
 

@@ -5,13 +5,48 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BranchHours } from './branchHours';
 
 export interface CreateBranchRequest {
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
   /**
      * @minLength 2
      * @maxLength 160
      */
   name: string;
   /** @maxLength 500 */
-  address?: string;
+  address: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  governorate?: string | null;
+  /**
+     * @minimum -90
+     * @maximum 90
+     * @nullable
+     */
+  latitude?: number | null;
+  /**
+     * @minimum -180
+     * @maximum 180
+     * @nullable
+     */
+  longitude?: number | null;
+  hours: BranchHours;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone?: string | null;
 }

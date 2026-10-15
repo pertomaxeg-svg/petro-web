@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type StatusRequestStatus = typeof StatusRequestStatus[keyof typeof StatusRequestStatus];
+export type StatusRequestOperationalStatus = typeof StatusRequestOperationalStatus[keyof typeof StatusRequestOperationalStatus];
 
 
-export const StatusRequestStatus = {
-  pending: 'pending',
+export const StatusRequestOperationalStatus = {
   active: 'active',
   suspended: 'suspended',
 } as const;

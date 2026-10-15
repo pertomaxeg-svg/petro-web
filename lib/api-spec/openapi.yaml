@@ -219,13 +219,38 @@ paths:
       operationId: listOrganizations
       tags: [management]
       summary: List organizations visible through the current account's RLS scope
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: kind
+          in: query
+          schema: { type: string, enum: [company, station, provider] }
+        - name: approvalStatus
+          in: query
+          schema: { type: string, enum: [pending, approved] }
+        - name: operationalStatus
+          in: query
+          schema: { type: string, enum: [inactive, active, suspended] }
+        - name: sortBy
+          in: query
+          schema: { type: string, enum: [name, code, kind, approvalStatus, operationalStatus, createdAt], default: createdAt }
+        - name: sortDirection
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
       responses:
         "200":
-          description: Visible organizations
+          description: Filtered and paginated organizations
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OrganizationList"
+                $ref: "#/components/schemas/OrganizationPage"
         "401":
           $ref: "#/components/responses/ApiError"
     post:
@@ -250,10 +275,25 @@ paths:
         "403":
           $ref: "#/components/responses/ApiError"
   /organizations/{organizationId}:
+    get:
+      operationId: getOrganization
+      tags: [management]
+      summary: Get an organization visible through the current account's RLS scope
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "404":
+          $ref: "#/components/responses/ApiError"
     patch:
       operationId: updateOrganization
       tags: [management]
-      summary: Update the name of an organization the account can manage
+      summary: Update organization details with optimistic concurrency and audit
       parameters:
         - $ref: "#/components/parameters/OrganizationId"
       requestBody:
@@ -271,11 +311,37 @@ paths:
                 $ref: "#/components/schemas/MessageResult"
         "403":
           $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organizations/{organizationId}/approval:
+    post:
+      operationId: approveOrganization
+      tags: [management]
+      summary: Approve a pending organization with a required reason
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalRequest"
+      responses:
+        "200":
+          description: Approval recorded; operation remains inactive until activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
   /organizations/{organizationId}/status:
     patch:
       operationId: updateOrganizationStatus
       tags: [management]
-      summary: Approve, suspend, or return an organization to pending status
+      summary: Activate, suspend, or reactivate an approved organization
       parameters:
         - $ref: "#/components/parameters/OrganizationId"
       requestBody:
@@ -286,12 +352,14 @@ paths:
               $ref: "#/components/schemas/StatusRequest"
       responses:
         "200":
-          description: Organization status changed and audited
+          description: Operational status changed and audited
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusResult"
         "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
           $ref: "#/components/responses/ApiError"
   /organizations/{organizationId}/branches:
     get:
@@ -330,11 +398,51 @@ paths:
                 $ref: "#/components/schemas/CreatedResult"
         "403":
           $ref: "#/components/responses/ApiError"
+  /branches:
+    get:
+      operationId: listBranchesPaginated
+      tags: [management]
+      summary: Search and paginate branches within one RLS-visible organization
+      parameters:
+        - name: organizationId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: approvalStatus
+          in: query
+          schema: { type: string, enum: [pending, approved] }
+        - name: operationalStatus
+          in: query
+          schema: { type: string, enum: [inactive, active, suspended] }
+        - name: sortBy
+          in: query
+          schema: { type: string, enum: [name, code, approvalStatus, operationalStatus, createdAt], default: createdAt }
+        - name: sortDirection
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+      responses:
+        "200":
+          description: Filtered and paginated visible branches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BranchPage"
+        "403":
+          $ref: "#/components/responses/ApiError"
   /branches/{branchId}:
     patch:
       operationId: updateBranch
       tags: [management]
-      summary: Update a branch in an organization the account can manage
+      summary: Update branch details without changing its parent organization
       parameters:
         - name: branchId
           in: path
@@ -357,11 +465,40 @@ paths:
                 $ref: "#/components/schemas/MessageResult"
         "403":
           $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /branches/{branchId}/approval:
+    post:
+      operationId: approveBranch
+      tags: [management]
+      summary: Approve a pending branch with a required reason
+      parameters:
+        - name: branchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchApprovalRequest"
+      responses:
+        "200":
+          description: Branch approval recorded; operation remains inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResult"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
   /branches/{branchId}/status:
     patch:
       operationId: updateBranchStatus
       tags: [management]
-      summary: Change a branch status and write an audit event
+      summary: Change the operational status of an approved branch and write an audit event
       parameters:
         - name: branchId
           in: path
@@ -383,6 +520,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/MessageResult"
         "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
           $ref: "#/components/responses/ApiError"
   /organizations/{organizationId}/memberships:
     get:
@@ -691,45 +830,101 @@ components:
         kind:
           type: string
           enum: [company, station, provider]
-      required: [name, kind]
+        code:
+          type: string
+          minLength: 2
+          maxLength: 40
+          pattern: "^[A-Za-z0-9_-]+$"
+        legalName: { type: ["string", "null"], maxLength: 200 }
+        contactName: { type: ["string", "null"], maxLength: 160 }
+        contactPhone: { type: ["string", "null"], maxLength: 24 }
+        contactEmail: { type: ["string", "null"], format: email, maxLength: 320 }
+        address: { type: string, maxLength: 500 }
+      required: [name, kind, code, address]
+    PageInfo:
+      type: object
+      properties:
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+      required: [page, pageSize, total, totalPages]
     Organization:
       type: object
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         kind: { type: string, enum: [company, station, provider] }
+        code: { type: ["string", "null"] }
+        legal_name: { type: ["string", "null"] }
+        contact_name: { type: ["string", "null"] }
+        contact_phone: { type: ["string", "null"] }
+        contact_email: { type: ["string", "null"] }
+        address: { type: string }
         country_code: { type: string, enum: [EG] }
         currency: { type: string, enum: [EGP] }
         status: { type: string, enum: [pending, active, suspended] }
+        approval_status: { type: string, enum: [pending, approved] }
+        operational_status: { type: string, enum: [inactive, active, suspended] }
         created_at: { type: string, format: date-time }
-      required: [id, name, kind, country_code, currency, status, created_at]
-    OrganizationList:
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+      required: [id, name, kind, code, legal_name, contact_name, contact_phone, contact_email, address, country_code, currency, status, approval_status, operational_status, created_at, updated_at, version]
+    OrganizationPage:
       type: object
       properties:
         items:
           type: array
           items: { $ref: "#/components/schemas/Organization" }
-      required: [items]
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+      required: [items, page, pageSize, total, totalPages]
     UpdateOrganizationRequest:
       type: object
       properties:
+        expectedVersion: { type: integer, minimum: 1 }
         name: { type: string, minLength: 2, maxLength: 160 }
-      required: [name]
+        kind: { type: string, enum: [company, station, provider] }
+        code: { type: string, minLength: 2, maxLength: 40, pattern: "^[A-Za-z0-9_-]+$" }
+        legalName: { type: ["string", "null"], maxLength: 200 }
+        contactName: { type: ["string", "null"], maxLength: 160 }
+        contactPhone: { type: ["string", "null"], maxLength: 24 }
+        contactEmail: { type: ["string", "null"], format: email, maxLength: 320 }
+        address: { type: string, maxLength: 500 }
+        reason: { type: ["string", "null"], minLength: 5, maxLength: 500 }
+      required: [expectedVersion, name, kind, code, legalName, contactName, contactPhone, contactEmail, address]
+    ApprovalRequest:
+      type: object
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [expectedVersion, reason]
     StatusRequest:
       type: object
       properties:
-        status: { type: string, enum: [pending, active, suspended] }
-      required: [status]
+        expectedVersion: { type: integer, minimum: 1 }
+        operationalStatus: { type: string, enum: [active, suspended] }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [expectedVersion, operationalStatus, reason]
     BranchStatusRequest:
       type: object
-      required: [organizationId, status]
+      required: [organizationId, expectedVersion, operationalStatus, reason]
       properties:
         organizationId:
           type: string
           format: uuid
-        status:
-          type: string
-          enum: [pending, active, suspended]
+        expectedVersion: { type: integer, minimum: 1 }
+        operationalStatus: { type: string, enum: [active, suspended] }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+    BranchApprovalRequest:
+      type: object
+      required: [organizationId, expectedVersion, reason]
+      properties:
+        organizationId: { type: string, format: uuid }
+        expectedVersion: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
     StatusResult:
       type: object
       properties:
@@ -745,19 +940,56 @@ components:
     CreateBranchRequest:
       type: object
       properties:
+        code: { type: string, minLength: 2, maxLength: 40, pattern: "^[A-Za-z0-9_-]+$" }
         name: { type: string, minLength: 2, maxLength: 160 }
         address: { type: string, maxLength: 500 }
-      required: [name]
+        governorate: { type: ["string", "null"], maxLength: 100 }
+        latitude: { type: ["number", "null"], minimum: -90, maximum: 90 }
+        longitude: { type: ["number", "null"], minimum: -180, maximum: 180 }
+        hours: { $ref: "#/components/schemas/BranchHours" }
+        contactName: { type: ["string", "null"], maxLength: 160 }
+        contactPhone: { type: ["string", "null"], maxLength: 24 }
+      required: [code, name, address, hours]
+    BranchHours:
+      type: object
+      additionalProperties: false
+      properties:
+        sun: { $ref: "#/components/schemas/BranchDayHours" }
+        mon: { $ref: "#/components/schemas/BranchDayHours" }
+        tue: { $ref: "#/components/schemas/BranchDayHours" }
+        wed: { $ref: "#/components/schemas/BranchDayHours" }
+        thu: { $ref: "#/components/schemas/BranchDayHours" }
+        fri: { $ref: "#/components/schemas/BranchDayHours" }
+        sat: { $ref: "#/components/schemas/BranchDayHours" }
+    BranchDayHours:
+      type: object
+      additionalProperties: false
+      properties:
+        closed: { type: boolean }
+        open: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        close: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+      required: [closed]
     Branch:
       type: object
       properties:
         id: { type: string, format: uuid }
         organization_id: { type: string, format: uuid }
+        code: { type: ["string", "null"] }
         name: { type: string }
         address: { type: string }
+        governorate: { type: ["string", "null"] }
+        latitude: { type: ["number", "null"] }
+        longitude: { type: ["number", "null"] }
+        hours: { $ref: "#/components/schemas/BranchHours" }
+        contact_name: { type: ["string", "null"] }
+        contact_phone: { type: ["string", "null"] }
         status: { type: string, enum: [pending, active, suspended] }
+        approval_status: { type: string, enum: [pending, approved] }
+        operational_status: { type: string, enum: [inactive, active, suspended] }
         created_at: { type: string, format: date-time }
-      required: [id, organization_id, name, address, status, created_at]
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+      required: [id, organization_id, code, name, address, governorate, latitude, longitude, hours, contact_name, contact_phone, status, approval_status, operational_status, created_at, updated_at, version]
     BranchList:
       type: object
       properties:
@@ -765,13 +997,33 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Branch" }
       required: [items]
+    BranchPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Branch" }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+      required: [items, page, pageSize, total, totalPages]
     UpdateBranchRequest:
       type: object
       properties:
+        expectedVersion: { type: integer, minimum: 1 }
         organizationId: { type: string, format: uuid }
+        code: { type: string, minLength: 2, maxLength: 40, pattern: "^[A-Za-z0-9_-]+$" }
         name: { type: string, minLength: 2, maxLength: 160 }
         address: { type: string, maxLength: 500 }
-      required: [organizationId, name]
+        governorate: { type: ["string", "null"], maxLength: 100 }
+        latitude: { type: ["number", "null"], minimum: -90, maximum: 90 }
+        longitude: { type: ["number", "null"], minimum: -180, maximum: 180 }
+        hours: { $ref: "#/components/schemas/BranchHours" }
+        contactName: { type: ["string", "null"], maxLength: 160 }
+        contactPhone: { type: ["string", "null"], maxLength: 24 }
+        reason: { type: ["string", "null"], minLength: 5, maxLength: 500 }
+      required: [expectedVersion, organizationId, code, name, address, hours]
     MembershipProfile:
       type: object
       properties:

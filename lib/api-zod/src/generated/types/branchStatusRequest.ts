@@ -5,9 +5,16 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { BranchStatusRequestStatus } from './branchStatusRequestStatus';
+import type { BranchStatusRequestOperationalStatus } from './branchStatusRequestOperationalStatus';
 
 export interface BranchStatusRequest {
   organizationId: string;
-  status: BranchStatusRequestStatus;
+  /** @minimum 1 */
+  expectedVersion: number;
+  operationalStatus: BranchStatusRequestOperationalStatus;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
 }

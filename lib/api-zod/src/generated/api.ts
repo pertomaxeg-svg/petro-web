@@ -172,16 +172,54 @@ export const AuthCallbackResponse = zod.void()
 /**
  * @summary List organizations visible through the current account's RLS scope
  */
+export const listOrganizationsQueryPageDefault = 1;
+
+export const listOrganizationsQueryPageSizeDefault = 25;
+export const listOrganizationsQueryPageSizeMax = 100;
+
+export const listOrganizationsQuerySearchMax = 100;
+
+export const listOrganizationsQuerySortByDefault = `createdAt`;
+export const listOrganizationsQuerySortDirectionDefault = `desc`;
+
+export const ListOrganizationsQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).default(listOrganizationsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listOrganizationsQueryPageSizeMax).default(listOrganizationsQueryPageSizeDefault),
+  "search": zod.coerce.string().max(listOrganizationsQuerySearchMax).optional(),
+  "kind": zod.enum(['company', 'station', 'provider']).optional(),
+  "approvalStatus": zod.enum(['pending', 'approved']).optional(),
+  "operationalStatus": zod.enum(['inactive', 'active', 'suspended']).optional(),
+  "sortBy": zod.enum(['name', 'code', 'kind', 'approvalStatus', 'operationalStatus', 'createdAt']).default(listOrganizationsQuerySortByDefault),
+  "sortDirection": zod.enum(['asc', 'desc']).default(listOrganizationsQuerySortDirectionDefault)
+})
+
+
+
+
 export const ListOrganizationsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
   "kind": zod.enum(['company', 'station', 'provider']),
+  "code": zod.string().nullable(),
+  "legal_name": zod.string().nullable(),
+  "contact_name": zod.string().nullable(),
+  "contact_phone": zod.string().nullable(),
+  "contact_email": zod.string().nullable(),
+  "address": zod.string(),
   "country_code": zod.enum(['EG']),
   "currency": zod.enum(['EGP']),
   "status": zod.enum(['pending', 'active', 'suspended']),
-  "created_at": zod.coerce.date()
-}))
+  "approval_status": zod.enum(['pending', 'approved']),
+  "operational_status": zod.enum(['inactive', 'active', 'suspended']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "version": zod.number().int().min(1)
+})),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int(),
+  "totalPages": zod.number().int()
 })
 
 
@@ -191,11 +229,32 @@ export const ListOrganizationsResponse = zod.object({
 export const createOrganizationBodyNameMin = 2;
 export const createOrganizationBodyNameMax = 160;
 
+export const createOrganizationBodyCodeMin = 2;
+export const createOrganizationBodyCodeMax = 40;
+
+
+export const createOrganizationBodyCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+export const createOrganizationBodyLegalNameMax = 200;
+
+export const createOrganizationBodyContactNameMax = 160;
+
+export const createOrganizationBodyContactPhoneMax = 24;
+
+export const createOrganizationBodyContactEmailMax = 320;
+
+export const createOrganizationBodyAddressMax = 500;
+
 
 
 export const CreateOrganizationBody = zod.object({
   "name": zod.string().min(createOrganizationBodyNameMin).max(createOrganizationBodyNameMax),
-  "kind": zod.enum(['company', 'station', 'provider'])
+  "kind": zod.enum(['company', 'station', 'provider']),
+  "code": zod.string().min(createOrganizationBodyCodeMin).max(createOrganizationBodyCodeMax).regex(createOrganizationBodyCodeRegExp),
+  "legalName": zod.string().max(createOrganizationBodyLegalNameMax).nullish(),
+  "contactName": zod.string().max(createOrganizationBodyContactNameMax).nullish(),
+  "contactPhone": zod.string().max(createOrganizationBodyContactPhoneMax).nullish(),
+  "contactEmail": zod.string().email().max(createOrganizationBodyContactEmailMax).nullish(),
+  "address": zod.string().max(createOrganizationBodyAddressMax)
 })
 
 export const CreateOrganizationResponse = zod.object({
@@ -205,19 +264,78 @@ export const CreateOrganizationResponse = zod.object({
 
 
 /**
- * @summary Update the name of an organization the account can manage
+ * @summary Get an organization visible through the current account's RLS scope
+ */
+export const GetOrganizationParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const GetOrganizationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "kind": zod.enum(['company', 'station', 'provider']),
+  "code": zod.string().nullable(),
+  "legal_name": zod.string().nullable(),
+  "contact_name": zod.string().nullable(),
+  "contact_phone": zod.string().nullable(),
+  "contact_email": zod.string().nullable(),
+  "address": zod.string(),
+  "country_code": zod.enum(['EG']),
+  "currency": zod.enum(['EGP']),
+  "status": zod.enum(['pending', 'active', 'suspended']),
+  "approval_status": zod.enum(['pending', 'approved']),
+  "operational_status": zod.enum(['inactive', 'active', 'suspended']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "version": zod.number().int().min(1)
+})
+
+
+/**
+ * @summary Update organization details with optimistic concurrency and audit
  */
 export const UpdateOrganizationParams = zod.object({
   "organizationId": zod.coerce.string().uuid()
 })
 
+
 export const updateOrganizationBodyNameMin = 2;
 export const updateOrganizationBodyNameMax = 160;
+
+export const updateOrganizationBodyCodeMin = 2;
+export const updateOrganizationBodyCodeMax = 40;
+
+
+export const updateOrganizationBodyCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+export const updateOrganizationBodyLegalNameMax = 200;
+
+export const updateOrganizationBodyContactNameMax = 160;
+
+export const updateOrganizationBodyContactPhoneMax = 24;
+
+export const updateOrganizationBodyContactEmailMax = 320;
+
+export const updateOrganizationBodyAddressMax = 500;
+
+export const updateOrganizationBodyReasonMin = 5;
+export const updateOrganizationBodyReasonMax = 500;
 
 
 
 export const UpdateOrganizationBody = zod.object({
-  "name": zod.string().min(updateOrganizationBodyNameMin).max(updateOrganizationBodyNameMax)
+  "expectedVersion": zod.number().int().min(1),
+  "name": zod.string().min(updateOrganizationBodyNameMin).max(updateOrganizationBodyNameMax),
+  "kind": zod.enum(['company', 'station', 'provider']),
+  "code": zod.string().min(updateOrganizationBodyCodeMin).max(updateOrganizationBodyCodeMax).regex(updateOrganizationBodyCodeRegExp),
+  "legalName": zod.string().max(updateOrganizationBodyLegalNameMax).nullable(),
+  "contactName": zod.string().max(updateOrganizationBodyContactNameMax).nullable(),
+  "contactPhone": zod.string().max(updateOrganizationBodyContactPhoneMax).nullable(),
+  "contactEmail": zod.string().email().max(updateOrganizationBodyContactEmailMax).nullable(),
+  "address": zod.string().max(updateOrganizationBodyAddressMax),
+  "reason": zod.string().min(updateOrganizationBodyReasonMin).max(updateOrganizationBodyReasonMax).nullish()
 })
 
 export const UpdateOrganizationResponse = zod.object({
@@ -226,14 +344,45 @@ export const UpdateOrganizationResponse = zod.object({
 
 
 /**
- * @summary Approve, suspend, or return an organization to pending status
+ * @summary Approve a pending organization with a required reason
+ */
+export const ApproveOrganizationParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+
+export const approveOrganizationBodyReasonMin = 5;
+export const approveOrganizationBodyReasonMax = 500;
+
+
+
+export const ApproveOrganizationBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "reason": zod.string().min(approveOrganizationBodyReasonMin).max(approveOrganizationBodyReasonMax)
+})
+
+export const ApproveOrganizationResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Activate, suspend, or reactivate an approved organization
  */
 export const UpdateOrganizationStatusParams = zod.object({
   "organizationId": zod.coerce.string().uuid()
 })
 
+
+export const updateOrganizationStatusBodyReasonMin = 5;
+export const updateOrganizationStatusBodyReasonMax = 500;
+
+
+
 export const UpdateOrganizationStatusBody = zod.object({
-  "status": zod.enum(['pending', 'active', 'suspended'])
+  "expectedVersion": zod.number().int().min(1),
+  "operationalStatus": zod.enum(['active', 'suspended']),
+  "reason": zod.string().min(updateOrganizationStatusBodyReasonMin).max(updateOrganizationStatusBodyReasonMax)
 })
 
 export const UpdateOrganizationStatusResponse = zod.object({
@@ -249,14 +398,78 @@ export const ListBranchesParams = zod.object({
   "organizationId": zod.coerce.string().uuid()
 })
 
+export const listBranchesResponseItemsItemHoursSunOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursSunCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursMonOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursMonCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursTueOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursTueCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursWedOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursWedCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursThuOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursThuCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursFriOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursFriCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursSatOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesResponseItemsItemHoursSatCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+
 export const ListBranchesResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string().uuid(),
   "organization_id": zod.string().uuid(),
+  "code": zod.string().nullable(),
   "name": zod.string(),
   "address": zod.string(),
+  "governorate": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "hours": zod.object({
+  "sun": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesResponseItemsItemHoursSunOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursSunCloseRegExp).optional()
+}).optional(),
+  "mon": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesResponseItemsItemHoursMonOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursMonCloseRegExp).optional()
+}).optional(),
+  "tue": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesResponseItemsItemHoursTueOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursTueCloseRegExp).optional()
+}).optional(),
+  "wed": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesResponseItemsItemHoursWedOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursWedCloseRegExp).optional()
+}).optional(),
+  "thu": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesResponseItemsItemHoursThuOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursThuCloseRegExp).optional()
+}).optional(),
+  "fri": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesResponseItemsItemHoursFriOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursFriCloseRegExp).optional()
+}).optional(),
+  "sat": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesResponseItemsItemHoursSatOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursSatCloseRegExp).optional()
+}).optional()
+}),
+  "contact_name": zod.string().nullable(),
+  "contact_phone": zod.string().nullable(),
   "status": zod.enum(['pending', 'active', 'suspended']),
-  "created_at": zod.coerce.date()
+  "approval_status": zod.enum(['pending', 'approved']),
+  "operational_status": zod.enum(['inactive', 'active', 'suspended']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "version": zod.number().int().min(1)
 }))
 })
 
@@ -268,16 +481,90 @@ export const CreateBranchParams = zod.object({
   "organizationId": zod.coerce.string().uuid()
 })
 
+export const createBranchBodyCodeMin = 2;
+export const createBranchBodyCodeMax = 40;
+
+
+export const createBranchBodyCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
 export const createBranchBodyNameMin = 2;
 export const createBranchBodyNameMax = 160;
 
 export const createBranchBodyAddressMax = 500;
 
+export const createBranchBodyGovernorateMax = 100;
+
+export const createBranchBodyLatitudeMin = -90;
+export const createBranchBodyLatitudeMax = 90;
+
+export const createBranchBodyLongitudeMin = -180;
+export const createBranchBodyLongitudeMax = 180;
+
+export const createBranchBodyHoursSunOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursSunCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursMonOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursMonCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursTueOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursTueCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursWedOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursWedCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursThuOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursThuCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursFriOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursFriCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursSatOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyHoursSatCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createBranchBodyContactNameMax = 160;
+
+export const createBranchBodyContactPhoneMax = 24;
+
 
 
 export const CreateBranchBody = zod.object({
+  "code": zod.string().min(createBranchBodyCodeMin).max(createBranchBodyCodeMax).regex(createBranchBodyCodeRegExp),
   "name": zod.string().min(createBranchBodyNameMin).max(createBranchBodyNameMax),
-  "address": zod.string().max(createBranchBodyAddressMax).optional()
+  "address": zod.string().max(createBranchBodyAddressMax),
+  "governorate": zod.string().max(createBranchBodyGovernorateMax).nullish(),
+  "latitude": zod.number().min(createBranchBodyLatitudeMin).max(createBranchBodyLatitudeMax).nullish(),
+  "longitude": zod.number().min(createBranchBodyLongitudeMin).max(createBranchBodyLongitudeMax).nullish(),
+  "hours": zod.object({
+  "sun": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createBranchBodyHoursSunOpenRegExp).optional(),
+  "close": zod.string().regex(createBranchBodyHoursSunCloseRegExp).optional()
+}).optional(),
+  "mon": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createBranchBodyHoursMonOpenRegExp).optional(),
+  "close": zod.string().regex(createBranchBodyHoursMonCloseRegExp).optional()
+}).optional(),
+  "tue": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createBranchBodyHoursTueOpenRegExp).optional(),
+  "close": zod.string().regex(createBranchBodyHoursTueCloseRegExp).optional()
+}).optional(),
+  "wed": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createBranchBodyHoursWedOpenRegExp).optional(),
+  "close": zod.string().regex(createBranchBodyHoursWedCloseRegExp).optional()
+}).optional(),
+  "thu": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createBranchBodyHoursThuOpenRegExp).optional(),
+  "close": zod.string().regex(createBranchBodyHoursThuCloseRegExp).optional()
+}).optional(),
+  "fri": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createBranchBodyHoursFriOpenRegExp).optional(),
+  "close": zod.string().regex(createBranchBodyHoursFriCloseRegExp).optional()
+}).optional(),
+  "sat": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createBranchBodyHoursSatOpenRegExp).optional(),
+  "close": zod.string().regex(createBranchBodyHoursSatCloseRegExp).optional()
+}).optional()
+}),
+  "contactName": zod.string().max(createBranchBodyContactNameMax).nullish(),
+  "contactPhone": zod.string().max(createBranchBodyContactPhoneMax).nullish()
 })
 
 export const CreateBranchResponse = zod.object({
@@ -287,23 +574,207 @@ export const CreateBranchResponse = zod.object({
 
 
 /**
- * @summary Update a branch in an organization the account can manage
+ * @summary Search and paginate branches within one RLS-visible organization
+ */
+export const listBranchesPaginatedQueryPageDefault = 1;
+
+export const listBranchesPaginatedQueryPageSizeDefault = 25;
+export const listBranchesPaginatedQueryPageSizeMax = 100;
+
+export const listBranchesPaginatedQuerySearchMax = 100;
+
+export const listBranchesPaginatedQuerySortByDefault = `createdAt`;
+export const listBranchesPaginatedQuerySortDirectionDefault = `desc`;
+
+export const ListBranchesPaginatedQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid(),
+  "page": zod.coerce.number().int().min(1).default(listBranchesPaginatedQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listBranchesPaginatedQueryPageSizeMax).default(listBranchesPaginatedQueryPageSizeDefault),
+  "search": zod.coerce.string().max(listBranchesPaginatedQuerySearchMax).optional(),
+  "approvalStatus": zod.enum(['pending', 'approved']).optional(),
+  "operationalStatus": zod.enum(['inactive', 'active', 'suspended']).optional(),
+  "sortBy": zod.enum(['name', 'code', 'approvalStatus', 'operationalStatus', 'createdAt']).default(listBranchesPaginatedQuerySortByDefault),
+  "sortDirection": zod.enum(['asc', 'desc']).default(listBranchesPaginatedQuerySortDirectionDefault)
+})
+
+export const listBranchesPaginatedResponseItemsItemHoursSunOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursSunCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursMonOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursMonCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursTueOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursTueCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursWedOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursWedCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursThuOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursThuCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursFriOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursFriCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursSatOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listBranchesPaginatedResponseItemsItemHoursSatCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+
+export const ListBranchesPaginatedResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organization_id": zod.string().uuid(),
+  "code": zod.string().nullable(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "governorate": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "hours": zod.object({
+  "sun": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSunOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSunCloseRegExp).optional()
+}).optional(),
+  "mon": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursMonOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursMonCloseRegExp).optional()
+}).optional(),
+  "tue": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursTueOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursTueCloseRegExp).optional()
+}).optional(),
+  "wed": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursWedOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursWedCloseRegExp).optional()
+}).optional(),
+  "thu": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursThuOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursThuCloseRegExp).optional()
+}).optional(),
+  "fri": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursFriOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursFriCloseRegExp).optional()
+}).optional(),
+  "sat": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSatOpenRegExp).optional(),
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSatCloseRegExp).optional()
+}).optional()
+}),
+  "contact_name": zod.string().nullable(),
+  "contact_phone": zod.string().nullable(),
+  "status": zod.enum(['pending', 'active', 'suspended']),
+  "approval_status": zod.enum(['pending', 'approved']),
+  "operational_status": zod.enum(['inactive', 'active', 'suspended']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "version": zod.number().int().min(1)
+})),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int(),
+  "totalPages": zod.number().int()
+})
+
+
+/**
+ * @summary Update branch details without changing its parent organization
  */
 export const UpdateBranchParams = zod.object({
   "branchId": zod.coerce.string().uuid()
 })
 
+
+export const updateBranchBodyCodeMin = 2;
+export const updateBranchBodyCodeMax = 40;
+
+
+export const updateBranchBodyCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
 export const updateBranchBodyNameMin = 2;
 export const updateBranchBodyNameMax = 160;
 
 export const updateBranchBodyAddressMax = 500;
 
+export const updateBranchBodyGovernorateMax = 100;
+
+export const updateBranchBodyLatitudeMin = -90;
+export const updateBranchBodyLatitudeMax = 90;
+
+export const updateBranchBodyLongitudeMin = -180;
+export const updateBranchBodyLongitudeMax = 180;
+
+export const updateBranchBodyHoursSunOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursSunCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursMonOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursMonCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursTueOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursTueCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursWedOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursWedCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursThuOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursThuCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursFriOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursFriCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursSatOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyHoursSatCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateBranchBodyContactNameMax = 160;
+
+export const updateBranchBodyContactPhoneMax = 24;
+
+export const updateBranchBodyReasonMin = 5;
+export const updateBranchBodyReasonMax = 500;
+
 
 
 export const UpdateBranchBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
   "organizationId": zod.string().uuid(),
+  "code": zod.string().min(updateBranchBodyCodeMin).max(updateBranchBodyCodeMax).regex(updateBranchBodyCodeRegExp),
   "name": zod.string().min(updateBranchBodyNameMin).max(updateBranchBodyNameMax),
-  "address": zod.string().max(updateBranchBodyAddressMax).optional()
+  "address": zod.string().max(updateBranchBodyAddressMax),
+  "governorate": zod.string().max(updateBranchBodyGovernorateMax).nullish(),
+  "latitude": zod.number().min(updateBranchBodyLatitudeMin).max(updateBranchBodyLatitudeMax).nullish(),
+  "longitude": zod.number().min(updateBranchBodyLongitudeMin).max(updateBranchBodyLongitudeMax).nullish(),
+  "hours": zod.object({
+  "sun": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateBranchBodyHoursSunOpenRegExp).optional(),
+  "close": zod.string().regex(updateBranchBodyHoursSunCloseRegExp).optional()
+}).optional(),
+  "mon": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateBranchBodyHoursMonOpenRegExp).optional(),
+  "close": zod.string().regex(updateBranchBodyHoursMonCloseRegExp).optional()
+}).optional(),
+  "tue": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateBranchBodyHoursTueOpenRegExp).optional(),
+  "close": zod.string().regex(updateBranchBodyHoursTueCloseRegExp).optional()
+}).optional(),
+  "wed": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateBranchBodyHoursWedOpenRegExp).optional(),
+  "close": zod.string().regex(updateBranchBodyHoursWedCloseRegExp).optional()
+}).optional(),
+  "thu": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateBranchBodyHoursThuOpenRegExp).optional(),
+  "close": zod.string().regex(updateBranchBodyHoursThuCloseRegExp).optional()
+}).optional(),
+  "fri": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateBranchBodyHoursFriOpenRegExp).optional(),
+  "close": zod.string().regex(updateBranchBodyHoursFriCloseRegExp).optional()
+}).optional(),
+  "sat": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateBranchBodyHoursSatOpenRegExp).optional(),
+  "close": zod.string().regex(updateBranchBodyHoursSatCloseRegExp).optional()
+}).optional()
+}),
+  "contactName": zod.string().max(updateBranchBodyContactNameMax).nullish(),
+  "contactPhone": zod.string().max(updateBranchBodyContactPhoneMax).nullish(),
+  "reason": zod.string().min(updateBranchBodyReasonMin).max(updateBranchBodyReasonMax).nullish()
 })
 
 export const UpdateBranchResponse = zod.object({
@@ -312,15 +783,47 @@ export const UpdateBranchResponse = zod.object({
 
 
 /**
- * @summary Change a branch status and write an audit event
+ * @summary Approve a pending branch with a required reason
+ */
+export const ApproveBranchParams = zod.object({
+  "branchId": zod.coerce.string().uuid()
+})
+
+
+export const approveBranchBodyReasonMin = 5;
+export const approveBranchBodyReasonMax = 500;
+
+
+
+export const ApproveBranchBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "expectedVersion": zod.number().int().min(1),
+  "reason": zod.string().min(approveBranchBodyReasonMin).max(approveBranchBodyReasonMax)
+})
+
+export const ApproveBranchResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Change the operational status of an approved branch and write an audit event
  */
 export const UpdateBranchStatusParams = zod.object({
   "branchId": zod.coerce.string().uuid()
 })
 
+
+export const updateBranchStatusBodyReasonMin = 5;
+export const updateBranchStatusBodyReasonMax = 500;
+
+
+
 export const UpdateBranchStatusBody = zod.object({
   "organizationId": zod.string().uuid(),
-  "status": zod.enum(['pending', 'active', 'suspended'])
+  "expectedVersion": zod.number().int().min(1),
+  "operationalStatus": zod.enum(['active', 'suspended']),
+  "reason": zod.string().min(updateBranchStatusBodyReasonMin).max(updateBranchStatusBodyReasonMax)
 })
 
 export const UpdateBranchStatusResponse = zod.object({
@@ -455,8 +958,16 @@ export const SetUserStatusParams = zod.object({
   "userId": zod.coerce.string().uuid()
 })
 
+
+export const setUserStatusBodyReasonMin = 5;
+export const setUserStatusBodyReasonMax = 500;
+
+
+
 export const SetUserStatusBody = zod.object({
-  "status": zod.enum(['pending', 'active', 'suspended'])
+  "expectedVersion": zod.number().int().min(1),
+  "operationalStatus": zod.enum(['active', 'suspended']),
+  "reason": zod.string().min(setUserStatusBodyReasonMin).max(setUserStatusBodyReasonMax)
 })
 
 export const SetUserStatusResponse = zod.object({

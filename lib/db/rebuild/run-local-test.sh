@@ -120,39 +120,43 @@ if ! cmp -s "$tmp_dir/source-normalized.sql" "$tmp_dir/rebuilt-normalized.sql"; 
   exit 1
 fi
 
-# DB-01 tests the audited baseline before the proposed DB-02 privilege change.
+# DB-01 tests the audited baseline before the already-approved DB-02 forward migration.
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/rls-smoke-test.sql" >/dev/null
 
 # The current snapshot already contains 0001-0003; do not replay them.
-# 0004 is a proposed, post-baseline migration and is applied only to this
-# temporary local database, twice to verify idempotency. Compare every default
-# ACL across every schema before/after: this proposal must not change defaults.
+# 0004 is already applied in the live project but deliberately absent from its
+# Supabase ledger. A fresh isolated rebuild must apply 0004 once before 0005;
+# this script never connects to Supabase and never changes that ledger.
 default_acl_snapshot() {
   psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 \
     --command="SELECT COALESCE(string_agg(format('%s|%s|%s|%s', defaclrole::regrole, defaclnamespace::regnamespace, defaclobjtype, COALESCE(defaclacl::text, '')), E'\\n' ORDER BY defaclrole, defaclnamespace, defaclobjtype), '') FROM pg_default_acl;"
 }
-default_acl_snapshot >"$tmp_dir/default-acl-before.txt"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0004.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$repo_root/lib/db/migrations/0004_db02_invitation_permissions.sql" >/dev/null
-default_acl_snapshot >"$tmp_dir/default-acl-after-once.txt"
-if ! cmp -s "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-once.txt"; then
+default_acl_snapshot >"$tmp_dir/default-acl-after-0004.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0004.txt" "$tmp_dir/default-acl-after-0004.txt"; then
   echo "DB-02 unexpectedly changed one or more default ACLs:" >&2
-  diff -u "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-once.txt" >&2 || true
-  exit 1
-fi
-psql --no-psqlrc --set ON_ERROR_STOP=1 \
-  --file="$repo_root/lib/db/migrations/0004_db02_invitation_permissions.sql" >/dev/null
-default_acl_snapshot >"$tmp_dir/default-acl-after-twice.txt"
-if ! cmp -s "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-twice.txt"; then
-  echo "Repeated DB-02 application changed one or more default ACLs:" >&2
-  diff -u "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-twice.txt" >&2 || true
+  diff -u "$tmp_dir/default-acl-before-0004.txt" "$tmp_dir/default-acl-after-0004.txt" >&2 || true
   exit 1
 fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/db02-privilege-test.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-before-0005.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0005_central_organizations_branches.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0005.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0005.txt" "$tmp_dir/default-acl-after-0005.txt"; then
+  echo "0005 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0005.txt" "$tmp_dir/default-acl-after-0005.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/central-organizations-smoke-test.sql" >/dev/null
 
 echo "Fresh baseline matched: 11 tables, 57 constraints, 22 indexes, 23 functions, 12 RLS policies, 11 RLS-enabled tables."
-echo "DB-01 baseline RLS checks passed; proposed 0004 passed twice and changed no default ACL in any schema."
-echo "DB-02 exact-object ACL, authorized invite RPC, role-separation and tenant/branch isolation checks passed."
+echo "DB-01 baseline RLS checks passed; 0004 was applied once to the disposable baseline and DB-02 invitation checks passed."
+echo "0005 organization/branch schema, reasoned audit, state separation, uniqueness, optimistic concurrency, role separation and tenant/branch isolation checks passed."
+echo "0004/0005 local migrations changed no default ACL in any schema."
 echo "Only a temporary local PostgreSQL cluster was used; no project Secrets or network connection were used."

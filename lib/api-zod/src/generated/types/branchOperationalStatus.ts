@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type BranchStatusRequestStatus = typeof BranchStatusRequestStatus[keyof typeof BranchStatusRequestStatus];
+export type BranchOperationalStatus = typeof BranchOperationalStatus[keyof typeof BranchOperationalStatus];
 
 
-export const BranchStatusRequestStatus = {
-  pending: 'pending',
+export const BranchOperationalStatus = {
+  inactive: 'inactive',
   active: 'active',
   suspended: 'suspended',
 } as const;
