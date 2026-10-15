@@ -1,4 +1,4 @@
-# DB-01 — isolated schema reconstruction
+# DB-01/DB-02 — isolated schema reconstruction and permission tests
 
 This directory is a test-only reconstruction aid for Pertomax EG. It is not a production migration and must never be applied to the approved Supabase project or to an existing database.
 
@@ -6,7 +6,7 @@ This directory is a test-only reconstruction aid for Pertomax EG. It is not a pr
 
 `current-schema.sql` was generated on 2026-10-15 from the approved Supabase project `msvgzsfzrqlrfpstthhe` using PostgreSQL 17 `pg_dump --schema-only --no-owner` for `public` and `petro_private`. It contains schema definitions only, not table rows. It preserves grants, RLS, policies, constraints, indexes, functions, and default privileges. Object owners are normalized by `--no-owner`.
 
-Supabase-managed `auth` is intentionally not included. `local-auth-bootstrap.sql` creates a minimal local-only `auth.users` table and `auth.uid()` function so foreign keys and RLS policies can be tested. It is not a substitute for Supabase Auth and does not create an account, send mail, or use any project Secret.
+Supabase-managed `auth` is intentionally not included. `local-auth-bootstrap.sql` creates a minimal local-only `auth.users` table and `auth.uid()` function. The snapshot contains `petro_private.handle_auth_user()` but excludes the trigger on managed `auth.users`; `local-auth-post-baseline.sql` recreates and verifies that single trigger for local testing. These fixtures are not a substitute for Supabase Auth and do not create an account, send mail, or use any project Secret.
 
 ## Rebuild and test
 
@@ -16,13 +16,20 @@ Run:
 bash lib/db/rebuild/run-local-test.sh
 ```
 
-The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`, and `pg_dump`) on `PATH`. It creates a temporary cluster under `/tmp`, disables TCP listening, loads the snapshot into a fresh local database, applies migrations `0002` and `0003` locally, checks object counts and compares the resulting schema dump with the saved snapshot, runs the RLS tests, then stops and removes the temporary cluster.
+The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`, and `pg_dump`) on `PATH`. It creates a temporary cluster under `/tmp` with TCP listening disabled, creates the local Auth stub, loads the saved schema baseline, recreates the Auth trigger fixture, verifies object counts, and compares a schema dump to the snapshot **before** later changes. It then runs the existing DB-01 RLS checks against that baseline, applies the proposed `0004_db02_invitation_permissions.sql` twice, runs `db02-privilege-test.sql`, and removes the temporary cluster even on failure.
 
-The snapshot is the **current final state**. It already contains the effects of `0001`–`0003`; the test does not replay `0001`, whose earlier-state operations can duplicate objects when applied to the final state. `0002` and `0003` are replayed locally only as an idempotency check. This does not repair the Supabase migration ledger or make the existing migration files a complete migration chain from zero.
+## Snapshot and migration relationship
+
+- `current-schema.sql` is the current `public`/`petro_private` baseline, not a historical migration. It contains the current application object definitions and the effects represented by migrations `0001`–`0003`; never replay those files over this baseline.
+- `0001` contains earlier foundation/auth/management changes and assumes pieces of the schema already exist. `0002` updates username/Auth-profile behavior and creates the `auth.users` profile trigger. `0003` adds sign-in rate-limit storage. The Auth-managed trigger is outside the snapshot scope; the local fixture recreates its final state without replaying `0002`. Objects from `0003` that are within the captured schemas are already in the baseline.
+- The current Supabase migration ledger was not changed. The DB-01 review found ledger labels `petro_foundation` and `petro_plan_versions` without matching SQL source files in the repository; `0001`–`0003` names do not match those ledger entries. Do not invent historical source files, edit the ledger to make it appear complete, or use these files as a fresh-install chain.
+- `0004_db02_invitation_permissions.sql` is a proposed migration **after the baseline**, tested only in the disposable local cluster. It has not been applied to Supabase or any existing database.
 
 ## Tested boundaries and remaining limits
 
-- The local fixture uses two fabricated users in separate organizations and three branches. Tests cover tenant and assigned-branch reads, cross-organization branch-link rejection, disabled-account read denial, anonymous read denial, direct role-write denial, invitation-table default-deny RLS despite its explicit DML grants, and the absence of automatic first-user ownership.
-- The test fixture rolls back its sample rows and the script removes the whole local cluster even on failure.
-- These checks validate the restored SQL/RLS behavior with a local `auth.uid()` stub. They do not prove real Supabase Auth sessions, email delivery, or production API behavior.
+- DB-01 tests continue to cover tenant/branch reads, cross-organization branch-link rejection, disabled-account denial, anonymous denial, direct role-write denial, invite-table RLS default-deny, and no automatic first-owner behavior.
+- DB-02 adds direct invite-table privilege denial, authenticated RPC availability, anonymous RPC denial, default grants for newly created public tables/sequences/functions, authorized and unauthorized invitation flows, one-time acceptance, stale manager-issued owner-invite rejection, manager-to-owner escalation denial, organization-owner delegation, and tenant/branch isolation.
+- All test users use `.invalid` addresses. The DB-02 SQL test runs inside a transaction that rolls back; the runner also removes the entire local cluster on success or failure.
+- The local fixture validates SQL/RLS using a local `auth.uid()` stub. It does not prove real Supabase Auth sessions, SMTP, or production API behavior.
+- The proposed migration removes the global default `PUBLIC EXECUTE` grant for future functions created by `postgres` and `supabase_admin`. PostgreSQL makes this default global across schemas, so before any live application the effects on functions created in extension/other schemas need a separate review. Existing function grants are not changed by that default adjustment.
 - No live DDL, DML, grant, RLS, owner, bootstrap, Secret, or migration-ledger change is part of this procedure.

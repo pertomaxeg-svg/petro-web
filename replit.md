@@ -70,12 +70,13 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - Phase one covers authentication, access assignment, organizations, branches, invitations, account status, and administrative audit history. Do not present wallets, payments, or settlements as implemented.
 - Keep this phase order: (1) runtime and connections, (2) identity and account permissions, (3) dashboards for the platform owner and organizations/branches, (4) vehicles, drivers, and chips, (5) catalog, services, and inventory, (6) finance, wallets, and settlements, (7) reports, support, and integration tests, (8) worker apps as the final build phase. Do not start later phases before their turn.
 
-## DB-01 schema rebuild safety
+## DB-01/DB-02 schema and permission safety
 
-- Review `docs/PERTOMAX-EG-ENGINEERING-REFERENCE-v3.md`, `DB-01-PLAN.md`, `PERTOMAX_STATUS.md`, and `PERTOMAX-CENTRAL-ADMIN-GAPS.md` before database work.
-- `lib/db/rebuild/current-schema.sql` is a schema-only snapshot of the current final application schema for a fresh, isolated local test database. It contains no user rows; object ownership is normalized, while grants and RLS are retained. The local `auth` bootstrap is only a test stub.
-- Never apply the rebuild snapshot to the approved Supabase database or any existing database. It is not a production migration. The files in `lib/db/migrations/0001`–`0003` are not a complete fresh-database chain; do not replay them blindly or reconcile the Supabase migration ledger without a separate reviewed task.
-- Use `bash lib/db/rebuild/run-local-test.sh` only with local PostgreSQL 17 tools. The script disables network listening, uses temporary test roles/data and removes its local cluster. It must not read Secrets or connect to Supabase.
+- Review `docs/PERTOMAX-EG-ENGINEERING-REFERENCE-v3.md`, `DB-01-PLAN.md`, `DB-02-PLAN.md`, `PERTOMAX_STATUS.md`, and `PERTOMAX-CENTRAL-ADMIN-GAPS.md` before database work.
+- `lib/db/rebuild/current-schema.sql` is a schema-only snapshot of the current application schema for a fresh, isolated local test database. It contains no user rows; object ownership is normalized, while grants and RLS are retained. It covers `public` and `petro_private`; the local `auth` bootstrap is only a test stub. The snapshot omits Supabase-managed `auth.users` and its profile trigger, which is recreated locally by `local-auth-post-baseline.sql`.
+- Treat the snapshot as the baseline and do not replay historical migrations `0001`–`0003` over it. The DB-01 review found the Supabase migration ledger has entries without matching SQL source files; never invent history or alter the ledger to appear reconciled.
+- `0004_db02_invitation_permissions.sql` is proposed and tested only locally. Never apply it to the approved Supabase database or any existing database without separate review and approval. It changes defaults for future functions created by `postgres`/`supabase_admin`; PostgreSQL's PUBLIC EXECUTE default is global across schemas, so assess extension-schema impact before any live use.
+- Use `bash lib/db/rebuild/run-local-test.sh` only with local PostgreSQL 17 tools. The script disables network listening, uses temporary test roles/data, compares the saved baseline before DB-02, runs DB-01 and DB-02 tests, and removes its local cluster. It must not read Secrets or connect to Supabase.
 - Current user-provided commercial rules: annual company plans are EGP 500, 750, and 1,000 per vehicle; chip issuance is EGP 100; service-provider default subscription is EGP 5,000 per branch/year; stations join free with no commission. Price changes must create a new version and preserve prior prices.
 
 ## Product
