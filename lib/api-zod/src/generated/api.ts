@@ -2228,6 +2228,16 @@ export const RecordAdminFinanceReceiptResponse = zod.record(zod.string(), zod.un
 
 
 /**
+ * @summary Read a verified receipt with its ledger source, allocations, and private document metadata
+ */
+export const GetAdminFinanceReceiptParams = zod.object({
+  "receiptId": zod.coerce.string().uuid()
+})
+
+export const GetAdminFinanceReceiptResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
  * @summary Allocate part of a confirmed receipt once to a top-up or pending subscription
  */
 export const AllocateAdminFinanceReceiptParams = zod.object({

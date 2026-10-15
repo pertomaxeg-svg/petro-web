@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X } from "lucide-react";
@@ -9,7 +9,7 @@ import {
   useSetUserStatus, useSignOut,
 } from "@workspace/api-client-react";
 import type { PlatformRole, PlatformUser } from "@workspace/api-client-react";
-import { AdminFinancePage } from "./admin-finance/AdminFinancePage";
+const AdminFinancePage = lazy(() => import("./admin-finance/AdminFinancePage").then(module => ({ default: module.AdminFinancePage })));
 
 const roles: PlatformRole[] = ["owner", "operations", "finance", "support", "auditor"];
 const roleFallback: Record<PlatformRole, string> = { owner: "مالك المنصة", operations: "العمليات", finance: "المالية", support: "الدعم", auditor: "مراجع" };
@@ -46,7 +46,7 @@ export function CentralAdminFrame({ children }: { children: ReactNode }) {
 
 export function FinanceAdminFrame() {
   return <AdminGate allowedRoles={["owner", "finance", "auditor", "operations"]}>
-    {(_name, _userId, userRoles) => <AdminFinancePage roles={userRoles}/>}
+    {(_name, _userId, userRoles) => <Suspense fallback={<main className="af-page" dir="rtl" aria-busy="true"><section className="af-state"><span className="af-kicker">المالية والتحصيل</span><b>جارٍ تحميل مساحة المالية…</b></section></main>}><AdminFinancePage roles={userRoles}/></Suspense>}
   </AdminGate>;
 }
 

@@ -1,12 +1,12 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Activity, ArrowDownLeft, ArrowLeftRight, Banknote, Check, ChevronLeft,
+  Activity, ArrowDownLeft, ArrowDownUp, ArrowLeftRight, Banknote, Check, ChevronLeft,
   CircleAlert, ClipboardList, Clock3, FileCheck2, FileText, Landmark, LockKeyhole, Plus, RefreshCw,
   Search, ShieldCheck, Upload, WalletCards, X,
 } from "lucide-react";
 import {
-  createDocumentUploadIntent, getGetAdminFinanceJournalEntryQueryKey, getGetAdminFinanceReconciliationQueryKey,
+  createDocumentUploadIntent, getGetAdminFinanceJournalEntryQueryKey, getGetAdminFinanceReceiptQueryKey, getGetAdminFinanceReconciliationQueryKey,
   getGetAdminFinanceSummaryQueryKey, getGetAdminFinanceTopupQueryKey, getListAdminFinanceAccountsQueryKey,
   getListAdminFinanceBankAccountsQueryKey, getListAdminFinanceJournalQueryKey, getListAdminFinanceOrganizationsQueryKey,
   getListAdminFinanceReceiptsQueryKey, getListAdminFinanceSubscriptionsQueryKey, getListAdminFinanceTopupsQueryKey,
@@ -14,7 +14,7 @@ import {
   useAllocateAdminFinanceReceipt, useApproveAdminFinanceBankAccount, useApproveAdminFinanceTopup,
   useCreateAdminFinanceBankAccount, useCreateAdminFinanceTopup, useCreateAdminFinanceTransfer,
   useCreateDocumentUploadIntent, useDisableAdminFinanceBankAccount, useGetAdminFinanceJournalEntry,
-  useGetAdminFinanceReconciliation, useGetAdminFinanceSummary, useGetAdminFinanceTopup,
+  useGetAdminFinanceReceipt, useGetAdminFinanceReconciliation, useGetAdminFinanceSummary, useGetAdminFinanceTopup,
   useListAdminFinanceAccounts, useListAdminFinanceBankAccounts, useListAdminFinanceJournal,
   useListAdminFinanceOrganizations, useListAdminFinanceReceipts, useListAdminFinanceSubscriptions,
   useListAdminFinanceTopups, useListAdminFinanceTransfers, useListOrganizationDocuments,
@@ -65,11 +65,14 @@ const parseMinor = (input: string): number | null => {
 const dateText = (value: unknown) => typeof value === "string" && value ? new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
 const label: Record<string, string> = {
   active: "نشط", approved: "معتمد", attached: "مرفق", bank_receipt: "إيصال بنكي", cancelled: "ملغى",
+  company: "شركة", provider: "مقدّم خدمة", station: "محطة",
+  coverage_not_eligible: "تغطية المركبات غير متحققة",
   branch_funding: "تمويل فرع", company_funding: "تمويل شركة",
   collected_on_hold: "محصّل — معلّق", draft: "مسودة", funded: "مموّل", internal_transfer: "تحويل داخلي",
   balanced: "متوازن", issues_found: "توجد فروق",
   needs_info: "بحاجة إلى معلومات", partial: "جزئي", partially_collected: "محصّل جزئيًا", partially_funded: "تمويل جزئي",
   pending: "بانتظار المراجعة", pending_upload: "بانتظار الرفع", pending_payment: "بانتظار التحصيل",
+  subscription_accounting_policy_unconfigured: "إعداد محاسبة الاشتراك مطلوب", none: "لا يوجد مانع",
   rejected: "مرفوض", reversal: "قيد عكسي", reversed: "معكوس", submitted: "مرسل للمراجعة",
   subscription_collection: "تحصيل اشتراك", topup_allocation: "تخصيص شحن", unpaid: "غير محصّل", upload_failed: "تعذّر الرفع",
 };
@@ -129,6 +132,7 @@ export function AdminFinancePage({ roles }: { roles: string[] }) {
   const [busy, setBusy] = useState(false);
   const [selectedTopup, setSelectedTopup] = useState("");
   const [selectedReceipt, setSelectedReceipt] = useState("");
+  const [receiptDetailId, setReceiptDetailId] = useState("");
   const [pendingReceiptEvidence, setPendingReceiptEvidence] = useState("");
   const [receiptRecorded, setReceiptRecorded] = useState(false);
   const [allocateReceiptId, setAllocateReceiptId] = useState("");
@@ -157,6 +161,7 @@ export function AdminFinancePage({ roles }: { roles: string[] }) {
   const topupDetail = useGetAdminFinanceTopup(selectedTopup, { query: { queryKey: getGetAdminFinanceTopupQueryKey(selectedTopup), enabled: !!selectedTopup && section === "topups", retry: false } });
   const receiptParams = useMemo(() => ({ page, pageSize, ...(search.trim().length >= 2 ? { search: search.trim() } : {}) }), [page, search]);
   const receipts = useListAdminFinanceReceipts(receiptParams, { query: { queryKey: getListAdminFinanceReceiptsQueryKey(receiptParams), enabled: canRead && ["receipts", "subscriptions"].includes(section), retry: false, refetchOnMount: "always" } });
+  const receiptDetail = useGetAdminFinanceReceipt(receiptDetailId, { query: { queryKey: getGetAdminFinanceReceiptQueryKey(receiptDetailId), enabled: !!receiptDetailId && section === "receipts", retry: false } });
   const allocationReceiptParams = useMemo(() => ({ page: 1, pageSize: 100 }), []);
   const allocationReceipts = useListAdminFinanceReceipts(allocationReceiptParams, { query: { queryKey: getListAdminFinanceReceiptsQueryKey(allocationReceiptParams), enabled: finance && action === "allocate", retry: false } });
   const receiptDocsParams = useMemo(() => ({ receiptId: selectedReceipt }), [selectedReceipt]);
@@ -416,12 +421,13 @@ export function AdminFinancePage({ roles }: { roles: string[] }) {
       section === "accounts" ? <AccountsTable accounts={dataRows} transfers={rows(transfers.data)} canMutate={finance} loading={transfers.isLoading} onTransfer={() => openAction("transfer")} onOrg={setTransferOrg} onPage={setPage} page={page} total={total} pages={totalPages} /> :
       section === "banks" ? <BanksTable items={visibleBankRows} total={filteredBankRows.length} page={page} pages={Math.max(1, Math.ceil(filteredBankRows.length / pageSize))} onPage={setPage} canMutate={finance} onAction={(kind, item) => openAction(kind === "approve" ? "bankApprove" : "bankDisable", item)} /> :
       section === "topups" ? <TopupsTable items={dataRows} page={page} total={total} pages={totalPages} onPage={setPage} onOpen={row => { setSelectedTopup(String(get(row, "id") ?? "")); setSelected(row); setMessage(""); setProblem(""); }} canReview={finance} canSubmit={canSubmit} /> :
-       section === "receipts" ? <ReceiptsTable items={dataRows} page={page} total={total} pages={totalPages} onPage={setPage} canAllocate={finance} onAllocate={row => { openAction("allocate", row); setAllocateReceiptId(String(get(row, "id") ?? "")); }} onSelect={row => setSelectedReceipt(String(get(row, "id") ?? ""))} /> :
+        section === "receipts" ? <ReceiptsTable items={dataRows} page={page} total={total} pages={totalPages} onPage={setPage} canAllocate={finance} onAllocate={row => { openAction("allocate", row); setAllocateReceiptId(String(get(row, "id") ?? "")); }} onDetail={row => setReceiptDetailId(String(get(row, "id") ?? ""))} onSelect={row => setSelectedReceipt(String(get(row, "id") ?? ""))} /> :
       section === "subscriptions" ? <SubscriptionsTable items={dataRows} page={page} total={total} pages={totalPages} onPage={setPage} canAllocate={finance} onAllocate={row => openAction("allocate", row)} /> :
       <JournalTable items={dataRows} page={page} total={total} pages={totalPages} onPage={setPage} canReverse={finance} onDetail={row => setEntryId(String(get(row, "id", "entryId") ?? ""))} onReverse={row => openAction("reverse", row)} />}
     </>}
 
     {section === "topups" && selectedTopup && <TopupDetail detail={topupDetail.data} loading={topupDetail.isLoading} error={topupDetail.error} canReview={finance} canSubmit={canSubmit} canApprove={finance} onClose={() => { setSelectedTopup(""); setSelected(null); }} onSubmit={row => openAction("topupSubmit", row)} onEdit={row => openAction("topupEdit", row)} onReview={row => openAction("review", row)} onApprove={row => openAction("approve", row)} onUpload={async (row, selectedFile) => { setBusy(true); setProblem(""); try { if (!["draft", "needs_info"].includes(String(get(row, "status")))) throw new Error("يمكن رفع الدليل للمسودة أو للطلب المستكمل فقط."); await uploadFile("topup_request", String(get(row, "id")), selectedFile); await cache.invalidateQueries({ queryKey: getGetAdminFinanceTopupQueryKey(String(get(row, "id"))) }); setMessage("تم رفع المستند الخاص. لا يُعدّ المرفق إثباتًا للتحصيل."); } catch (error) { setProblem(errorText(error)); } finally { setBusy(false); } }} busy={busy} />}
+    {section === "receipts" && receiptDetailId && <ReceiptDetailDialog detail={receiptDetail.data} loading={receiptDetail.isLoading} error={receiptDetail.error} canUpload={finance} onClose={() => setReceiptDetailId("")} onJournal={id => { setReceiptDetailId(""); setEntryId(id); }} onDocuments={id => { setReceiptDetailId(""); setSelectedReceipt(id); }} onRetry={() => void receiptDetail.refetch()}/>}
     {section === "receipts" && selectedReceipt && <ReceiptEvidence receiptId={selectedReceipt} query={receiptDocs} canUpload={finance} onClose={() => setSelectedReceipt("")}/>}
     {entryId && <JournalDetail detail={journalDetail.data} loading={journalDetail.isLoading} error={journalDetail.error} onClose={() => setEntryId("")}/>}
     {action && <ActionDialog kind={action} selected={selected} organizations={eligibleOrganizations} banks={bankRows} receipts={action === "allocate" ? rows(allocationReceipts.data) : receiptItems} topups={rows(allocationTopups.data)} subscriptions={rows(allocationSubscriptions.data)} allocationType={allocationType} setAllocationType={setAllocationType} allocationTargetId={allocationTargetId} setAllocationTargetId={setAllocationTargetId} allocateReceiptId={allocateReceiptId} setAllocateReceiptId={setAllocateReceiptId} accountRows={accountScopeRows} reason={reason} setReason={setReason} organizationId={organizationId} setOrganizationId={setOrganizationId} branchId={branchId} setBranchId={setBranchId} bankId={bankId} setBankId={setBankId} file={file} setFile={setFile} problem={problem} message={message} busy={busy} receiptRecorded={receiptRecorded} onClose={closeAction} onSubmit={submitForm} pendingReceiptEvidence={pendingReceiptEvidence} onRetryEvidence={async () => { if (!pendingReceiptEvidence || !file) return; setBusy(true); setProblem(""); try { await uploadFile("receipt", pendingReceiptEvidence, file); setMessage("تم رفع المستند للإيصال المسجّل مسبقًا."); setSelectedReceipt(pendingReceiptEvidence); await cache.invalidateQueries({ queryKey: getListOrganizationDocumentsQueryKey({ receiptId: pendingReceiptEvidence }) }); closeAction(); } catch (error) { setProblem(errorText(error)); } finally { setBusy(false); } }} />}
@@ -443,8 +449,59 @@ function Empty({ title, detail }: { title: string; detail: string }) { return <S
 function AccountsTable({ accounts, transfers, canMutate, loading, onTransfer, onPage, page, total, pages }: { accounts: Row[]; transfers: Row[]; canMutate: boolean; loading: boolean; onTransfer: () => void; onOrg: (value: string) => void; onPage: (page: number) => void; page: number; total: number; pages: number }) {
   return <div className="af-stack"><RecordTable title="أرصدة الجهات والفروع" items={accounts} empty="لا توجد حسابات مالية في هذا العرض." columns={["الجهة", "النطاق", "الرصيد", "محجوز", "متاح", "نوع الحساب"]} render={row => <><td><b>{text(get(row, "organizationName", "organization_name", "name"))}</b><small>{text(get(row, "organizationKind", "organization_kind", "kind"), "")}</small></td><td>{text(get(row, "branchName", "branch_name"), "الحساب الرئيسي")}</td><td className="af-money">{currency(get(row, "ledgerBalanceMinor", "balanceMinor", "balance_minor"))}</td><td className="af-money">{currency(get(row, "reservedMinor", "reserved_minor"))}</td><td className="af-money">{currency(get(row, "availableMinor", "available_minor"))}</td><td>{statusName(get(row, "accountKind", "account_kind"))}</td></>} page={page} total={total} pages={pages} onPage={onPage}/><section className="af-panel"><header className="af-panel-title"><div><span className="af-kicker">الحركات بين الفروع</span><h3>تحويلات داخلية حديثة</h3></div>{canMutate && <button className="af-button af-button-soft" onClick={onTransfer}><ArrowLeftRight size={15}/>تحويل داخلي</button>}</header>{loading ? <Skeletons/> : transfers.length ? <div className="af-record-list">{transfers.slice(0, 8).map((item, index) => <article className="af-record" key={String(get(item, "id") ?? index)}><span className="af-record-icon"><ArrowLeftRight size={16}/></span><div><b>{text(get(item, "reference", "transferReference"), "تحويل")}</b><small>{text(get(item, "sourceAccountName", "source_account_name"), "الحساب الرئيسي")} ← {text(get(item, "targetAccountName", "target_account_name"), "الحساب الرئيسي")}</small></div><strong className="af-money">{currency(get(item, "amountMinor", "amount_minor"))}</strong><time>{dateText(get(item, "createdAt", "created_at"))}</time></article>)}</div> : <Empty title="لا توجد تحويلات في هذا السجل" detail="ستظهر التحويلات بعد تسجيلها من حساب مالي مخوّل."/>}</section></div>;
 }
+const tableSortFields: Record<string, string[]> = {
+  "الجهة": ["organizationName", "organization_name", "name"],
+  "الحساب": ["organizationName", "organization_name", "name"],
+  "النطاق": ["branchName", "branch_name"],
+  "الفرع": ["branchName", "branch_name"],
+  "الرصيد": ["ledgerBalanceMinor", "balanceMinor", "balance_minor"],
+  "محجوز": ["reservedMinor", "reserved_minor"],
+  "متاح": ["availableMinor", "available_minor"],
+  "نوع الحساب": ["accountKind", "account_kind"],
+  "البنك": ["bankName", "bank_name"],
+  "آخر أرقام": ["accountLast4", "account_last4"],
+  "الحالة": ["status", "collectionStatus", "subscriptionStatus"],
+  "سبب الإجراء": ["reason", "decisionReason", "decision_reason"],
+  "المرجع": ["bankReference", "bank_reference", "reference"],
+  "المرجع البنكي": ["bankReference", "bank_reference", "maskedReference"],
+  "المبلغ": ["requestedAmountMinor", "amountMinor", "amount_minor"],
+  "غير مخصص": ["unallocatedMinor", "unallocated_minor"],
+  "تاريخ الإنشاء": ["createdAt", "created_at"],
+  "تاريخ القبض": ["receivedAt", "createdAt", "created_at"],
+  "الخطة المحفوظة": ["planName", "plan_name"],
+  "المبلغ في اللقطة": ["amountDueMinor", "snapshotPriceMinor", "priceSnapshotMinor", "amountMinor", "amount_minor"],
+  "معرّف القيد": ["id", "entryId"],
+  "النوع": ["entryType", "entry_type"],
+  "مدين": ["debitMinor", "debit_minor"],
+  "دائن": ["creditMinor", "credit_minor"],
+  "تاريخ القيد": ["createdAt", "created_at"],
+};
 function RecordTable({ title, items, columns, render, empty, page, total, pages, onPage }: { title: string; items: Row[]; columns: string[]; render: (row: Row) => ReactNode; empty: string; page: number; total: number; pages: number; onPage: (page: number) => void }) {
-  return <section className="af-panel af-table-panel"><header className="af-panel-title"><div><span className="af-kicker">السجلات المعتمدة</span><h3>{title}</h3></div><span className="af-count">{total.toLocaleString("ar-EG")} سجل</span></header>{items.length === 0 ? <Empty title="لا توجد سجلات مطابقة" detail={empty}/> : <><div className="af-table-scroll"><table><thead><tr>{columns.map(column => <th key={column}>{column}</th>)}</tr></thead><tbody>{items.map((row, index) => <tr key={String(get(row, "id") ?? index)}>{render(row)}</tr>)}</tbody></table></div><PageControls page={page} total={total} pages={pages} onPage={onPage}/></>}</section>;
+  const [sort, setSort] = useState<{ column: string; descending: boolean } | null>(null);
+  const sortedItems = useMemo(() => {
+    if (!sort) return items;
+    const keys = tableSortFields[sort.column];
+    if (!keys) return items;
+    return [...items].sort((left, right) => {
+      const a = get(left, ...keys), b = get(right, ...keys);
+      const aText = String(a ?? ""), bText = String(b ?? "");
+      let comparison = 0;
+      if (/^-?\d+$/.test(aText) && /^-?\d+$/.test(bText)) {
+        const aBig = BigInt(aText), bBig = BigInt(bText);
+        comparison = aBig < bBig ? -1 : aBig > bBig ? 1 : 0;
+      } else if (/تاريخ|القبض|الإنشاء|القيد/.test(sort.column)) {
+        comparison = (Date.parse(aText) || 0) - (Date.parse(bText) || 0);
+      } else {
+        comparison = aText.localeCompare(bText, "ar-EG", { numeric: true, sensitivity: "base" });
+      }
+      return sort.descending ? -comparison : comparison;
+    });
+  }, [items, sort]);
+  return <section className="af-panel af-table-panel"><header className="af-panel-title"><div><span className="af-kicker">السجلات المعتمدة</span><h3>{title}</h3></div><span className="af-count">{total.toLocaleString("ar-EG")} سجل · الفرز داخل الصفحة</span></header>{items.length === 0 ? <Empty title="لا توجد سجلات مطابقة" detail={empty}/> : <><div className="af-table-scroll"><table><thead><tr>{columns.map(column => {
+    const sortable = !!tableSortFields[column];
+    const active = sort?.column === column;
+    return <th key={column} aria-sort={active ? sort.descending ? "descending" : "ascending" : "none"}>{sortable ? <button className="af-sort-button" type="button" onClick={() => setSort(current => current?.column === column ? { ...current, descending: !current.descending } : { column, descending: false })}>{column}{active ? <span aria-hidden="true">{sort.descending ? "↓" : "↑"}</span> : <ArrowDownUp size={12}/>}</button> : column}</th>;
+  })}</tr></thead><tbody>{sortedItems.map((row, index) => <tr key={String(get(row, "id") ?? index)}>{render(row)}</tr>)}</tbody></table></div><PageControls page={page} total={total} pages={pages} onPage={onPage}/></>}</section>;
 }
 function BanksTable({ items, total, page, pages, onPage, canMutate, onAction }: { items: Row[]; total: number; page: number; pages: number; onPage: (page: number) => void; canMutate: boolean; onAction: (kind: "approve" | "disable", item: Row) => void }) {
   return <RecordTable title="حسابات الاستقبال البنكية" items={items} empty="لا توجد حسابات استقبال مطابقة." columns={["الحساب", "البنك", "آخر أرقام", "الحالة", "سبب الإجراء", ...(canMutate ? ["الإجراء"] : [])]} page={page} total={total} pages={pages} onPage={onPage} render={row => <><td><b>{text(get(row, "displayLabel", "display_label", "label"))}</b><small>بيانات حساسة محدودة العرض</small></td><td>{text(get(row, "bankName", "bank_name"))}</td><td dir="ltr">•••• {text(get(row, "accountLast4", "account_last4"))}</td><td><Status value={get(row, "status")}/></td><td>{text(get(row, "reason", "decisionReason", "decision_reason"))}</td>{canMutate && <td><div className="af-row-actions">{["pending", "needs_completion"].includes(String(get(row, "status"))) && <button onClick={() => onAction("approve", row)}>اعتماد</button>}{activeStatus(row) && <button className="af-danger-link" onClick={() => onAction("disable", row)}>إيقاف</button>}</div></td>}</>} />;
@@ -475,8 +532,68 @@ function TopupDetail({ detail, loading, error, canReview, canSubmit, canApprove,
     </div>
   </section></div>;
 }
-function ReceiptsTable({ items, page, total, pages, onPage, canAllocate, onAllocate, onSelect }: { items: Row[]; page: number; total: number; pages: number; onPage: (page: number) => void; canAllocate: boolean; onAllocate: (row: Row) => void; onSelect: (row: Row) => void }) {
-  return <RecordTable title="الإيصالات البنكية المسجلة" items={items} empty="لا توجد إيصالات مسجلة." columns={["الجهة", "المرجع البنكي", "المبلغ", "غير مخصص", "تاريخ القبض", "إجراء"]} page={page} total={total} pages={pages} onPage={onPage} render={row => <><td><b>{text(get(row, "organizationName", "organization_name"))}</b><small>{text(get(row, "branchName", "branch_name"), "الحساب الرئيسي")}</small></td><td dir="ltr">{text(get(row, "bankReference", "bank_reference"))}</td><td className="af-money">{currency(get(row, "amountMinor", "amount_minor"))}</td><td className="af-money">{currency(get(row, "unallocatedMinor", "unallocated_minor"))}</td><td>{dateText(get(row, "receivedAt", "createdAt", "created_at"))}</td><td><div className="af-row-actions"><button onClick={() => onSelect(row)}>المستندات</button>{canAllocate && <button onClick={() => onAllocate(row)}>تخصيص</button>}</div></td></>} />;
+function ReceiptsTable({ items, page, total, pages, onPage, canAllocate, onAllocate, onDetail, onSelect }: { items: Row[]; page: number; total: number; pages: number; onPage: (page: number) => void; canAllocate: boolean; onAllocate: (row: Row) => void; onDetail: (row: Row) => void; onSelect: (row: Row) => void }) {
+  return <RecordTable title="الإيصالات البنكية المسجلة" items={items} empty="لا توجد إيصالات مسجلة." columns={["الجهة", "المرجع البنكي", "المبلغ", "غير مخصص", "تاريخ القبض", "إجراء"]} page={page} total={total} pages={pages} onPage={onPage} render={row => <><td><b>{text(get(row, "organizationName", "organization_name"))}</b><small>{text(get(row, "branchName", "branch_name"), "الحساب الرئيسي")}</small></td><td dir="ltr">{text(get(row, "bankReference", "bank_reference", "maskedReference"), "—")}</td><td className="af-money">{currency(get(row, "amountMinor", "amount_minor"))}</td><td className="af-money">{currency(get(row, "unallocatedMinor", "unallocated_minor"))}</td><td>{dateText(get(row, "receivedAt", "createdAt", "created_at"))}</td><td><div className="af-row-actions"><button onClick={() => onDetail(row)}>التفاصيل</button><button onClick={() => onSelect(row)}>المستندات</button>{canAllocate && <button onClick={() => onAllocate(row)}>تخصيص</button>}</div></td></>} />;
+}
+function ReceiptDetailDialog({ detail, loading, error, canUpload, onClose, onJournal, onDocuments, onRetry }: { detail: unknown; loading: boolean; error: unknown; canUpload: boolean; onClose: () => void; onJournal: (id: string) => void; onDocuments: (id: string) => void; onRetry: () => void }) {
+  const row = detail as Row | undefined;
+  const journal = get(row, "journal") as Row | undefined;
+  const lines = rows(get(journal, "lines"));
+  const allocations = rows(get(row, "allocations"));
+  const documents = rows(get(row, "documents"));
+  const receiptId = String(get(row, "id") ?? "");
+  return <div className="af-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className="af-dialog af-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="af-receipt-detail-title">
+    <header className="af-dialog-head"><div><span className="af-kicker">إيصال التحصيل · {text(get(row, "receiptNumber"), receiptId.slice(0, 8))}</span><h2 id="af-receipt-detail-title">تفاصيل القبض والتخصيص</h2><p>عرض محفوظ لمصدر القيد، والتخصيصات، وبيانات المستندات المتاحة.</p></div><button className="af-icon-button" onClick={onClose} aria-label="إغلاق"><X size={18}/></button></header>
+    {loading ? <Skeletons/> : error ? <StateMessage title="تعذر تحميل تفاصيل الإيصال" error retry={onRetry}>{errorText(error)}</StateMessage> : !row ? <Empty title="لم يُعثر على الإيصال" detail="قد يكون السجل غير متاح في نطاق صلاحيتك."/> : <>
+      <div className="af-detail-grid">
+        {[
+          ["الجهة", text(get(row, "organizationName"))],
+          ["النطاق", text(get(row, "branchName"), "الحساب الرئيسي")],
+          ["نوع الجهة", statusName(get(row, "organizationKind"))],
+          ["الحالة", statusName(get(row, "status"))],
+          ["المبلغ المقبوض", currency(get(row, "amountMinor"))],
+          ["العملة", text(get(row, "currency"), "EGP")],
+          ["بنك الدافع", text(get(row, "payerBankName"))],
+          ["حساب الاستقبال", `${text(get(row, "receivingBankName"))} · ${text(get(row, "receivingAccountLabel"))}${get(row, "receivingAccountLast4") ? ` · •••• ${text(get(row, "receivingAccountLast4"))}` : ""}`],
+          ["المرجع البنكي", text(get(row, "bankReference"), `•••• ${text(get(row, "maskedReference"))}`)],
+          ["تاريخ التسجيل", dateText(get(row, "createdAt"))],
+          ["تحقق المطابقة", get(row, "verifiedAgainstBank") === true ? "تمت المطابقة يدويًا" : "غير مؤكد"],
+          ["السبب", text(get(row, "reason"))],
+        ].map(([title, value]) => <div key={title}><small>{title}</small><b dir={title.includes("المرجع") ? "ltr" : "auto"}>{value}</b></div>)}
+      </div>
+      <section className="af-evidence">
+        <header><div><span className="af-kicker">المصدر المالي</span><h3>القيد المحاسبي المرتبط</h3></div><button className="af-button af-button-soft" disabled={!get(journal, "id")} onClick={() => onJournal(String(get(journal, "id")))}>فتح القيد</button></header>
+        {journal ? <><div className="af-detail-grid af-detail-grid-compact">
+          <div><small>مرجع القيد</small><b dir="ltr">{text(get(journal, "reference"))}</b></div>
+          <div><small>نوع القيد</small><b>{statusName(get(journal, "entryType"))}</b></div>
+          <div><small>إجمالي المدين</small><b className="af-money">{currency(get(journal, "debitMinor"))}</b></div>
+          <div><small>إجمالي الدائن</small><b className="af-money">{currency(get(journal, "creditMinor"))}</b></div>
+          <div><small>وقت القيد</small><b>{dateText(get(journal, "occurredAt"))}</b></div>
+        </div>
+        <div className="af-table-scroll"><table><thead><tr><th>الحساب</th><th>نوع الحساب</th><th>الجهة</th><th>مدين</th><th>دائن</th></tr></thead><tbody>{lines.map((line, index) => <tr key={String(get(line, "accountId") ?? index)}><td><b>{text(get(line, "accountName"))}</b></td><td>{statusName(get(line, "accountKind"))}</td><td>{String(get(line, "side")) === "debit" ? "مدين" : "دائن"}</td><td className="af-money">{String(get(line, "side")) === "debit" ? currency(get(line, "amountMinor")) : "—"}</td><td className="af-money">{String(get(line, "side")) === "credit" ? currency(get(line, "amountMinor")) : "—"}</td></tr>)}</tbody></table></div></> : <Empty title="لا يظهر قيد مرتبط" detail="لم يُرجع الخادم قيدًا لهذا الإيصال."/>}
+      </section>
+      <section className="af-evidence">
+        <header><div><span className="af-kicker">{allocations.length.toLocaleString("ar-EG")} تخصيصات</span><h3>توزيع قيمة الإيصال</h3></div></header>
+        {allocations.length === 0 ? <div className="af-evidence-empty">لم يُخصّص الإيصال بعد.</div> : <div className="af-allocation-list">{allocations.map((allocation, index) => {
+          const subscription = get(allocation, "targetType") === "subscription";
+          const snapshot = get(allocation, "planSnapshot") as Row | undefined;
+          return <article key={String(get(allocation, "id") ?? index)}>
+            <div><b>{subscription ? text(get(allocation, "planName"), "اشتراك") : "تمويل حساب شركة"}</b><small>{subscription ? `نسخة محفوظة · ${text(get(allocation, "planVersionId"), "—").slice(0, 8)} · ${currency(get(allocation, "snapshotPriceMinor"))}` : `مرجع الطلب: ${text(get(allocation, "targetReference"), "مخفى حسب الصلاحية")}`}</small></div>
+            <strong className="af-money">{currency(get(allocation, "amountMinor"))}</strong>
+            <Status value={get(allocation, "status")}/>
+            <small>{statusName(get(allocation, "targetStatus"))} · {text(get(snapshot, "billingCycle"), "")} {text(get(allocation, "reason"))}</small>
+            <button className="af-link-button" disabled={!get(allocation, "journalEntryId")} onClick={() => onJournal(String(get(allocation, "journalEntryId")))}>قيد التخصيص<ChevronLeft size={14}/></button>
+          </article>;
+        })}</div>}
+      </section>
+      <section className="af-evidence">
+        <header><div><span className="af-kicker">{documents.length.toLocaleString("ar-EG")} مستندات</span><h3>بيانات المرفقات</h3></div><button className="af-button af-button-soft" onClick={() => onDocuments(receiptId)}>عرض / إرفاق مستند</button></header>
+        <p>المعروض بيانات وصفية فقط؛ الملف يبقى خاصًا وتحمّله الخدمة المصرح بها. المرفق وحده لا يثبت القبض.</p>
+        {documents.length ? documents.map((doc, index) => <div className="af-doc" key={String(get(doc, "id") ?? index)}><FileText size={16}/><span><b>{text(get(doc, "fileName"), "مستند خاص")}</b><small>{text(get(doc, "documentType"))} · {statusName(get(doc, "status"))} · {dateText(get(doc, "uploadedAt"))}</small></span></div>) : <div className="af-evidence-empty">لا توجد بيانات مرفقات مرتبطة بهذا الإيصال.</div>}
+        {!canUpload && <small className="af-muted">المراجعة فقط؛ لا تملك هذه الصلاحية رفع مستندات.</small>}
+      </section>
+    </>}
+  </section></div>;
 }
 function ReceiptEvidence({ receiptId, query, canUpload, onClose }: { receiptId: string; query: { data?: unknown; isLoading: boolean; isError: boolean; error: unknown; refetch: () => Promise<unknown> }; canUpload: boolean; onClose: () => void }) {
   const items = rows(query.data);
@@ -500,7 +617,7 @@ function ReceiptEvidence({ receiptId, query, canUpload, onClose }: { receiptId: 
   return <div className="af-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className="af-dialog" role="dialog" aria-modal="true" aria-labelledby="af-receipt-docs"><header className="af-dialog-head"><div><span className="af-kicker">إيصال مُسجّل · {receiptId.slice(0, 8)}</span><h2 id="af-receipt-docs">مستندات المساندة</h2></div><button className="af-icon-button" onClick={onClose} aria-label="إغلاق"><X size={18}/></button></header>{canUpload && <div className="af-upload-row"><label className="af-button af-button-soft"><Upload size={15}/>اختيار ملف<input type="file" accept="application/pdf,image/png,image/jpeg" onChange={event => setFile(event.target.files?.[0] ?? null)}/></label><button className="af-button" disabled={!file || busy} onClick={() => void upload()}>{busy ? "جارٍ الرفع…" : "رفع مستند"}</button><small>PDF أو PNG أو JPEG حتى ١٠ ميغابايت. الإيصال مسجل بالفعل ولا يُعاد تسجيل المال.</small></div>}{problem && <div className="af-alert" role="alert"><CircleAlert size={16}/>{problem}</div>}{notice && <div className="af-notice" role="status"><Check size={16}/>{notice}</div>}{query.isLoading ? <Skeletons/> : query.isError ? <StateMessage title="تعذر تحميل المستندات" error retry={() => void query.refetch()}>{errorText(query.error)}</StateMessage> : items.length === 0 ? <Empty title="لا توجد مستندات مرفوعة" detail="يمكن إرفاق مستند مساند دون تغيير سجل القبض."/> : items.map((doc, index) => <div className="af-doc" key={String(get(doc, "id") ?? index)}><FileText size={16}/><span><b>{text(get(doc, "file_name", "fileName"))}</b><small>{statusName(get(doc, "status"))} · {dateText(get(doc, "uploaded_at", "created_at"))}</small></span></div>)}</section></div>;
 }
 function SubscriptionsTable({ items, page, total, pages, onPage, canAllocate, onAllocate }: { items: Row[]; page: number; total: number; pages: number; onPage: (page: number) => void; canAllocate: boolean; onAllocate: (row: Row) => void }) {
-  return <><div className="af-hold-note"><Clock3 size={17}/><span><b>المبالغ المحصّلة تبقى معلّقة</b><small>تخصيص المقبوض لا يفعّل الاشتراك؛ المعروض لقطة pending_payment محفوظة من الخادم.</small></span></div><RecordTable title="طلبات الاشتراك بانتظار التحصيل" items={items} empty="لا توجد سجلات pending_payment في هذا العرض." columns={["الجهة", "الخطة المحفوظة", "الفرع", "المبلغ في اللقطة", "الحالة", "الإجراء"]} page={page} total={total} pages={pages} onPage={onPage} render={row => <><td><b>{text(get(row, "organizationName", "organization_name"))}</b></td><td>{text(get(row, "planName", "plan_name"), "الخطة المحفوظة")}</td><td>{text(get(row, "branchName", "branch_name"), "—")}</td><td className="af-money">{currency(get(row, "amountDueMinor", "snapshotPriceMinor", "priceSnapshotMinor", "amountMinor", "amount_minor"))}</td><td><Status value={get(row, "collectionStatus", "status")}/></td><td>{canAllocate && <button className="af-link-button" onClick={() => onAllocate(row)}>تخصيص إيصال<ChevronLeft size={14}/></button>}</td></>} /></>;
+  return <><div className="af-hold-note"><Clock3 size={17}/><span><b>المبالغ المحصّلة تبقى معلّقة</b><small>تخصيص المقبوض لا يفعّل الاشتراك؛ المعروض لقطة محفوظة من الخادم. يظل التفعيل محجوبًا حتى اعتماد سياسة المحاسبة والتغطية اللازمة.</small></span></div><RecordTable title="طلبات الاشتراك بانتظار التحصيل" items={items} empty="لا توجد طلبات اشتراك في هذا العرض." columns={["الجهة", "الخطة المحفوظة", "الفرع", "المبلغ في اللقطة", "الحالة", "الإجراء"]} page={page} total={total} pages={pages} onPage={onPage} render={row => <><td><b>{text(get(row, "organizationName", "organization_name"))}</b></td><td>{text(get(row, "planName", "plan_name"), "الخطة المحفوظة")}</td><td>{text(get(row, "branchName", "branch_name"), "—")}</td><td className="af-money">{currency(get(row, "amountDueMinor", "snapshotPriceMinor", "priceSnapshotMinor", "amountMinor", "amount_minor"))}</td><td><Status value={get(row, "collectionStatus", "status")}/><small className="af-blocker">{statusName(get(row, "activationBlocker"))}</small></td><td>{canAllocate && <button className="af-link-button" onClick={() => onAllocate(row)}>تخصيص إيصال<ChevronLeft size={14}/></button>}</td></>} /></>;
 }
 function JournalTable({ items, page, total, pages, onPage, canReverse, onDetail, onReverse }: { items: Row[]; page: number; total: number; pages: number; onPage: (page: number) => void; canReverse: boolean; onDetail: (row: Row) => void; onReverse: (row: Row) => void }) {
   return <RecordTable title="القيود المحاسبية غير القابلة للتعديل" items={items} empty="لا توجد قيود في هذا العرض." columns={["معرّف القيد", "النوع", "الجهة", "مدين", "دائن", "تاريخ القيد", "السجل"]} page={page} total={total} pages={pages} onPage={onPage} render={row => <><td dir="ltr">{text(get(row, "id", "entryId"), "—").slice(0, 12)}</td><td><Status value={get(row, "entryType", "entry_type")}/></td><td>{text(get(row, "organizationName", "organization_name"))}</td><td className="af-money">{currency(get(row, "debitMinor", "debit_minor"))}</td><td className="af-money">{currency(get(row, "creditMinor", "credit_minor"))}</td><td>{dateText(get(row, "createdAt", "created_at"))}</td><td><div className="af-row-actions"><button onClick={() => onDetail(row)}>التفاصيل</button>{canReverse && !get(row, "reversedBy", "reversed_by") && <button className="af-danger-link" onClick={() => onReverse(row)}>عكس</button>}</div></td></>} />;

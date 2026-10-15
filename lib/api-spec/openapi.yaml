@@ -1419,6 +1419,21 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AdminFinanceResult" }
         "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/receipts/{receiptId}:
+    get:
+      operationId: getAdminFinanceReceipt
+      tags: [management]
+      summary: Read a verified receipt with its ledger source, allocations, and private document metadata
+      parameters:
+        - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Receipt, source journal entry, allocations, and associated evidence metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
   /admin/finance/receipts/{receiptId}/allocate:
     post:
       operationId: allocateAdminFinanceReceipt

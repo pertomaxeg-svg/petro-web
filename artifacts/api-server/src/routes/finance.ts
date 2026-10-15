@@ -274,6 +274,13 @@ router.get("/admin/finance/receipts", async (req, res): Promise<void> => {
   }, READ_ROLES);
 });
 
+router.get("/admin/finance/receipts/:receiptId", (req, res) => {
+  if (!validId(req.params["receiptId"])) { fail(res, 400, "معرّف الإيصال غير صالح."); return; }
+  return runRpc(req, res, "petro_finance_admin_receipt_detail", {
+    p_receipt_id: req.params["receiptId"],
+  }, READ_ROLES);
+});
+
 router.post("/admin/finance/receipts", async (req, res): Promise<void> => {
   const body = parseBody(RecordAdminFinanceReceiptBody, req.body);
   if (!body) { fail(res, 400, "بيانات إثبات القبض غير صالحة."); return; }

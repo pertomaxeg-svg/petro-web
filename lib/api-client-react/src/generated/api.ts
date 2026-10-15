@@ -5969,6 +5969,83 @@ export const useRecordAdminFinanceReceipt = <TError = ErrorType<ApiErrorResponse
       return useMutation(getRecordAdminFinanceReceiptMutationOptions(options));
     }
 
+export const getGetAdminFinanceReceiptUrl = (receiptId: string,) => {
+
+
+
+
+  return `/api/admin/finance/receipts/${receiptId}`
+}
+
+/**
+ * @summary Read a verified receipt with its ledger source, allocations, and private document metadata
+ */
+export const getAdminFinanceReceipt = async (receiptId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+  return customFetch<AdminFinanceResult>(getGetAdminFinanceReceiptUrl(receiptId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFinanceReceiptQueryKey = (receiptId: string,) => {
+    return [
+    `/api/admin/finance/receipts/${receiptId}`
+    ] as const;
+    }
+
+
+export const getGetAdminFinanceReceiptQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFinanceReceipt>>, TError = ErrorType<ApiErrorResponse>>(receiptId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceReceipt>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFinanceReceiptQueryKey(receiptId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFinanceReceipt>>> = ({ signal }) => getAdminFinanceReceipt(receiptId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: receiptId !== null && receiptId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceReceipt>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFinanceReceiptQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFinanceReceipt>>>
+export type GetAdminFinanceReceiptQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read a verified receipt with its ledger source, allocations, and private document metadata
+ */
+
+export function useGetAdminFinanceReceipt<TData = Awaited<ReturnType<typeof getAdminFinanceReceipt>>, TError = ErrorType<ApiErrorResponse>>(
+ receiptId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceReceipt>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFinanceReceiptQueryOptions(receiptId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getAllocateAdminFinanceReceiptUrl = (receiptId: string,) => {
 
 
