@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, RefreshCw, Search, ShieldCheck, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X } from "lucide-react";
 import {
   getGetAuthMeQueryKey, getGetPlatformUserQueryKey, getListAdminOrganizationRequestsQueryKey,
   getListOrganizationsQueryKey, getListPlatformUsersQueryKey, useGetAuthMe, useGetPlatformUser,
@@ -44,6 +44,8 @@ function AdminShell({ children, name }: { children: ReactNode; name: string }) {
   const signOut = useSignOut();
   const cache = useQueryClient();
   const [signOutError, setSignOutError] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   async function exit() {
     setSignOutError("");
     try {
@@ -56,25 +58,37 @@ function AdminShell({ children, name }: { children: ReactNode; name: string }) {
   }
   const active = path === "/admin" ? "overview" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
   const pageTitle = active === "overview" ? "نظرة عامة" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
-  return <div className="ac-app" dir="rtl">
+  const nav = <nav className="ac-nav" aria-label="التنقل المركزي">
+    <span className="ac-nav-group">مركز الإدارة</span>
+    <Link href="/admin" onClick={()=>setDrawerOpen(false)} className={active === "overview" ? "selected" : ""}><span className="ac-nav-icon"><FileSearch size={17}/></span><span className="ac-nav-label">نظرة عامة</span></Link>
+    <Link href="/admin/organizations" onClick={()=>setDrawerOpen(false)} className={active === "organizations" ? "selected" : ""}><span className="ac-nav-icon"><Building2 size={17}/></span><span className="ac-nav-label">الجهات والفروع</span></Link>
+    <Link href="/admin/organization-requests" onClick={()=>setDrawerOpen(false)} className={active === "requests" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">طلبات الجهات</span></Link>
+    <Link href="/admin/platform-users" onClick={()=>setDrawerOpen(false)} className={active === "users" ? "selected" : ""}><span className="ac-nav-icon"><Users size={17}/></span><span className="ac-nav-label">مستخدمو المنصة</span></Link>
+    <span className="ac-nav-group ac-nav-group-spaced">التسعير والاشتراكات</span>
+    <Link href="/admin/plans" onClick={()=>setDrawerOpen(false)} className={active === "plans" ? "selected" : ""}><span className="ac-nav-icon"><CreditCard size={17}/></span><span className="ac-nav-label">الباقات والأسعار</span></Link>
+    <Link href="/admin/subscriptions" onClick={()=>setDrawerOpen(false)} className={active === "subscriptions" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">الطلبات والاشتراكات</span></Link>
+    <div className="ac-nav-bottom"><ShieldCheck size={15}/><span>قرارات موثقة<br/><small>نطاق المنصة فقط</small></span></div>
+  </nav>;
+  return <div className={`ac-app ${collapsed ? "ac-collapsed" : ""}`} dir="rtl">
     <header className="ac-topbar">
+      <button className="ac-mobile-menu" aria-label="فتح قائمة الأقسام" onClick={()=>setDrawerOpen(true)}><Menu size={19}/></button>
       <Link href="/admin" className="ac-brand" aria-label="Pertomax EG — لوحة الإدارة"><img src={`${import.meta.env.BASE_URL}petro-max-lockup.png`} alt="Pertomax EG"/></Link>
       <div className="ac-context"><span>الإدارة المركزية</span><b>{pageTitle}</b></div>
       <div className="ac-top-user"><span className="ac-owner-chip"><ShieldCheck size={15}/> مالك المنصة</span><span className="ac-avatar">{name.trim().slice(0, 1) || "م"}</span><span className="ac-top-name">{name}</span><button className="ac-signout" disabled={signOut.isPending} onClick={()=>void exit()}>{signOut.isPending?"جارٍ الخروج…":"تسجيل الخروج"}</button></div>
     </header>
     {signOutError && <p className="ac-signout-error" role="alert">{signOutError}</p>}
-    <nav className="ac-nav" aria-label="التنقل المركزي">
-      <Link href="/admin" className={active === "overview" ? "selected" : ""}><span className="ac-nav-icon"><FileSearch size={16}/></span>نظرة عامة</Link>
-      <Link href="/admin/organizations" className={active === "organizations" ? "selected" : ""}><span className="ac-nav-icon"><Building2 size={16}/></span>الجهات والفروع</Link>
-      <Link href="/admin/organization-requests" className={active === "requests" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={16}/></span>مراجعة الطلبات</Link>
-      <Link href="/admin/platform-users" className={active === "users" ? "selected" : ""}><span className="ac-nav-icon"><Users size={16}/></span>مستخدمو المنصة</Link>
-      <Link href="/admin/plans" className={active === "plans" ? "selected" : ""}><span className="ac-nav-icon"><CreditCard size={16}/></span>الخطط والأسعار</Link>
-      <Link href="/admin/subscriptions" className={active === "subscriptions" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={16}/></span>الاشتراكات</Link>
-      <span className="ac-nav-boundary">نطاق المنصة فقط</span>
-    </nav>
-    <div className="ac-breadcrumb"><Link href="/admin">الإدارة المركزية</Link><ChevronLeft size={13}/><span>{pageTitle}</span></div>
-    <main className="ac-content">{children}</main>
-    <footer className="ac-footer"><span>Pertomax EG <i/> الإدارة المركزية</span><span>قرارات الوصول تُسجّل مع سببها</span></footer>
+    {drawerOpen && <button className="ac-drawer-scrim" aria-label="إغلاق القائمة" onClick={()=>setDrawerOpen(false)}/>}
+    <div className="ac-shell">
+      <aside className={`ac-sidebar ${drawerOpen ? "drawer-open" : ""}`}>
+        <div className="ac-sidebar-head"><span>مساحة العمل</span><button aria-label={collapsed?"توسيع القائمة":"طي القائمة"} onClick={()=>setCollapsed(!collapsed)}><PanelRightClose size={16}/></button><button className="ac-sidebar-close" aria-label="إغلاق القائمة" onClick={()=>setDrawerOpen(false)}><X size={18}/></button></div>
+        {nav}
+      </aside>
+      <section className="ac-main">
+        <div className="ac-breadcrumb"><Link href="/admin">الإدارة المركزية</Link><ChevronLeft size={13}/><span>{pageTitle}</span></div>
+        <main className="ac-content">{children}</main>
+        <footer className="ac-footer"><span>Pertomax EG <i/> الإدارة المركزية</span><span>قرارات الوصول تُسجّل مع سببها</span></footer>
+      </section>
+    </div>
   </div>;
 }
 

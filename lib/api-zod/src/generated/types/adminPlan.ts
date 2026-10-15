@@ -13,6 +13,7 @@ export interface AdminPlan {
   code: string;
   audience: AdminPlanAudience;
   name: string;
+  description: string;
   active: boolean;
   /** @nullable */
   stopNewAt: Date | null;

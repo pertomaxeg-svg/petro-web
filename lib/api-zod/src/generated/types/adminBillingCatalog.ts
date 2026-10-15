@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminBillingPriceDefaults } from './adminBillingPriceDefaults';
 import type { AdminPlan } from './adminPlan';
+import type { AdminProviderPriceOverride } from './adminProviderPriceOverride';
 import type { AdminSubscription } from './adminSubscription';
 import type { AdminSubscriptionRequest } from './adminSubscriptionRequest';
 
@@ -13,4 +15,6 @@ export interface AdminBillingCatalog {
   plans: AdminPlan[];
   requests: AdminSubscriptionRequest[];
   subscriptions: AdminSubscription[];
+  pricingDefaults: AdminBillingPriceDefaults;
+  priceOverrides: AdminProviderPriceOverride[];
 }

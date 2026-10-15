@@ -55,6 +55,8 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/local-auth-post-baseline.sql" >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/local-storage-bootstrap.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/live-default-acl-fixture.sql" >/dev/null
 
 psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
 DO $$
@@ -206,6 +208,30 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0007:-}" ]; then
       's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0007"
 fi
+
+# Plan authoring is independent of platform-user administration and the
+# deferred 0009 migration, so verify 0010/0011 before applying 0008.
+default_acl_snapshot >"$tmp_dir/default-acl-before-0010.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0010_plan_subscription_admin.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0010.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0010.txt" "$tmp_dir/default-acl-after-0010.txt"; then
+  echo "0010 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0010.txt" "$tmp_dir/default-acl-after-0010.txt" >&2 || true
+  exit 1
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0011.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0011_plan_authoring_and_provider_pricing.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0011.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0011.txt" "$tmp_dir/default-acl-after-0011.txt"; then
+  echo "0011 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0011.txt" "$tmp_dir/default-acl-after-0011.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/plan-subscription-admin-smoke-test.sql" >/dev/null
+
 default_acl_snapshot >"$tmp_dir/default-acl-before-0008.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$repo_root/lib/db/migrations/0008_platform_user_administration.sql" >/dev/null
@@ -225,36 +251,14 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0008:-}" ]; then
       's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0008"
 fi
-default_acl_snapshot >"$tmp_dir/default-acl-before-0009.txt"
-psql --no-psqlrc --set ON_ERROR_STOP=1 \
-  --file="$repo_root/lib/db/migrations/0009_revoke_legacy_account_status_rpc.sql" >/dev/null
-default_acl_snapshot >"$tmp_dir/default-acl-after-0009.txt"
-if ! cmp -s "$tmp_dir/default-acl-before-0009.txt" "$tmp_dir/default-acl-after-0009.txt"; then
-  echo "0009 unexpectedly changed one or more default ACLs:" >&2
-  diff -u "$tmp_dir/default-acl-before-0009.txt" "$tmp_dir/default-acl-after-0009.txt" >&2 || true
-  exit 1
-fi
-psql --no-psqlrc --set ON_ERROR_STOP=1 \
-  --file="$script_dir/legacy-status-rpc-revocation-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
-default_acl_snapshot >"$tmp_dir/default-acl-before-0010.txt"
-psql --no-psqlrc --set ON_ERROR_STOP=1 \
-  --file="$repo_root/lib/db/migrations/0010_plan_subscription_admin.sql" >/dev/null
-default_acl_snapshot >"$tmp_dir/default-acl-after-0010.txt"
-if ! cmp -s "$tmp_dir/default-acl-before-0010.txt" "$tmp_dir/default-acl-after-0010.txt"; then
-  echo "0010 unexpectedly changed one or more default ACLs:" >&2
-  diff -u "$tmp_dir/default-acl-before-0010.txt" "$tmp_dir/default-acl-after-0010.txt" >&2 || true
-  exit 1
-fi
-psql --no-psqlrc --set ON_ERROR_STOP=1 \
-  --file="$script_dir/plan-subscription-admin-smoke-test.sql" >/dev/null
-if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0009:-}" ]; then
-  mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0009")"
+if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0011:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0011")"
   pg_dump --no-owner --no-privileges --schema-only \
     --schema=public --schema=petro_private |
     sed -E \
       's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
-    >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0009"
+    >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0011"
 fi
 
 echo "Fresh baseline matched: 11 tables, 57 constraints, 22 indexes, 23 functions, 12 RLS policies, 11 RLS-enabled tables."
@@ -262,9 +266,8 @@ echo "DB-01 baseline RLS checks passed; 0004 was applied once to the disposable 
 echo "0005 organization/branch schema, reasoned audit, state separation, uniqueness, optimistic concurrency, role separation and tenant/branch isolation checks passed."
 echo "0006 organization requests, document metadata/private-storage RLS policies, bank versioning, review decisions, no-owner-escalation and optimistic-concurrency tests passed."
 echo "0007 confirmed pending self-service, beneficiary immutability, private attachment isolation, withdrawal, completion, review, resubmission, one-time approval and central on-behalf regression tests passed."
-echo "0008 platform-user directory, role/status audit, owner-only authorization, self-change denial, inactive-account guard, and legacy-RPC compatibility checks passed."
-echo "0009 client-role revocation of the legacy status RPC passed; service_role access remained unchanged."
-echo "The API router and 0008/0009 functions passed an isolated HTTP/PostgreSQL integration test using synthetic users and a local fake Supabase transport."
-echo "0010 plan versions, approved-price schedule, owner-only controls, duplicate/overlap rejection, organization scope, snapshot immutability, paid pending state, free station branch gate, custom-price rejection for stations, company fleet block, plan change, renewal, future cancellation, and branch expiry isolation passed with synthetic fixtures."
-echo "0004/0005/0006/0007/0008/0009/0010 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
+echo "0010/0011 plan authoring, editable defaults, draft/version immutability, provider price schedules, scope/overlap checks, paid pending state, free stations, and branch expiry isolation passed with synthetic fixtures."
+echo "0008 platform-user directory, role/status audit, owner-only authorization, mandatory reasons, self-change denial, inactive-account guard, and legacy-RPC compatibility passed."
+echo "The 0008 and billing API routers passed isolated HTTP/PostgreSQL integration tests with synthetic users and a local fake Supabase transport; 0009 was not run and remains deferred."
+echo "0004/0005/0006/0007/0008/0010/0011 local migrations changed no default ACL in any schema; the test fixture modeled the approved 24 ACL scopes. Storage behavior was simulated locally; no live Storage service was used."
 echo "Only a temporary local PostgreSQL cluster and local HTTP test server were used; no project Secrets or external network connections were used."

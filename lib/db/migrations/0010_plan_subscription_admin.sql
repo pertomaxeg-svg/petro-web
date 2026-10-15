@@ -9,7 +9,7 @@ ALTER TABLE public.petro_plans
   ADD COLUMN stop_new_at timestamptz;
 
 ALTER TABLE public.petro_plan_versions
-  ADD COLUMN publication_status text NOT NULL DEFAULT 'published',
+  ADD COLUMN publication_status text NOT NULL DEFAULT 'draft',
   ADD COLUMN billing_cycle text NOT NULL DEFAULT 'annual',
   ADD COLUMN currency text NOT NULL DEFAULT 'EGP',
   ADD COLUMN entitlements jsonb,
@@ -291,7 +291,7 @@ BEGIN
     features, effective_at, created_by, publication_status, billing_cycle, currency,
     entitlements, settings
   ) VALUES (
-    plan_id, 1, p_annual_price_minor, 10000, billing_unit_value,
+    plan_id, 1, p_annual_price_minor, 0, billing_unit_value,
     ARRAY[]::text[], now(), auth.uid(), 'draft', 'annual', 'EGP', '[]'::jsonb, '[]'::jsonb
   );
   INSERT INTO public.petro_audit_events(actor_id, organization_id, action, target_id, detail)
@@ -368,7 +368,7 @@ BEGIN
     plan_id, version, annual_price_minor, nfc_issue_price_minor, billing_unit, features,
     effective_at, created_by, publication_status, billing_cycle, currency, entitlements, settings
   ) VALUES (
-    p_plan_id, next_version, p_annual_price_minor, 10000, unit_value,
+    p_plan_id, next_version, p_annual_price_minor, 0, unit_value,
     ARRAY(SELECT item ->> 'key' FROM jsonb_array_elements(p_entitlements) item),
     p_effective_at, auth.uid(), 'draft', 'annual', 'EGP', p_entitlements, p_settings
   ) RETURNING id INTO version_id;
@@ -640,7 +640,6 @@ BEGIN
       'audience', plan_row.audience, 'versionId', version_row.id, 'version', version_row.version,
       'priceMinor', price_value, 'currency', 'EGP', 'billingUnit', unit_value,
       'billingCycle', 'annual', 'units', req.requested_units,
-      'nfcIssuePriceMinor', version_row.nfc_issue_price_minor,
       'legacyFeatures', version_row.features, 'entitlements', version_row.entitlements,
       'settings', version_row.settings, 'priceOverride', req.request_type = 'custom_price'
     );

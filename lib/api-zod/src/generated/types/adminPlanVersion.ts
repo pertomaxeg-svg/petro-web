@@ -15,8 +15,9 @@ export interface AdminPlanVersion {
   id: string;
   /** @minimum 1 */
   version: number;
+  displayName: string;
+  description: string;
   annualPriceMinor: bigint;
-  nfcIssuePriceMinor: bigint;
   billingUnit: AdminPlanVersionBillingUnit;
   billingCycle: AdminPlanVersionBillingCycle;
   currency: AdminPlanVersionCurrency;

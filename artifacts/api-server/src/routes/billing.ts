@@ -2,11 +2,14 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import {
   CancelAdminSubscriptionBody,
   CreateAdminBillingPlanBody,
+  CreateAdminProviderPriceOverrideBody,
   CreateAdminBillingPlanVersionBody,
   CreateAdminSubscriptionRequestBody,
   PublishAdminBillingPlanVersionBody,
   ReviewAdminSubscriptionRequestBody,
   ScheduleAdminBillingPlanStopBody,
+  UpdateAdminBillingPlanDraftBody,
+  UpdateAdminBillingPriceDefaultsBody,
 } from "@workspace/api-zod";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 import { requireSession, type SessionContext } from "./management";
@@ -70,7 +73,7 @@ router.get("/admin/billing/catalog", async (req, res): Promise<void> => {
   setNoStore(res);
   const session = await requireOwner(req, res);
   if (!session) return;
-  const { data, error } = await session.supabase.rpc("petro_billing_admin_catalog");
+  const { data, error } = await session.supabase.rpc("petro_billing_admin_catalog_v2");
   if (error) {
     mapBillingError(res, error);
     return;
@@ -91,11 +94,18 @@ router.post("/admin/billing/plans", async (req, res): Promise<void> => {
     fail(res, 400, "بيانات الخطة أو سبب الإنشاء غير صالح.");
     return;
   }
-  const { data, error } = await session.supabase.rpc("petro_billing_admin_create_plan", {
+  const { data, error } = await session.supabase.rpc("petro_billing_admin_create_plan_v2", {
     p_code: body.code,
     p_audience: body.audience,
     p_name: body.name,
-    p_annual_price_minor: body.annualPriceMinor,
+    p_description: body.description,
+    p_price_minor: body.annualPriceMinor,
+    p_billing_unit: body.billingUnit,
+    p_billing_cycle: body.billingCycle,
+    p_currency: body.currency,
+    p_effective_at: body.effectiveAt.toISOString(),
+    p_entitlements: body.entitlements,
+    p_settings: body.settings,
     p_reason: body.reason,
   });
   if (error) {
@@ -119,9 +129,14 @@ router.post("/admin/billing/plans/:planId/versions", async (req, res): Promise<v
     fail(res, 400, "تحقق من معرّف الخطة وبيانات النسخة وسبب التعديل.");
     return;
   }
-  const { data, error } = await session.supabase.rpc("petro_billing_admin_add_plan_version", {
+  const { data, error } = await session.supabase.rpc("petro_billing_admin_add_plan_version_v2", {
     p_plan_id: planId,
-    p_annual_price_minor: body.annualPriceMinor,
+    p_display_name: body.displayName,
+    p_description: body.description,
+    p_price_minor: body.annualPriceMinor,
+    p_billing_unit: body.billingUnit,
+    p_billing_cycle: body.billingCycle,
+    p_currency: body.currency,
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
@@ -136,6 +151,94 @@ router.post("/admin/billing/plans/:planId/versions", async (req, res): Promise<v
     return;
   }
   res.status(201).json({ id: data, status: "draft", message: "حُفظت نسخة مسودة؛ لم تُنشر حقوق غير معتمدة." });
+});
+
+router.patch("/admin/billing/plans/:planId/versions/:versionId", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireOwner(req, res);
+  if (!session) return;
+  const planId = req.params["planId"];
+  const versionId = req.params["versionId"];
+  const body = parseBody(UpdateAdminBillingPlanDraftBody, req.body);
+  if (!validId(planId) || !validId(versionId) || !body) {
+    fail(res, 400, "تحقق من معرّفات الخطة والنسخة وبيانات المسودة وسبب التعديل.");
+    return;
+  }
+  const { data, error } = await session.supabase.rpc("petro_billing_admin_update_draft_version", {
+    p_plan_id: planId,
+    p_version_id: versionId,
+    p_display_name: body.displayName,
+    p_description: body.description,
+    p_price_minor: body.annualPriceMinor,
+    p_billing_unit: body.billingUnit,
+    p_billing_cycle: body.billingCycle,
+    p_currency: body.currency,
+    p_effective_at: body.effectiveAt.toISOString(),
+    p_entitlements: body.entitlements,
+    p_settings: body.settings,
+    p_reason: body.reason,
+  });
+  if (error) {
+    mapBillingError(res, error);
+    return;
+  }
+  if (typeof data !== "string") {
+    fail(res, 500, "لم تُرجع قاعدة البيانات معرّف النسخة.");
+    return;
+  }
+  res.json({ id: data, status: "draft", message: "تم تحديث المسودة فقط؛ لم تتغير النسخ المنشورة أو الاشتراكات السابقة." });
+});
+
+router.patch("/admin/billing/pricing-defaults", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireOwner(req, res);
+  if (!session) return;
+  const body = parseBody(UpdateAdminBillingPriceDefaultsBody, req.body);
+  if (!body) {
+    fail(res, 400, "تحقق من أسعار الاقتراحات وسعر إصدار NFC وسبب التغيير.");
+    return;
+  }
+  const { error } = await session.supabase.rpc("petro_billing_admin_update_price_defaults", {
+    p_company_prices_minor: body.companyAnnualPricesMinor,
+    p_provider_price_minor: body.providerAnnualPriceMinor,
+    p_nfc_issue_price_minor: body.nfcIssuePriceMinor,
+    p_reason: body.reason,
+  });
+  if (error) {
+    mapBillingError(res, error);
+    return;
+  }
+  res.json({ id: "billing-price-defaults", status: "updated", message: "حُفظت الأسعار الافتراضية المقترحة وNFC مستقلًا؛ لم تتغير أي خطة أو نسخة سابقة." });
+});
+
+router.post("/admin/billing/provider-price-overrides", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireOwner(req, res);
+  if (!session) return;
+  const body = parseBody(CreateAdminProviderPriceOverrideBody, req.body);
+  if (!body) {
+    fail(res, 400, "تحقق من الجهة والفرع والخطة والسعر وفترة السريان والسبب.");
+    return;
+  }
+  const { data, error } = await session.supabase.rpc("petro_billing_admin_set_provider_price_override", {
+    p_organization_id: body.organizationId,
+    p_branch_id: body.branchId,
+    p_plan_id: body.planId,
+    p_price_minor: body.priceMinor,
+    p_effective_from: body.effectiveFrom.toISOString(),
+    p_effective_to: body.effectiveTo?.toISOString() ?? null,
+    p_supersedes_override_id: body.supersedesOverrideId,
+    p_reason: body.reason,
+  });
+  if (error) {
+    mapBillingError(res, error);
+    return;
+  }
+  if (typeof data !== "string") {
+    fail(res, 500, "لم تُرجع قاعدة البيانات معرّف السعر المخصص.");
+    return;
+  }
+  res.status(201).json({ id: data, status: "scheduled", message: "حُفظ السعر كفترة مستقلة دون إنشاء طلب اشتراك أو تفعيله." });
 });
 
 router.post("/admin/billing/plans/:planId/versions/:versionId/publish", async (req, res): Promise<void> => {
@@ -207,7 +310,7 @@ router.post("/admin/billing/subscription-requests", async (req, res): Promise<vo
     p_current_subscription_id: body.currentSubscriptionId,
     p_plan_id: body.planId,
     p_plan_version_id: body.planVersionId,
-    p_requested_price_minor: body.requestedPriceMinor,
+    p_requested_price_minor: null,
     p_starts_at: body.startsAt.toISOString(),
     p_ends_at: body.endsAt.toISOString(),
     p_coverage_note: body.coverageNote,

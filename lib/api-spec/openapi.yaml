@@ -1150,7 +1150,7 @@ paths:
     get:
       operationId: getAdminBillingCatalog
       tags: [management]
-      summary: Read the owner-only plan, subscription request and subscription catalog
+      summary: Read the owner-only plan, price settings, provider overrides and subscription catalog
       responses:
         "200":
           description: Current saved plan versions and administrative subscription records
@@ -1198,6 +1198,76 @@ paths:
       responses:
         "201":
           description: Immutable-on-publication draft version created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/plans/{planId}/versions/{versionId}:
+    patch:
+      operationId: updateAdminBillingPlanDraft
+      tags: [management]
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminPlanVersionInput" }
+      responses:
+        "200":
+          description: Edit a draft only; published and subscribed terms stay immutable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/pricing-defaults:
+    patch:
+      operationId: updateAdminBillingPriceDefaults
+      tags: [management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminBillingPriceDefaultsInput" }
+      responses:
+        "200":
+          description: Update suggested catalog prices and separate NFC issuance price
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/provider-price-overrides:
+    post:
+      operationId: createAdminProviderPriceOverride
+      tags: [management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminProviderPriceOverrideInput" }
+      responses:
+        "201":
+          description: Create an independent, audited provider or provider-branch price period
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
@@ -1263,7 +1333,7 @@ paths:
     post:
       operationId: createAdminSubscriptionRequest
       tags: [management]
-      summary: Save a subscription, renewal, plan-change or custom-price request
+      summary: Save a subscription, renewal or plan-change request
       requestBody:
         required: true
         content:
@@ -1409,9 +1479,20 @@ components:
         code: { type: string, pattern: "^[a-z][a-z0-9_-]{2,47}$" }
         audience: { type: string, enum: [company, provider, station] }
         name: { type: string, minLength: 2, maxLength: 100 }
+        description: { type: string, maxLength: 1000 }
         annualPriceMinor: { type: integer, format: int64, minimum: 0 }
+        billingUnit: { type: string, enum: [vehicle, branch] }
+        billingCycle: { type: string, enum: [annual] }
+        currency: { type: string, enum: [EGP] }
+        effectiveAt: { type: string, format: date-time }
+        entitlements:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
+        settings:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
         reason: { type: string, minLength: 5, maxLength: 500 }
-      required: [code, audience, name, annualPriceMinor, reason]
+      required: [code, audience, name, description, annualPriceMinor, billingUnit, billingCycle, currency, effectiveAt, entitlements, settings, reason]
     AdminPlanStopInput:
       type: object
       properties:
@@ -1429,7 +1510,12 @@ components:
     AdminPlanVersionInput:
       type: object
       properties:
+        displayName: { type: string, minLength: 2, maxLength: 100 }
+        description: { type: string, maxLength: 1000 }
         annualPriceMinor: { type: integer, format: int64, minimum: 0 }
+        billingUnit: { type: string, enum: [vehicle, branch] }
+        billingCycle: { type: string, enum: [annual] }
+        currency: { type: string, enum: [EGP] }
         effectiveAt: { type: string, format: date-time }
         entitlements:
           type: array
@@ -1438,14 +1524,15 @@ components:
           type: array
           items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
         reason: { type: string, minLength: 5, maxLength: 500 }
-      required: [annualPriceMinor, effectiveAt, entitlements, settings, reason]
+      required: [displayName, description, annualPriceMinor, billingUnit, billingCycle, currency, effectiveAt, entitlements, settings, reason]
     AdminPlanVersion:
       type: object
       properties:
         id: { type: string, format: uuid }
         version: { type: integer, minimum: 1 }
+        displayName: { type: string }
+        description: { type: string }
         annualPriceMinor: { type: integer, format: int64 }
-        nfcIssuePriceMinor: { type: integer, format: int64 }
         billingUnit: { type: string, enum: [vehicle, branch] }
         billingCycle: { type: string, enum: [annual] }
         currency: { type: string, enum: [EGP] }
@@ -1460,7 +1547,7 @@ components:
           items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
         effectiveAt: { type: string, format: date-time }
         publicationStatus: { type: string, enum: [draft, scheduled, published, retired] }
-      required: [id, version, annualPriceMinor, nfcIssuePriceMinor, billingUnit, billingCycle, currency, legacyFeatures, entitlements, settings, effectiveAt, publicationStatus]
+      required: [id, version, displayName, description, annualPriceMinor, billingUnit, billingCycle, currency, legacyFeatures, entitlements, settings, effectiveAt, publicationStatus]
     AdminPlan:
       type: object
       properties:
@@ -1468,12 +1555,13 @@ components:
         code: { type: string }
         audience: { type: string, enum: [company, provider, station] }
         name: { type: string }
+        description: { type: string }
         active: { type: boolean }
         stopNewAt: { type: [string, "null"], format: date-time }
         versions:
           type: array
           items: { $ref: "#/components/schemas/AdminPlanVersion" }
-      required: [id, code, audience, name, active, stopNewAt, versions]
+      required: [id, code, audience, name, description, active, stopNewAt, versions]
     AdminSubscriptionRequest:
       type: object
       properties:
@@ -1482,7 +1570,7 @@ components:
         organizationName: { type: string }
         branchId: { type: [string, "null"], format: uuid }
         branchName: { type: [string, "null"] }
-        requestType: { type: string, enum: [new, renewal, plan_change, custom_price] }
+        requestType: { type: string, enum: [new, renewal, plan_change] }
         currentSubscriptionId: { type: [string, "null"], format: uuid }
         planId: { type: string, format: uuid }
         planVersionId: { type: string, format: uuid }
@@ -1529,13 +1617,76 @@ components:
         subscriptions:
           type: array
           items: { $ref: "#/components/schemas/AdminSubscription" }
-      required: [plans, requests, subscriptions]
+        pricingDefaults: { $ref: "#/components/schemas/AdminBillingPriceDefaults" }
+        priceOverrides:
+          type: array
+          items: { $ref: "#/components/schemas/AdminProviderPriceOverride" }
+      required: [plans, requests, subscriptions, pricingDefaults, priceOverrides]
+    AdminBillingPriceDefaults:
+      type: object
+      properties:
+        companyAnnualPricesMinor:
+          type: array
+          items: { type: integer, format: int64, minimum: 1 }
+        providerAnnualPriceMinor: { type: integer, format: int64, minimum: 1 }
+        stationAnnualPriceMinor: { type: integer, enum: [0] }
+        nfcIssuePriceMinor: { type: integer, format: int64, minimum: 0 }
+        currency: { type: string, enum: [EGP] }
+        billingCycle: { type: string, enum: [annual] }
+        updatedAt: { type: string, format: date-time }
+      required: [companyAnnualPricesMinor, providerAnnualPriceMinor, stationAnnualPriceMinor, nfcIssuePriceMinor, currency, billingCycle, updatedAt]
+    AdminBillingPriceDefaultsInput:
+      type: object
+      properties:
+        companyAnnualPricesMinor:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { type: integer, format: int64, minimum: 1, maximum: 1000000000 }
+        providerAnnualPriceMinor: { type: integer, format: int64, minimum: 1, maximum: 1000000000 }
+        nfcIssuePriceMinor: { type: integer, format: int64, minimum: 0, maximum: 1000000000 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [companyAnnualPricesMinor, providerAnnualPriceMinor, nfcIssuePriceMinor, reason]
+    AdminProviderPriceOverride:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        organizationName: { type: string }
+        branchId: { type: [string, "null"], format: uuid }
+        branchName: { type: [string, "null"] }
+        planId: { type: string, format: uuid }
+        planName: { type: string }
+        priceMinor: { type: integer, format: int64 }
+        standardPriceMinor: { type: [integer, "null"], format: int64 }
+        priority: { type: string, enum: [organization, branch] }
+        effectiveFrom: { type: string, format: date-time }
+        effectiveTo: { type: [string, "null"], format: date-time }
+        reason: { type: string }
+        approvedBy: { type: string, format: uuid }
+        approverName: { type: [string, "null"] }
+        previousOverrideId: { type: [string, "null"], format: uuid }
+        previousPriceMinor: { type: ["integer", "null"], format: int64 }
+        createdAt: { type: string, format: date-time }
+      required: [id, organizationId, organizationName, branchId, branchName, planId, planName, priceMinor, standardPriceMinor, priority, effectiveFrom, effectiveTo, reason, approvedBy, approverName, previousOverrideId, previousPriceMinor, createdAt]
+    AdminProviderPriceOverrideInput:
+      type: object
+      properties:
+        organizationId: { type: string, format: uuid }
+        branchId: { type: [string, "null"], format: uuid }
+        planId: { type: string, format: uuid }
+        priceMinor: { type: integer, format: int64, minimum: 1, maximum: 1000000000 }
+        effectiveFrom: { type: string, format: date-time }
+        effectiveTo: { type: [string, "null"], format: date-time }
+        supersedesOverrideId: { type: [string, "null"], format: uuid }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [organizationId, branchId, planId, priceMinor, effectiveFrom, effectiveTo, supersedesOverrideId, reason]
     AdminSubscriptionRequestInput:
       type: object
       properties:
         organizationId: { type: string, format: uuid }
         branchId: { type: [string, "null"], format: uuid }
-        requestType: { type: string, enum: [new, renewal, plan_change, custom_price] }
+        requestType: { type: string, enum: [new, renewal, plan_change] }
         currentSubscriptionId: { type: [string, "null"], format: uuid }
         planId: { type: string, format: uuid }
         planVersionId: { type: string, format: uuid }

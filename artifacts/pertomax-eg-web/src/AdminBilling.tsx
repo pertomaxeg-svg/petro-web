@@ -1,24 +1,25 @@
 import { Fragment, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowDownWideNarrow, Banknote, Building2, CalendarDays, Check, ChevronDown, CircleAlert,
-  Clock3, Filter, Layers3, Plus, RefreshCw, Search, ShieldAlert, Tag,
+  ArrowDownWideNarrow, ArrowLeft, Banknote, Building2, CalendarDays, Check, ChevronDown, CircleAlert,
+  Clock3, Filter, Layers3, Plus, RefreshCw, Search, ShieldAlert, Tag, GitCompareArrows,
 } from "lucide-react";
 import {
   getGetAdminBillingCatalogQueryKey, getListBranchesQueryKey, getListOrganizationsQueryKey,
   useCancelAdminSubscription, useCreateAdminBillingPlan, useCreateAdminBillingPlanVersion,
   useCreateAdminSubscriptionRequest, useGetAdminBillingCatalog, useListBranches,
   useListOrganizations, usePublishAdminBillingPlanVersion, useReviewAdminSubscriptionRequest,
-  useScheduleAdminBillingPlanStop,
+  useScheduleAdminBillingPlanStop, useUpdateAdminBillingPlanDraft, useUpdateAdminBillingPriceDefaults,
+  useCreateAdminProviderPriceOverride,
 } from "@workspace/api-client-react";
 import type {
   AdminPlan, AdminPlanEntitlement, AdminPlanVersion,
-  AdminSubscription, AdminSubscriptionRequest,
+  AdminSubscription, AdminSubscriptionRequest, AdminPlanInput, AdminBillingPriceDefaults,
 } from "@workspace/api-client-react";
 import "./AdminBilling.css";
 
 type Audience = "company" | "provider" | "station";
-type RequestKind = "new" | "renewal" | "plan_change" | "custom_price";
+type RequestKind = "new" | "renewal" | "plan_change";
 type ReviewDecision = "approve" | "needs_changes" | "reject" | "cancel";
 type PlanRecord = AdminPlan;
 type PlanVersion = AdminPlanVersion;
@@ -34,7 +35,6 @@ const requestLabel: Record<RequestKind, string> = {
   new: "اشتراك جديد",
   renewal: "تجديد",
   plan_change: "تغيير خطة",
-  custom_price: "سعر مخصص",
 };
 const statusLabel: Record<string, string> = {
   active: "نشط",
@@ -55,6 +55,9 @@ const statusLabel: Record<string, string> = {
 const pageSize = 20;
 const apiErrorMessage = (error: unknown) => {
   const item = error as { message?: string; data?: { message?: string } };
+  const status = apiErrorStatus(error);
+  if (status === 409) return "تعارض مع سجل أحدث. أعد تحميل الكتالوج وراجع القيم الحالية قبل إعادة المحاولة.";
+  if (status === 403) return "لا تملك صلاحية تنفيذ هذا الإجراء.";
   return item?.data?.message || item?.message || "تعذر إتمام الطلب. حاول مرة أخرى.";
 };
 const apiErrorStatus = (error: unknown) => {
@@ -109,11 +112,31 @@ function ReasonField() {
   </label>;
 }
 
-function JsonArrayField({ name, title }: { name: string; title: string }) {
-  return <label className="ab-field ab-wide">{title}
-    <textarea name={name} required defaultValue="[]" dir="ltr" spellCheck={false} placeholder="[]"/>
-    <small>ابدأ بقائمة فارغة. لا تُعد الحقوق معتمدة ما لم تُسجل الموافقة صراحةً.</small>
-  </label>;
+function JsonArrayField({ name, title, value }: { name: string; title: string; value?: AdminPlanEntitlement[] | null }) {
+  const [items, setItems] = useState<AdminPlanEntitlement[]>(() => [...(value ?? [])]);
+  const update = (index: number, patch: Partial<AdminPlanEntitlement>) => {
+    setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  };
+  return <div className="ab-field ab-wide ab-config-editor">
+    <b>{title}</b>
+    <small>لا تُضاف مميزات افتراضية. ضع علامة الاعتماد فقط بعد قرار صريح، ويُرفض نشر نسخة ناقصة.</small>
+    <input type="hidden" name={name} value={JSON.stringify(items)}/>
+    {items.length === 0 && <p className="ab-config-empty">لا توجد عناصر محفوظة. أضف بندًا عند اعتماد ميزة أو إعداد.</p>}
+    <div className="ab-config-list">
+      {items.map((item, index) => <fieldset className="ab-config-item" key={`${name}-${index}`}>
+        <legend>{title} {index + 1}</legend>
+        <label>المفتاح<input required maxLength={64} value={item.key} onChange={event=>update(index,{key:event.target.value})} dir="ltr" placeholder="identifier"/></label>
+        <label>الاسم المعروض<input required maxLength={120} value={item.label} onChange={event=>update(index,{label:event.target.value})} placeholder="اسم واضح"/></label>
+        <label className="ab-config-value">القيمة<input value={displayValue(item.value)} onChange={event=>{
+          const raw=event.target.value;
+          try { update(index,{value:JSON.parse(raw)}); } catch { update(index,{value:raw}); }
+        }} dir="auto" placeholder="أدخل قيمة واضحة لهذا البند"/></label>
+        <label className="ab-config-approved"><input type="checkbox" checked={item.approved} onChange={event=>update(index,{approved:event.target.checked})}/>معتمد صراحةً</label>
+        <button type="button" className="ac-button ac-button-quiet" aria-label={`حذف ${title} ${index + 1}`} onClick={()=>setItems(current=>current.filter((_,itemIndex)=>itemIndex!==index))}>حذف البند</button>
+      </fieldset>)}
+    </div>
+    <button type="button" className="ac-button ac-button-quiet ab-config-add" onClick={()=>setItems(current=>[...current,{key:"",label:"",value:"",approved:false}])}><Plus size={14}/>إضافة بند</button>
+  </div>;
 }
 
 function parseArray(raw: FormDataEntryValue | null, label: string): AdminPlanEntitlement[] {
@@ -146,14 +169,14 @@ function PageHeading({
   </div>;
 }
 
-function FixedPriceNote() {
+function FixedPriceNote({ defaults }: { defaults: AdminBillingPriceDefaults }) {
   return <section className="ab-pricing-note" aria-label="الأسعار المعتمدة">
     <div className="ab-pricing-heading"><Banknote size={17}/><b>مرجع الأسعار المعتمد</b><span>جنيه مصري · سنوي</span></div>
     <div className="ab-pricing-grid">
-      <div><span>الشركات</span><b>٥٠٠ / ٧٥٠ / ١٬٠٠٠</b><small>لكل مركبة</small></div>
-      <div><span>مقدّمو الخدمات</span><b>٥٬٠٠٠</b><small>لكل فرع</small></div>
+      <div><span>الشركات</span><b>{defaults.companyAnnualPricesMinor.map(value=>new Intl.NumberFormat("ar-EG").format(value/100)).join(" / ")}</b><small>ج.م لكل مركبة سنويًا</small></div>
+      <div><span>مقدّمو الخدمات</span><b>{money(defaults.providerAnnualPriceMinor)}</b><small>لكل فرع سنويًا</small></div>
       <div><span>المحطات</span><b>مجاني</b><small>بلا عمولة أو رسم غسيل</small></div>
-      <div><span>إصدار NFC</span><b>١٠٠</b><small>رسوم إصدار منفصلة</small></div>
+      <div><span>إصدار NFC</span><b>{money(defaults.nfcIssuePriceMinor)}</b><small>رسوم إصدار منفصلة</small></div>
     </div>
     <p>لا تشمل الأسعار ضريبة أو تركيبًا أو استبدالًا غير معتمد. لا يوجد احتساب نسبي للترقية أو محفظة مقابل رسوم الاشتراك.</p>
   </section>;
@@ -206,18 +229,57 @@ export function AdminPlansPage() {
   const createVersion = useCreateAdminBillingPlanVersion();
   const publishVersion = usePublishAdminBillingPlanVersion();
   const scheduleStop = useScheduleAdminBillingPlanStop();
+  const updateDraft = useUpdateAdminBillingPlanDraft();
+  const updateDefaults = useUpdateAdminBillingPriceDefaults();
+  const createOverride = useCreateAdminProviderPriceOverride();
   const [search, setSearch] = useState("");
   const [audienceFilter, setAudienceFilter] = useState("all");
   const [sort, setSort] = useState(false);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [section, setSection] = useState<"plans"|"defaults"|"features"|"history"|"overrides">("plans");
   const [createAudience, setCreateAudience] = useState<Audience>("company");
   const [versionPlan, setVersionPlan] = useState<PlanRecord | null>(null);
+  const [editSelection, setEditSelection] = useState<{plan:PlanRecord;version:PlanVersion}|null>(null);
   const [stopPlan, setStopPlan] = useState<PlanRecord | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
+  const organizations = useListOrganizations({page:1,pageSize:100},{query:{queryKey:getListOrganizationsQueryKey({page:1,pageSize:100}),enabled:section==="overrides",retry:false}});
+  const [overrideOrgId,setOverrideOrgId] = useState("");
+  const [overrideBranchId,setOverrideBranchId] = useState("");
+  const [overridePlanId,setOverridePlanId] = useState("");
+  const [overrideEffectiveFrom,setOverrideEffectiveFrom] = useState(defaultStart());
+  const [overrideSupersedesId,setOverrideSupersedesId] = useState("");
+  const branches = useListBranches(overrideOrgId,{query:{queryKey:getListBranchesQueryKey(overrideOrgId),enabled:!!overrideOrgId,retry:false}});
+  const providers = (organizations.data?.items ?? []).filter(org=>org.kind==="provider");
+  const providerPlans = plans.filter(plan=>plan.audience==="provider");
+  const overrideStartTime = new Date(overrideEffectiveFrom).valueOf();
+  const selectedOverridePlan = providerPlans.find(plan=>plan.id===overridePlanId);
+  const allPriceOverrides = query.data?.priceOverrides ?? [];
+  const supersededOverrideIds = new Set(allPriceOverrides.flatMap(item=>item.previousOverrideId ? [item.previousOverrideId] : []));
+  const previousPriceVersions = (query.data?.priceOverrides ?? [])
+    .filter(item=>item.organizationId===overrideOrgId
+      && (item.branchId ?? "")===overrideBranchId
+      && item.planId===overridePlanId
+      && !supersededOverrideIds.has(item.id)
+      && Number.isFinite(overrideStartTime)
+      && new Date(item.effectiveFrom).valueOf()<overrideStartTime
+      && (!item.effectiveTo || new Date(item.effectiveTo).valueOf()<=overrideStartTime))
+    .sort((left,right)=>right.effectiveFrom.localeCompare(left.effectiveFrom));
+  const conflictingPriceVersion = (query.data?.priceOverrides ?? []).some(item=>
+    item.organizationId===overrideOrgId
+      && (item.branchId ?? "")===overrideBranchId
+      && item.planId===overridePlanId
+      && item.id!==overrideSupersedesId
+      && Number.isFinite(overrideStartTime)
+      && new Date(item.effectiveFrom).valueOf()<overrideStartTime
+      && (!item.effectiveTo || new Date(item.effectiveTo).valueOf()>overrideStartTime));
+  const standardVersionAtOverrideStart = selectedOverridePlan?.versions
+    .filter(version=>["published","scheduled"].includes(version.publicationStatus)
+      && new Date(version.effectiveAt).valueOf()<=overrideStartTime)
+    .sort((left,right)=>right.version-left.version)[0];
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase();
@@ -228,21 +290,49 @@ export function AdminPlansPage() {
     return sort ? [...values].sort((left, right) => left.name.localeCompare(right.name, "ar")) : values;
   }, [plans, audienceFilter, search, sort]);
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const allVersionRows = plans.flatMap(plan => plan.versions.map(version => ({ plan, version })));
+  const versionRows = allVersionRows.filter(({ plan, version }) => (audienceFilter === "all" || plan.audience === audienceFilter)
+      && (!search.trim() || `${plan.name} ${plan.code} ${version.displayName} ${version.version}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())));
+  const orderedVersionRows = [...versionRows].sort((left, right) => {
+    const byDate = new Date(left.version.effectiveAt).valueOf() - new Date(right.version.effectiveAt).valueOf();
+    return (sort ? byDate : -byDate) || left.plan.name.localeCompare(right.plan.name, "ar");
+  });
+  const allFeatureRows = plans.flatMap(plan => plan.versions.flatMap(version => [
+    ...(version.entitlements ?? []).map(item => ({ plan, version, item, itemType: "استحقاق" })),
+    ...(version.settings ?? []).map(item => ({ plan, version, item, itemType: "إعداد" })),
+  ]));
+  const featureRows = allFeatureRows.filter(({ plan, version, item }) => (audienceFilter === "all" || plan.audience === audienceFilter)
+    && (!search.trim() || `${plan.name} ${plan.code} ${version.displayName} ${item.key} ${item.label}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())));
+  const orderedFeatureRows = [...featureRows].sort((left, right) =>
+    (sort ? 1 : -1) * left.item.label.localeCompare(right.item.label, "ar"));
 
   async function submitPlan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError("");
     setSuccess("");
     const data = new FormData(event.currentTarget);
+    const audience = String(data.get("audience")) as Audience;
+    const enteredPrice = audience === "station" ? 0 : Number(data.get("price"));
+    if (!Number.isFinite(enteredPrice) || (audience !== "station" && enteredPrice <= 0)) {
+      setFormError("أدخل سعرًا سنويًا موجبًا؛ تظل المحطات مجانية.");
+      return;
+    }
     setBusy(true);
     try {
       await createPlan.mutateAsync({ data: {
         name: String(data.get("name")).trim(),
         code: String(data.get("code")).trim(),
-        audience: String(data.get("audience")) as Audience,
-        annualPriceMinor: Math.round(Number(data.get("price")) * 100),
+        audience,
+        description: String(data.get("description") ?? "").trim(),
+        annualPriceMinor: Math.round(enteredPrice * 100),
+        billingUnit: audience === "company" ? "vehicle" : "branch",
+        billingCycle: "annual",
+        currency: "EGP",
+        effectiveAt: new Date(String(data.get("effectiveAt"))).toISOString(),
+        entitlements: [],
+        settings: [],
         reason: String(data.get("reason")).trim(),
-      } });
+      } satisfies AdminPlanInput });
       await refresh();
       setCreateOpen(false);
       setSuccess("حُفظت الخطة كمسودة دون حقوق معتمدة.");
@@ -255,7 +345,7 @@ export function AdminPlansPage() {
 
   async function submitVersion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!versionPlan) return;
+    if (!versionPlan && !editSelection) return;
     setFormError("");
     setSuccess("");
     const data = new FormData(event.currentTarget);
@@ -264,17 +354,31 @@ export function AdminPlansPage() {
       if (Number.isNaN(effectiveAt.valueOf())) throw new Error("تاريخ السريان غير صالح.");
       const entitlements = parseArray(data.get("entitlements"), "الاستحقاقات");
       const settings = parseArray(data.get("settings"), "الإعدادات");
+      const audience = (versionPlan ?? editSelection!.plan).audience;
+      const enteredPrice = audience === "station" ? 0 : Number(data.get("price"));
+      if (!Number.isFinite(enteredPrice) || (audience !== "station" && enteredPrice <= 0)) {
+        throw new Error("أدخل سعرًا سنويًا موجبًا؛ تظل المحطات مجانية.");
+      }
       setBusy(true);
-      await createVersion.mutateAsync({ planId: versionPlan.id, data: {
-        annualPriceMinor: Math.round(Number(data.get("price")) * 100),
+      const plan = versionPlan ?? editSelection!.plan;
+      const payload = {
+        displayName: String(data.get("displayName")).trim(),
+        description: String(data.get("description") ?? "").trim(),
+        annualPriceMinor: Math.round(enteredPrice * 100),
+        billingUnit: plan.audience === "company" ? "vehicle" as const : "branch" as const,
+        billingCycle: "annual" as const,
+        currency: "EGP" as const,
         effectiveAt: effectiveAt.toISOString(),
         entitlements,
         settings,
         reason: String(data.get("reason")).trim(),
-      } });
+      };
+      if(editSelection) await updateDraft.mutateAsync({planId:plan.id,versionId:editSelection.version.id,data:payload});
+      else await createVersion.mutateAsync({ planId: plan.id, data: payload });
       await refresh();
       setVersionPlan(null);
-      setSuccess("حُفظ الإصدار كمسودة. لن يُنشر حتى اعتماد كل حق وإعداد صراحةً.");
+      setEditSelection(null);
+      setSuccess(editSelection ? "تم حفظ تعديلات المسودة." : "حُفظ الإصدار كمسودة. لن يُنشر حتى اعتماد كل حق وإعداد صراحةً.");
     } catch (error) {
       setFormError(apiErrorMessage(error));
     } finally {
@@ -331,10 +435,47 @@ export function AdminPlansPage() {
     }
   }
 
+  async function submitDefaults(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setFormError(""); setSuccess(""); setBusy(true);
+    try {
+      const companyPrices = String(data.get("companyPrices") ?? "").split(",").map(value=>Math.round(Number(value.trim())*100));
+      if(companyPrices.length<1||companyPrices.length>5||companyPrices.some(value=>!Number.isFinite(value)||value<1)) throw new Error("أدخل من سعر واحد إلى خمسة أسعار موجبة مفصولة بفواصل.");
+      await updateDefaults.mutateAsync({data:{
+        companyAnnualPricesMinor:companyPrices,
+        providerAnnualPriceMinor:Math.round(Number(data.get("providerPrice"))*100),
+        nfcIssuePriceMinor:Math.round(Number(data.get("nfcPrice"))*100),
+        reason:String(data.get("reason")).trim(),
+      }});
+      await refresh(); setSuccess("تم حفظ الأسعار الافتراضية مع سبب موثق.");
+    } catch(error) { setFormError(apiErrorMessage(error)); } finally { setBusy(false); }
+  }
+
+  async function submitOverride(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setFormError(""); setSuccess(""); setBusy(true);
+    try {
+      const from = new Date(String(data.get("effectiveFrom")));
+      const toRaw = String(data.get("effectiveTo") ?? "");
+      const to = toRaw ? new Date(toRaw) : null;
+      if(Number.isNaN(from.valueOf()) || (to && Number.isNaN(to.valueOf()))) throw new Error("تحقق من تواريخ التخصيص.");
+      const branchId = String(data.get("branchId") ?? "");
+      await createOverride.mutateAsync({data:{
+        organizationId:overrideOrgId, branchId:branchId || null, planId:overridePlanId,
+        priceMinor:Math.round(Number(data.get("price"))*100), effectiveFrom:from.toISOString(), effectiveTo:to?.toISOString() ?? null,
+        supersedesOverrideId:overrideSupersedesId || previousPriceVersions[0]?.id || null, reason:String(data.get("reason")).trim(),
+      }});
+      await refresh(); setOverrideSupersedesId(""); setSuccess("تم إنشاء تخصيص السعر لمقدّم الخدمة.");
+    } catch(error) { setFormError(apiErrorMessage(error)); } finally { setBusy(false); }
+  }
+
   const [publishSelection, setPublishSelection] = useState<{ plan: PlanRecord; version: PlanVersion } | null>(null);
   const closeForms = () => {
     setCreateOpen(false);
     setVersionPlan(null);
+    setEditSelection(null);
     setStopPlan(null);
     setPublishSelection(null);
     setFormError("");
@@ -343,15 +484,27 @@ export function AdminPlansPage() {
 
   return <div className="ac-page-enter ab-billing">
     <PageHeading eyebrow="الكتالوج والتسعير" title="الخطط والإصدارات" description="إدارة نسخة السعر والحقوق. كل إصدار محفوظ كما اعتمد، ولا تُفترض مزايا غير محسومة."
-      action={<button className="ac-button" disabled={query.isError} onClick={() => { closeForms(); setCreateAudience("company"); setCreateOpen(true); }}><Plus size={15}/> إنشاء خطة مسودة</button>}/>
-    <FixedPriceNote/>
+      action={section==="plans"?<button className="ac-button" disabled={query.isError} onClick={() => { closeForms(); setCreateAudience("company"); setCreateOpen(true); }}><Plus size={15}/> إنشاء خطة مسودة</button>:undefined}/>
+    <div className="ab-tabs" role="tablist" aria-label="أقسام إدارة الباقات">
+      <button role="tab" aria-selected={section==="plans"} className={section==="plans"?"selected":""} onClick={()=>{setSection("plans");setPage(1);}}>الباقات والإصدارات</button>
+      <button role="tab" aria-selected={section==="defaults"} className={section==="defaults"?"selected":""} onClick={()=>{setSection("defaults");setPage(1);}}>الأسعار</button>
+      <button role="tab" aria-selected={section==="features"} className={section==="features"?"selected":""} onClick={()=>{setSection("features");setPage(1);}}>المميزات والحقوق</button>
+      <button role="tab" aria-selected={section==="history"} className={section==="history"?"selected":""} onClick={()=>{setSection("history");setPage(1);}}>تاريخ النسخ</button>
+      <button role="tab" aria-selected={section==="overrides"} className={section==="overrides"?"selected":""} onClick={()=>{setSection("overrides");setPage(1);}}>السعر المخصص</button>
+    </div>
+    {section==="plans"&&query.data?.pricingDefaults&&<FixedPriceNote defaults={query.data.pricingDefaults}/>}
     {success && <p className="ab-notice" role="status"><Check size={15}/>{success}</p>}
     {query.isLoading ? <LoadingState/> : errorState}
-    {!query.isLoading && !query.isError && <>
+    {!query.isLoading && !query.isError && section==="plans" && <>
       <SearchFilter search={search} onSearch={value => { setSearch(value); setPage(1); }} filter={audienceFilter}
         onFilter={value => { setAudienceFilter(value); setPage(1); }}
         filterOptions={[["all", "كل الفئات"], ["company", "شركة"], ["provider", "مقدّم خدمة"], ["station", "محطة"]]}
         onSort={() => setSort(!sort)} sortLabel={sort ? "ترتيب الاسم: أ–ي" : "ترتيب الاسم"}/>
+      <section className="ab-plan-summary" aria-label="ملخص سجل الباقات">
+        <article><span>الباقات المسجلة</span><b>{plans.length.toLocaleString("ar-EG")}</b><small>من سجل الكتالوج</small></article>
+        <article><span>نسخ منشورة أو مجدولة</span><b>{plans.reduce((total,plan)=>total+plan.versions.filter(version=>["published","scheduled"].includes(version.publicationStatus)).length,0).toLocaleString("ar-EG")}</b><small>الإصدارات المعتمدة فقط</small></article>
+        <article><span>مسودات بانتظار المراجعة</span><b>{plans.reduce((total,plan)=>total+plan.versions.filter(version=>version.publicationStatus==="draft").length,0).toLocaleString("ar-EG")}</b><small>لا تؤثر على الاشتراكات</small></article>
+      </section>
       {plans.length === 0 ? <section className="ac-empty"><span><Tag size={18}/></span><h2>لا توجد خطط محفوظة</h2><p>ستظهر هنا بيانات فعلية بعد تهيئة المخطط المعتمد.</p></section>
         : filtered.length === 0 ? <section className="ac-empty"><Search size={20}/><h2>لا توجد نتائج مطابقة</h2><p>غيّر عبارة البحث أو عامل التصفية.</p></section>
         : <div className="ac-table-wrap ab-table-wrap"><div className="ac-table-scroll"><table className="ac-table ab-table">
@@ -360,36 +513,108 @@ export function AdminPlansPage() {
             onExpand={() => setExpanded(expanded === plan.id ? null : plan.id)}
             onNewVersion={() => { closeForms(); setVersionPlan(plan); }}
             onStop={() => { closeForms(); setStopPlan(plan); }}
-            onPublish={version => { closeForms(); setPublishSelection({ plan, version }); }}/>)}</tbody>
+            onPublish={version => { closeForms(); setPublishSelection({ plan, version }); }}
+            onEdit={version=>{closeForms();setEditSelection({plan,version});}}/>)}</tbody>
         </table></div></div>}
       <PageControls page={page} total={filtered.length} onPage={setPage}/>
       <p className="ab-footnote"><ShieldAlert size={15}/>الميزات النصية القديمة لا تثبت اعتماد الاستحقاقات. لا يمكن نشر نسخة بحقوق فارغة أو غير معتمدة.</p>
     </>}
-    {(createOpen || versionPlan || stopPlan || publishSelection) && <section className="ac-panel ab-form-panel">
-      <div className="ab-form-head"><div><span className="ac-eyebrow">إجراء إداري موثق</span><h2>{createOpen ? "إنشاء خطة" : versionPlan ? `إصدار جديد · ${versionPlan.name}` : stopPlan ? `إيقاف استقبال جديد · ${stopPlan.name}` : "نشر إصدار"}</h2></div>
+    {!query.isLoading&&!query.isError&&section==="features"&&<>
+      <SearchFilter search={search} onSearch={value=>{setSearch(value);setPage(1);}} filter={audienceFilter}
+        onFilter={value=>{setAudienceFilter(value);setPage(1);}}
+        filterOptions={[["all","كل الفئات"],["company","شركة"],["provider","مقدّم خدمة"],["station","محطة"]]}
+        onSort={()=>setSort(!sort)} sortLabel={sort?"ترتيب الاسم: أ–ي":"ترتيب الاسم"}/>
+      {allFeatureRows.length===0?<section className="ac-empty"><span><ShieldAlert size={18}/></span><h2>لا توجد مميزات أو حقوق محفوظة</h2><p>أضف البنود المعتمدة إلى مسودة إصدار. لن تُنشأ مميزات افتراضية أو تُعتمد تلقائيًا.</p></section>
+        :featureRows.length===0?<section className="ac-empty"><Search size={18}/><h2>لا توجد نتائج مطابقة</h2><p>غيّر عبارة البحث أو عامل التصفية.</p></section>
+        :<div className="ac-table-wrap ab-table-wrap"><div className="ac-table-scroll"><table className="ac-table ab-table" aria-label="مميزات وحقوق الخطط">
+          <thead><tr><th>البند</th><th>النوع</th><th>القيمة</th><th>الخطة والإصدار</th><th>الاعتماد</th><th>الإجراء</th></tr></thead>
+          <tbody>{orderedFeatureRows.slice((page-1)*pageSize,page*pageSize).map(({plan,version,item,itemType})=><tr key={`${plan.id}-${version.id}-${itemType}-${item.key}`}>
+            <td><b>{item.label}</b><small dir="ltr">{item.key}</small></td><td>{itemType}</td><td className="ab-feature-value">{displayValue(item.value)}</td>
+            <td><b>{plan.name}</b><small>v{version.version} · {version.displayName}</small></td>
+            <td><span className={`ac-status ${item.approved?"ac-status-active":"ac-status-pending"}`}>{item.approved?"معتمد":"غير معتمد"}</span></td>
+            <td>{version.publicationStatus==="draft"?<button type="button" className="ac-button ac-button-quiet" onClick={()=>{closeForms();setSection("plans");setEditSelection({plan,version});}}>فتح المسودة</button>:<span>نسخة محفوظة</span>}</td>
+          </tr>)}</tbody>
+        </table></div></div>}
+      {featureRows.length>0&&<PageControls page={page} total={featureRows.length} onPage={setPage}/>}
+      <p className="ab-footnote"><ShieldAlert size={15}/>تعرض هذه القائمة البنود المحفوظة فقط؛ لا تُعامل المميزات النصية القديمة كحقوق معتمدة.</p>
+    </>}
+    {!query.isLoading&&!query.isError&&section==="history"&&<>
+      <SearchFilter search={search} onSearch={value=>{setSearch(value);setPage(1);}} filter={audienceFilter}
+        onFilter={value=>{setAudienceFilter(value);setPage(1);}}
+        filterOptions={[["all","كل الفئات"],["company","شركة"],["provider","مقدّم خدمة"],["station","محطة"]]}
+        onSort={()=>setSort(!sort)} sortLabel={sort?"الأقدم أولًا":"الأحدث أولًا"}/>
+      {allVersionRows.length===0?<section className="ac-empty"><span><Layers3 size={18}/></span><h2>لا توجد نسخ محفوظة بعد</h2><p>سيعرض السجل كل إصدار فعلي وتاريخ سريانه وحالته؛ لا توجد بيانات تجريبية.</p></section>
+        :versionRows.length===0?<section className="ac-empty"><Search size={18}/><h2>لا توجد نتائج مطابقة</h2><p>غيّر عبارة البحث أو عامل التصفية.</p></section>
+        :<div className="ac-table-wrap ab-table-wrap"><div className="ac-table-scroll"><table className="ac-table ab-table" aria-label="تاريخ إصدارات الخطط">
+          <thead><tr><th>الخطة</th><th>الإصدار</th><th>الحالة</th><th>السعر والوحدة</th><th>تاريخ السريان</th><th>الحقوق والإعدادات</th><th>الإجراء</th></tr></thead>
+          <tbody>{orderedVersionRows.slice((page-1)*pageSize,page*pageSize).map(({plan,version})=><tr key={`${plan.id}-${version.id}`}>
+            <td><b>{plan.name}</b><small>{plan.code}</small></td><td>v{version.version} · {version.displayName}</td>
+            <td><span className={`ac-status ac-status-${version.publicationStatus}`}>{statusLabel[version.publicationStatus]??version.publicationStatus}</span></td>
+            <td><b>{money(version.annualPriceMinor)}</b><small>{version.billingUnit==="vehicle"?"لكل مركبة":version.billingUnit==="branch"?"لكل فرع":"وحدة"} · {version.billingCycle==="annual"?"سنويًا":"دورة أخرى"} · {version.currency}</small></td>
+            <td>{new Date(version.effectiveAt).toLocaleDateString("ar-EG")}</td>
+            <td>{version.entitlements?.length??0} استحقاق · {version.settings?.length??0} إعداد</td>
+            <td><button type="button" className="ac-button ac-button-quiet" onClick={()=>{setSection("plans");setSearch("");setAudienceFilter("all");setPage(1);setExpanded(plan.id);}}>عرض الخطة</button></td>
+          </tr>)}</tbody>
+        </table></div></div>}
+      {versionRows.length>0&&<PageControls page={page} total={versionRows.length} onPage={setPage}/>}
+      <p className="ab-footnote"><ShieldAlert size={15}/>كل نسخة محفوظة مستقلة؛ تعديل خطة أو إصدار لاحق لا يغيّر لقطة اشتراك سابق.</p>
+    </>}
+    {!query.isLoading&&!query.isError&&section==="defaults"&&<section className="ac-panel ab-form-panel">
+      <div className="ab-form-head"><div><span className="ac-eyebrow">مرجع قابل للتحرير</span><h2>الأسعار الافتراضية</h2></div><span className="ac-status ac-status-active">سنوي · جنيه مصري</span></div>
+      <form className="ab-form-grid" onSubmit={submitDefaults}>
+        <label className="ab-field ab-wide">أسعار الشركات لكل مركبة سنويًا (ج.م)<input name="companyPrices" required defaultValue={query.data?.pricingDefaults.companyAnnualPricesMinor.map(value=>String(value/100)).join(", ")}/><small>سعر أو أكثر، حتى خمسة؛ افصل بينها بفواصل. لن تُضاف مستويات غير موجودة تلقائيًا.</small></label>
+        <label className="ab-field">مقدّم الخدمة لكل فرع (ج.م)<input name="providerPrice" type="number" min="1" step="0.01" required defaultValue={(query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100}/></label>
+        <label className="ab-field">إصدار NFC (ج.م)<input name="nfcPrice" type="number" min="0" step="0.01" required defaultValue={(query.data?.pricingDefaults.nfcIssuePriceMinor??0)/100}/><small>إصدار NFC منفصل عن الاشتراك. المحطات مجانية ولا تقبل تخصيص سعر.</small></label>
+        <ReasonField/><FormFeedback error={formError}/>
+        <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy?"جارٍ الحفظ…":"حفظ الأسعار الافتراضية"} <Check size={14}/></button></div>
+      </form>
+      <p className="ab-footnote"><ShieldAlert size={15}/>المصدر الوحيد هو مرجع التسعير المحفوظ. لا تُضاف ضرائب أو رسوم تركيب أو استبدال.</p>
+    </section>}
+    {!query.isLoading&&!query.isError&&section==="overrides"&&<div className="ab-override-layout">
+      <section className="ac-panel ab-form-panel"><div className="ab-form-head"><div><span className="ac-eyebrow">سعر خاص موثق</span><h2>تخصيص لمقدّم خدمة</h2></div><span className="ac-status ac-status-pending">المحطات غير مؤهلة</span></div>
+        {organizations.isError?<CatalogState error={organizations.error} retry={()=>void organizations.refetch()}/>:<form className="ab-form-grid" onSubmit={submitOverride}>
+           <label className="ab-field ab-wide">مقدّم الخدمة<select required value={overrideOrgId} onChange={event=>{setOverrideOrgId(event.target.value);setOverrideBranchId("");setOverrideSupersedesId("");}}><option value="">اختر جهة من السجل</option>{providers.map(org=><option key={org.id} value={org.id}>{org.name}</option>)}</select><small>تظهر الجهات المصنفة مقدّم خدمة فقط.</small></label>
+           <label className="ab-field">النطاق<select name="branchId" value={overrideBranchId} onChange={event=>{setOverrideBranchId(event.target.value);setOverrideSupersedesId("");}}><option value="">الجهة بالكامل</option>{(branches.data?.items??[]).map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+           <label className="ab-field">خطة مقدم الخدمة<select name="planId" required value={overridePlanId} onChange={event=>{setOverridePlanId(event.target.value);setOverrideSupersedesId("");}}><option value="">اختر خطة</option>{providerPlans.map(plan=><option value={plan.id} key={plan.id}>{plan.name}</option>)}</select></label>
+          <label className="ab-field">السعر الخاص السنوي لكل فرع<input name="price" type="number" min="0.01" step="0.01" required/></label>
+           <label className="ab-field">يبدأ في<input name="effectiveFrom" type="datetime-local" value={overrideEffectiveFrom} onChange={event=>setOverrideEffectiveFrom(event.target.value)} required/></label>
+          <label className="ab-field">ينتهي في<input name="effectiveTo" type="datetime-local"/></label>
+           <div className="ab-detail-card ab-wide"><span>السعر القياسي السنوي</span><b>{money(standardVersionAtOverrideStart?.annualPriceMinor)}</b><span>النسخة القياسية: {standardVersionAtOverrideStart ? `v${standardVersionAtOverrideStart.version} · ${statusLabel[standardVersionAtOverrideStart.publicationStatus]}` : "لا توجد نسخة منشورة سارية عند التاريخ المحدد"}</span></div>
+           <label className="ab-field ab-wide">السعر السابق الذي يستبدله (اختياري)<select value={overrideSupersedesId || previousPriceVersions[0]?.id || ""} onChange={event=>setOverrideSupersedesId(event.target.value)}><option value="">لا يوجد إصدار سابق</option>{previousPriceVersions.map(item=><option key={item.id} value={item.id}>{money(item.priceMinor)} · {dateLabel(item.effectiveFrom)} · {item.priority==="branch"?"الفرع":"الجهة"}</option>)}</select><small>يربط السعر السابق للنطاق نفسه بالسجل الجديد؛ يختار أحدث إصدار صالح تلقائيًا.</small></label>
+           {conflictingPriceVersion&&<p className="ab-form-error ab-wide" role="alert"><CircleAlert size={15}/>يوجد تخصيص متداخل لهذا النطاق والخطة. اختر النسخة السابقة المناسبة أو عدّل فترة السريان.</p>}
+           <p className="ab-form-note ab-wide">أولوية الفرع أعلى من أولوية الجهة. يرتبط النطاق حصريًا بفرع تابع لمقدّم الخدمة المحدد، ويُراجع مجددًا من الخادم.</p>
+          <ReasonField/><FormFeedback error={formError}/>
+           <div className="ab-form-actions"><button className="ac-button" disabled={busy||!providers.length||!providerPlans.length||!overridePlanId||conflictingPriceVersion}>{busy?"جارٍ الحفظ…":"حفظ التخصيص"} <Check size={14}/></button></div>
+        </form>}</section>
+      <section className="ac-panel ab-override-history"><span className="ac-eyebrow">السجل الفعلي</span><h2>التخصيصات المسجلة</h2>
+         {!query.data?.priceOverrides.length?<div className="ac-empty"><span><Tag size={18}/></span><b>لا توجد تخصيصات</b><p>سيظهر هنا السعر القياسي والخاص والنطاق وفترة السريان بعد الحفظ.</p></div>:<div className="ab-override-list">{query.data.priceOverrides.map(item=><article key={item.id}><div><b>{item.organizationName}{item.branchName?` · ${item.branchName}`:""}</b><small>{item.planName} · {item.priority==="branch"?"أولوية الفرع":"أولوية الجهة"}</small></div><strong>الخاص: {money(item.priceMinor)}</strong><small>القياسي عند السريان: {money(item.standardPriceMinor)}</small><small>من {dateLabel(item.effectiveFrom)} إلى {dateLabel(item.effectiveTo)}</small><small>{item.previousOverrideId?`السعر السابق: ${money(item.previousPriceMinor)}`:"لا توجد نسخة سعر سابقة مرتبطة"}</small><small>اعتمد بواسطة: {item.approverName??"غير مسجل"} · السبب: {item.reason}</small></article>)}</div>}
+      </section>
+    </div>}
+    {(createOpen || versionPlan || editSelection || stopPlan || publishSelection) && <section className="ac-panel ab-form-panel">
+      <div className="ab-form-head"><div><span className="ac-eyebrow">إجراء إداري موثق</span><h2>{createOpen ? "إنشاء خطة" : versionPlan ? `إصدار جديد · ${versionPlan.name}` : editSelection ? `تحرير مسودة · ${editSelection.plan.name}` : stopPlan ? `إيقاف استقبال جديد · ${stopPlan.name}` : "نشر إصدار"}</h2></div>
         <button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إغلاق</button></div>
       {createOpen && <form className="ab-form-grid" onSubmit={submitPlan}>
         <label className="ab-field">اسم الخطة<input name="name" required minLength={2} maxLength={100}/></label>
         <label className="ab-field">رمز الخطة<input name="code" required minLength={3} maxLength={48} pattern="[a-z][a-z0-9_-]{2,47}" dir="ltr"/></label>
+        <label className="ab-field ab-wide">وصف الخطة<input name="description" maxLength={1000}/></label>
         <label className="ab-field">الفئة<select name="audience" required value={createAudience} onChange={event => setCreateAudience(event.target.value as Audience)}>
           <option value="company">شركة</option><option value="provider">مقدّم خدمة</option><option value="station">محطة</option>
         </select></label>
-        <label className="ab-field">السعر السنوي (ج.م)<select name="price" required key={createAudience} defaultValue={createAudience === "provider" ? "5000" : createAudience === "station" ? "0" : "500"}>
-          {(createAudience === "company" ? ["500", "750", "1000"] : createAudience === "provider" ? ["5000"] : ["0"]).map(price => <option key={price} value={price}>{price === "0" ? "مجاني للمحطة" : `${Number(price).toLocaleString("ar-EG")} ${createAudience === "company" ? "لكل مركبة" : "لكل فرع"}`}</option>)}
-        </select></label>
+         <label className="ab-field">السعر السنوي (ج.م) · {createAudience === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={createAudience === "station" ? 0 : 0.01} step="0.01" required key={createAudience} readOnly={createAudience === "station"} defaultValue={createAudience === "station" ? 0 : createAudience === "company" ? (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100 : (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100}/><small>{createAudience === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الأسعار الافتراضية، ويمكن تعديلها لهذه الخطة."} · EGP سنويًا</small></label>
+        <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={defaultStart()} required/></label>
         <ReasonField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "حفظ كمسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
-      {versionPlan && <form className="ab-form-grid" onSubmit={submitVersion}>
-        <label className="ab-field">السعر السنوي (ج.م)<select name="price" required defaultValue={versionPlan.audience === "provider" ? "5000" : versionPlan.audience === "station" ? "0" : "500"}>
-          {(versionPlan.audience === "company" ? ["500", "750", "1000"] : versionPlan.audience === "provider" ? ["5000"] : ["0"]).map(price => <option key={price} value={price}>{price === "0" ? "مجاني للمحطة" : `${Number(price).toLocaleString("ar-EG")} ${versionPlan.audience === "company" ? "لكل مركبة" : "لكل فرع"}`}</option>)}
-        </select></label>
-        <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={defaultStart()} required/></label>
-        <JsonArrayField name="entitlements" title="الاستحقاقات (JSON)"/>
-        <JsonArrayField name="settings" title="إعدادات الخطة (JSON)"/>
-        <p className="ab-form-note ab-wide">سعر NFC ثابت ١٠٠ ج.م للإصدار ومنفصل عن الاشتراك. وحدة الباقة سنوية، والاستحقاقات لا تُعتمد تلقائيًا.</p>
+      {(versionPlan || editSelection) && <form className="ab-form-grid" onSubmit={submitVersion}>
+        <label className="ab-field">اسم الإصدار<input name="displayName" required defaultValue={editSelection?.version.displayName??versionPlan?.name??""}/></label>
+        <label className="ab-field">وصف الإصدار<input name="description" maxLength={1000} defaultValue={editSelection?.version.description??""}/></label>
+         <label className="ab-field">السعر السنوي (ج.م) · {(versionPlan?.audience??editSelection?.plan.audience) === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={(versionPlan?.audience??editSelection?.plan.audience) === "station" ? 0 : 0.01} step="0.01" required readOnly={(versionPlan?.audience??editSelection?.plan.audience) === "station"} defaultValue={editSelection ? editSelection.version.annualPriceMinor/100 : (versionPlan?.audience === "station" ? 0 : versionPlan?.audience === "company" ? (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100 : (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100)}/><small>{(versionPlan?.audience??editSelection?.plan.audience) === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الافتراضات أو الإصدار الحالي، ويمكن تعديلها لهذه النسخة."} · EGP سنويًا</small></label>
+        <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={localDateTime(new Date(editSelection?.version.effectiveAt??Date.now()+60_000))} required/></label>
+         <JsonArrayField key={`entitlements-${editSelection?.version.id??versionPlan?.id??"new"}`} name="entitlements" title="استحقاقات الخطة" value={editSelection?.version.entitlements}/>
+         <JsonArrayField key={`settings-${editSelection?.version.id??versionPlan?.id??"new"}`} name="settings" title="إعدادات الخطة" value={editSelection?.version.settings}/>
+         <p className="ab-form-note ab-wide">رسوم إصدار NFC مستقلة عن الاشتراك وتُضبط في مرجع الأسعار. وحدة الباقة سنوية، والاستحقاقات لا تُعتمد تلقائيًا.</p>
         <ReasonField/><FormFeedback error={formError}/>
-        <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "حفظ إصدار مسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
+        <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : editSelection?"حفظ تعديلات المسودة":"حفظ إصدار مسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
       {stopPlan && <form className="ab-form-grid" onSubmit={submitStop}>
         <label className="ab-field ab-wide">إيقاف استقبال الطلبات الجديدة من<input name="stopNewAt" type="datetime-local"/></label>
@@ -407,7 +632,7 @@ export function AdminPlansPage() {
 }
 
 function PlanRows({
-  plan, expanded, onExpand, onNewVersion, onStop, onPublish,
+  plan, expanded, onExpand, onNewVersion, onStop, onPublish, onEdit,
 }: {
   plan: PlanRecord;
   expanded: boolean;
@@ -415,26 +640,40 @@ function PlanRows({
   onNewVersion: () => void;
   onStop: () => void;
   onPublish: (version: PlanVersion) => void;
+  onEdit: (version:PlanVersion)=>void;
 }) {
+  const [compareId,setCompareId]=useState("");
+  const hasPublishedVersion = plan.versions.some(version=>
+    version.publicationStatus==="published" && new Date(version.effectiveAt).valueOf()<=Date.now());
+  const hasScheduledVersion = plan.versions.some(version=>
+    version.publicationStatus==="scheduled" && new Date(version.effectiveAt).valueOf()>Date.now());
+  const planStatus = plan.stopNewAt && new Date(plan.stopNewAt).valueOf()<=Date.now()
+    ? "stopped"
+    : hasPublishedVersion && !plan.active ? "stopped"
+      : hasPublishedVersion && plan.active ? "active"
+        : hasScheduledVersion ? "scheduled" : "draft";
   return <>
     <tr>
       <td><button className="ab-expand" onClick={onExpand}><ChevronDown className={expanded ? "ab-rotated" : ""} size={14}/><span><b>{plan.name}</b><small dir="ltr">{plan.code}</small></span></button></td>
       <td>{audienceLabel[plan.audience]}</td>
-      <td>{plan.versions.length.toLocaleString("ar-EG")} إصدار</td>
-      <td><StatusTag status={!plan.active || (plan.stopNewAt != null && new Date(plan.stopNewAt).valueOf() <= Date.now()) ? "stopped" : "active"}/></td>
+       <td>{plan.versions.length.toLocaleString("ar-EG")} إصدار</td>
+       <td><StatusTag status={planStatus}/></td>
       <td>{dateLabel(plan.stopNewAt)}</td>
       <td><div className="ab-actions"><button type="button" className="ab-link-button" onClick={onNewVersion}>إصدار جديد <Plus size={13}/></button><button type="button" className="ab-link-button" onClick={onStop}>تعديل الإيقاف</button></div></td>
     </tr>
     {expanded && <tr className="ab-detail-row"><td colSpan={6}>
-      <div className="ab-version-list"><h3>سجل الإصدارات</h3>{plan.versions.length === 0 ? <p>لا توجد نسخ محفوظة.</p> : plan.versions.map(version =>
+      <div className="ab-version-list"><h3>سجل الإصدارات</h3>
+        {plan.versions.length>1&&<label className="ab-compare-select"><GitCompareArrows size={15}/> قارن مع إصدار<select value={compareId} onChange={event=>setCompareId(event.target.value)}><option value="">اختر إصدارًا للمقارنة</option>{plan.versions.map(version=><option key={version.id} value={version.id}>v{version.version} · {statusLabel[version.publicationStatus]??version.publicationStatus}</option>)}</select></label>}
+        {compareId&&plan.versions.filter(item=>item.id===compareId).map(comparison=><div className="ab-comparison" key={comparison.id}><b>مقارنة الإصدارات</b><span>السعر السنوي: {money(comparison.annualPriceMinor)} <ArrowLeft size={13}/> {money(plan.versions[0]?.annualPriceMinor)}</span><span>الحقوق: {comparison.entitlements?.length??"غير موثق"} <ArrowLeft size={13}/> {plan.versions[0]?.entitlements?.length??"غير موثق"}</span><span>الإعدادات: {comparison.settings?.length??"غير موثق"} <ArrowLeft size={13}/> {plan.versions[0]?.settings?.length??"غير موثق"}</span></div>)}
+        {plan.versions.length === 0 ? <p>لا توجد نسخ محفوظة.</p> : plan.versions.map(version =>
         <article className="ab-version" key={version.id}>
           <div><b>الإصدار {version.version.toLocaleString("ar-EG")}</b><StatusTag status={version.publicationStatus}/><small>ساري من {dateLabel(version.effectiveAt)}</small></div>
           <div><b>{money(version.annualPriceMinor)}</b><small>{version.billingUnit === "vehicle" ? "لكل مركبة" : "لكل فرع"} · سنوي</small></div>
-          <div><b>NFC · {money(version.nfcIssuePriceMinor)}</b><small>رسوم إصدار منفصلة</small></div>
+          <div><b>NFC · إصدار منفصل</b><small>وفق مرجع أسعار NFC الحالي</small></div>
           <div className="ab-rights"><b>الحقوق</b>{version.entitlements == null ? <span>غير موثقة لهذا الإصدار القديم</span> : version.entitlements.length === 0 ? <span>لا توجد استحقاقات مسجلة</span> : version.entitlements.map(item => <span key={item.key}>{item.label}: {displayValue(item.value)} · {item.approved ? "معتمد" : "غير معتمد"}</span>)}</div>
           <div className="ab-rights"><b>الإعدادات</b>{version.settings == null ? <span>غير موثقة</span> : version.settings.length === 0 ? <span>لا توجد إعدادات مسجلة</span> : version.settings.map(item => <span key={item.key}>{item.label}: {displayValue(item.value)} · {item.approved ? "معتمد" : "غير معتمد"}</span>)}</div>
           {version.legacyFeatures.length > 0 && <div className="ab-rights ab-wide"><b>نصوص تاريخية غير معتمدة كحقوق</b>{version.legacyFeatures.map((feature, index) => <span key={`${index}-${feature}`}>{feature}</span>)}</div>}
-          {version.publicationStatus === "draft" && <button type="button" className="ac-button ac-button-quiet" onClick={() => onPublish(version)}>مراجعة النشر</button>}
+          {version.publicationStatus === "draft" && <div className="ab-version-actions"><button type="button" className="ac-button ac-button-quiet" onClick={() => onEdit(version)}>تحرير المسودة</button><button type="button" className="ac-button ac-button-quiet" onClick={() => onPublish(version)}>مراجعة النشر</button></div>}
         </article>)}</div>
     </td></tr>}
   </>;
@@ -507,7 +746,6 @@ export function AdminSubscriptionsPage() {
       if (Number.isNaN(parsed.valueOf())) throw new Error("تحقق من تاريخي البداية والنهاية.");
       return parsed.toISOString();
     };
-    const rawPrice = String(data.get("requestedPrice") ?? "").trim();
     const request = requestType;
     setBusy(true);
     try {
@@ -518,7 +756,7 @@ export function AdminSubscriptionsPage() {
         currentSubscriptionId: request === "renewal" || request === "plan_change" ? String(data.get("currentSubscriptionId") || "") || null : null,
         planId: String(data.get("planId")),
         planVersionId: String(data.get("planVersionId")),
-        requestedPriceMinor: request === "custom_price" && rawPrice ? Math.round(Number(rawPrice) * 100) : null,
+        requestedPriceMinor: null,
         startsAt: date("startsAt"),
         endsAt: date("endsAt"),
         coverageNote: String(data.get("coverageNote") ?? "").trim(),
@@ -634,7 +872,7 @@ export function AdminSubscriptionsPage() {
         </select><small>{selectedOrganization?.kind === "company" ? "تغطية المركبات تتطلب سجل أسطول؛ الفروع وحدها لا تثبت عدد المركبات." : "تظهر الفروع النشطة المعتمدة فقط؛ سيعيد الخادم التحقق قبل الإرسال."}</small></label>
         {queryBranches.isError && <p className="ab-form-error" role="alert">{apiErrorMessage(queryBranches.error)}</p>}
         <label className="ab-field">نوع الطلب<select value={requestType} onChange={event => setRequestType(event.target.value as RequestKind)}>
-          <option value="new">اشتراك جديد</option><option value="renewal">تجديد</option><option value="plan_change">تغيير خطة</option><option value="custom_price">سعر مخصص</option>
+          <option value="new">اشتراك جديد</option><option value="renewal">تجديد</option><option value="plan_change">تغيير خطة</option>
         </select></label>
         {(requestType === "renewal" || requestType === "plan_change") && <label className="ab-field">الاشتراك الحالي<select name="currentSubscriptionId" required defaultValue="">
           <option value="">اختر اشتراكًا قائمًا</option>{currentSubscriptions.map(record => <option key={record.id} value={record.id}>{String(snapshotValue(record.planSnapshot, "planName") ?? record.planId)} · {record.branchName ?? "نطاق الجهة"} · {statusLabel[record.status]}</option>)}
@@ -645,7 +883,6 @@ export function AdminSubscriptionsPage() {
         <label className="ab-field">نسخة الخطة<select name="planVersionId" key={selectedPlanId} required defaultValue="">
           <option value="">اختر نسخة مسجلة</option>{planVersions.map(version => <option key={version.id} value={version.id}>v{version.version} · {money(version.annualPriceMinor)} · {statusLabel[version.publicationStatus] ?? version.publicationStatus}</option>)}
         </select></label>
-        {requestType === "custom_price" && <label className="ab-field">السعر المخصص (ج.م)<input name="requestedPrice" type="number" min="0.01" step="0.01" required/></label>}
         <label className="ab-field">بداية التغطية<input name="startsAt" type="datetime-local" defaultValue={defaultStart()} required/></label>
         <label className="ab-field">نهاية التغطية<input name="endsAt" type="datetime-local" defaultValue={defaultEnd()} required/></label>
         <label className="ab-field ab-wide">ملاحظة النطاق والتغطية<textarea name="coverageNote" maxLength={1000} placeholder="سجّل النطاق المطلوب أو سبب تعذر التحقق."/></label>
@@ -705,7 +942,7 @@ function SubscriptionTable({
       <tr>
         <td><b>{row.organizationName}</b><small>{row.branchName ?? "نطاق الجهة"}</small></td>
         <td><b>{String(snapshotValue(row.planSnapshot, "planName") ?? "خطة محفوظة")}</b><small>v{String(snapshotValue(row.planSnapshot, "version") ?? "—")} · {row.billingUnit === "branch" ? "فرع" : "مركبة"}</small></td>
-        <td><b>{money(row.priceSnapshotMinor)}</b><small>{row.units.toLocaleString("ar-EG")} وحدة · NFC {money(Number(snapshotValue(row.planSnapshot, "nfcIssuePriceMinor") ?? 0))}</small></td>
+        <td><b>{money(row.priceSnapshotMinor)}</b><small>{row.units.toLocaleString("ar-EG")} وحدة · قيمة نسخة الاشتراك فقط</small></td>
         <td>{dateLabel(row.startsAt)}<small>حتى {dateLabel(row.endsAt)}{row.cancellationEffectiveAt ? ` · إلغاء ${dateLabel(row.cancellationEffectiveAt)}` : ""}</small></td>
         <td><StatusTag status={row.status}/></td>
         <td><div className="ab-actions"><button type="button" className="ab-link-button" aria-expanded={expanded === row.id} onClick={() => setExpanded(expanded === row.id ? null : row.id)}>{expanded === row.id ? "إخفاء النسخة" : "عرض النسخة"}</button>

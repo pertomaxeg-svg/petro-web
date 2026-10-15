@@ -13,5 +13,4 @@ export const AdminSubscriptionRequestRequestType = {
   new: 'new',
   renewal: 'renewal',
   plan_change: 'plan_change',
-  custom_price: 'custom_price',
 } as const;

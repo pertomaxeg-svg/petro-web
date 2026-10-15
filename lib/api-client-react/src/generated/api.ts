@@ -24,10 +24,12 @@ import type {
   AccountStatusRequest,
   AdminBillingActionResult,
   AdminBillingCatalog,
+  AdminBillingPriceDefaultsInput,
   AdminOrganizationRequestList,
   AdminPlanInput,
   AdminPlanStopInput,
   AdminPlanVersionInput,
+  AdminProviderPriceOverrideInput,
   AdminReasonInput,
   AdminSubscriptionCancelInput,
   AdminSubscriptionRequestInput,
@@ -4591,7 +4593,7 @@ export const getGetAdminBillingCatalogUrl = () => {
 }
 
 /**
- * @summary Read the owner-only plan, subscription request and subscription catalog
+ * @summary Read the owner-only plan, price settings, provider overrides and subscription catalog
  */
 export const getAdminBillingCatalog = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminBillingCatalog> => {
 
@@ -4638,7 +4640,7 @@ export type GetAdminBillingCatalogQueryError = ErrorType<ApiErrorResponse>
 
 
 /**
- * @summary Read the owner-only plan, subscription request and subscription catalog
+ * @summary Read the owner-only plan, price settings, provider overrides and subscription catalog
  */
 
 export function useGetAdminBillingCatalog<TData = Awaited<ReturnType<typeof getAdminBillingCatalog>>, TError = ErrorType<ApiErrorResponse>>(
@@ -4830,6 +4832,255 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreateAdminBillingPlanVersionMutationOptions(options));
     }
 
+export const getUpdateAdminBillingPlanDraftUrl = (planId: string,
+    versionId: string,) => {
+
+
+
+
+  return `/api/admin/billing/plans/${planId}/versions/${versionId}`
+}
+
+export const updateAdminBillingPlanDraft = async (planId: string,
+    versionId: string,
+    adminPlanVersionInput: AdminPlanVersionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminBillingActionResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminBillingActionResult>(getUpdateAdminBillingPlanDraftUrl(planId,versionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminPlanVersionInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminBillingPlanDraftMutationKey = () => ['updateAdminBillingPlanDraft'] as const;
+
+export const getUpdateAdminBillingPlanDraftMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminBillingPlanDraft>>, TError,UpdateAdminBillingPlanDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminBillingPlanDraft>>, TError,UpdateAdminBillingPlanDraftMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminBillingPlanDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminBillingPlanDraft>>, UpdateAdminBillingPlanDraftMutationVariables> = (props) => {
+          const {planId,versionId,data} = props ?? {};
+
+          return  updateAdminBillingPlanDraft(planId,versionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminBillingPlanDraftMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminBillingPlanDraft>>>
+    export type UpdateAdminBillingPlanDraftMutationBody = BodyType<AdminPlanVersionInput>
+    export type UpdateAdminBillingPlanDraftMutationError = ErrorType<ApiErrorResponse>
+    export type UpdateAdminBillingPlanDraftMutationVariables = {planId: string;versionId: string;data: BodyType<AdminPlanVersionInput>}
+
+    export const useUpdateAdminBillingPlanDraft = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminBillingPlanDraft>>, TError,UpdateAdminBillingPlanDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminBillingPlanDraft>>,
+        TError,
+        UpdateAdminBillingPlanDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminBillingPlanDraftMutationOptions(options));
+    }
+
+export const getUpdateAdminBillingPriceDefaultsUrl = () => {
+
+
+
+
+  return `/api/admin/billing/pricing-defaults`
+}
+
+export const updateAdminBillingPriceDefaults = async (adminBillingPriceDefaultsInput: AdminBillingPriceDefaultsInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminBillingActionResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminBillingActionResult>(getUpdateAdminBillingPriceDefaultsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminBillingPriceDefaultsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminBillingPriceDefaultsMutationKey = () => ['updateAdminBillingPriceDefaults'] as const;
+
+export const getUpdateAdminBillingPriceDefaultsMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminBillingPriceDefaults>>, TError,UpdateAdminBillingPriceDefaultsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminBillingPriceDefaults>>, TError,UpdateAdminBillingPriceDefaultsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminBillingPriceDefaultsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminBillingPriceDefaults>>, UpdateAdminBillingPriceDefaultsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAdminBillingPriceDefaults(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminBillingPriceDefaultsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminBillingPriceDefaults>>>
+    export type UpdateAdminBillingPriceDefaultsMutationBody = BodyType<AdminBillingPriceDefaultsInput>
+    export type UpdateAdminBillingPriceDefaultsMutationError = ErrorType<ApiErrorResponse>
+    export type UpdateAdminBillingPriceDefaultsMutationVariables = {data: BodyType<AdminBillingPriceDefaultsInput>}
+
+    export const useUpdateAdminBillingPriceDefaults = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminBillingPriceDefaults>>, TError,UpdateAdminBillingPriceDefaultsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminBillingPriceDefaults>>,
+        TError,
+        UpdateAdminBillingPriceDefaultsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminBillingPriceDefaultsMutationOptions(options));
+    }
+
+export const getCreateAdminProviderPriceOverrideUrl = () => {
+
+
+
+
+  return `/api/admin/billing/provider-price-overrides`
+}
+
+export const createAdminProviderPriceOverride = async (adminProviderPriceOverrideInput: AdminProviderPriceOverrideInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminBillingActionResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminBillingActionResult>(getCreateAdminProviderPriceOverrideUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminProviderPriceOverrideInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminProviderPriceOverrideMutationKey = () => ['createAdminProviderPriceOverride'] as const;
+
+export const getCreateAdminProviderPriceOverrideMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminProviderPriceOverride>>, TError,CreateAdminProviderPriceOverrideMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminProviderPriceOverride>>, TError,CreateAdminProviderPriceOverrideMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminProviderPriceOverrideMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminProviderPriceOverride>>, CreateAdminProviderPriceOverrideMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminProviderPriceOverride(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminProviderPriceOverrideMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminProviderPriceOverride>>>
+    export type CreateAdminProviderPriceOverrideMutationBody = BodyType<AdminProviderPriceOverrideInput>
+    export type CreateAdminProviderPriceOverrideMutationError = ErrorType<ApiErrorResponse>
+    export type CreateAdminProviderPriceOverrideMutationVariables = {data: BodyType<AdminProviderPriceOverrideInput>}
+
+    export const useCreateAdminProviderPriceOverride = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminProviderPriceOverride>>, TError,CreateAdminProviderPriceOverrideMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminProviderPriceOverride>>,
+        TError,
+        CreateAdminProviderPriceOverrideMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminProviderPriceOverrideMutationOptions(options));
+    }
+
 export const getPublishAdminBillingPlanVersionUrl = (planId: string,
     versionId: string,) => {
 
@@ -5007,7 +5258,7 @@ export const getCreateAdminSubscriptionRequestUrl = () => {
 }
 
 /**
- * @summary Save a subscription, renewal, plan-change or custom-price request
+ * @summary Save a subscription, renewal or plan-change request
  */
 export const createAdminSubscriptionRequest = async (adminSubscriptionRequestInput: AdminSubscriptionRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminBillingActionResult> => {
 
@@ -5073,7 +5324,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateAdminSubscriptionRequestMutationVariables = {data: BodyType<AdminSubscriptionRequestInput>}
 
     /**
- * @summary Save a subscription, renewal, plan-change or custom-price request
+ * @summary Save a subscription, renewal or plan-change request
  */
 export const useCreateAdminSubscriptionRequest = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminSubscriptionRequest>>, TError,CreateAdminSubscriptionRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -69,6 +69,43 @@ export const AdminPlanInputAudience = {
   station: 'station',
 } as const;
 
+export type AdminPlanInputBillingUnit = typeof AdminPlanInputBillingUnit[keyof typeof AdminPlanInputBillingUnit];
+
+
+export const AdminPlanInputBillingUnit = {
+  vehicle: 'vehicle',
+  branch: 'branch',
+} as const;
+
+export type AdminPlanInputBillingCycle = typeof AdminPlanInputBillingCycle[keyof typeof AdminPlanInputBillingCycle];
+
+
+export const AdminPlanInputBillingCycle = {
+  annual: 'annual',
+} as const;
+
+export type AdminPlanInputCurrency = typeof AdminPlanInputCurrency[keyof typeof AdminPlanInputCurrency];
+
+
+export const AdminPlanInputCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export interface AdminPlanEntitlement {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  key: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+  value: unknown;
+  approved: boolean;
+}
+
 export interface AdminPlanInput {
   /** @pattern ^[a-z][a-z0-9_-]{2,47}$ */
   code: string;
@@ -78,8 +115,16 @@ export interface AdminPlanInput {
      * @maxLength 100
      */
   name: string;
+  /** @maxLength 1000 */
+  description: string;
   /** @minimum 0 */
   annualPriceMinor: number;
+  billingUnit: AdminPlanInputBillingUnit;
+  billingCycle: AdminPlanInputBillingCycle;
+  currency: AdminPlanInputCurrency;
+  effectiveAt: string;
+  entitlements: AdminPlanEntitlement[];
+  settings: AdminPlanEntitlement[];
   /**
      * @minLength 5
      * @maxLength 500
@@ -97,24 +142,41 @@ export interface AdminPlanStopInput {
   reason: string;
 }
 
-export interface AdminPlanEntitlement {
-  /**
-     * @minLength 1
-     * @maxLength 64
-     */
-  key: string;
-  /**
-     * @minLength 1
-     * @maxLength 120
-     */
-  label: string;
-  value: unknown;
-  approved: boolean;
-}
+export type AdminPlanVersionInputBillingUnit = typeof AdminPlanVersionInputBillingUnit[keyof typeof AdminPlanVersionInputBillingUnit];
+
+
+export const AdminPlanVersionInputBillingUnit = {
+  vehicle: 'vehicle',
+  branch: 'branch',
+} as const;
+
+export type AdminPlanVersionInputBillingCycle = typeof AdminPlanVersionInputBillingCycle[keyof typeof AdminPlanVersionInputBillingCycle];
+
+
+export const AdminPlanVersionInputBillingCycle = {
+  annual: 'annual',
+} as const;
+
+export type AdminPlanVersionInputCurrency = typeof AdminPlanVersionInputCurrency[keyof typeof AdminPlanVersionInputCurrency];
+
+
+export const AdminPlanVersionInputCurrency = {
+  EGP: 'EGP',
+} as const;
 
 export interface AdminPlanVersionInput {
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  displayName: string;
+  /** @maxLength 1000 */
+  description: string;
   /** @minimum 0 */
   annualPriceMinor: number;
+  billingUnit: AdminPlanVersionInputBillingUnit;
+  billingCycle: AdminPlanVersionInputBillingCycle;
+  currency: AdminPlanVersionInputCurrency;
   effectiveAt: string;
   entitlements: AdminPlanEntitlement[];
   settings: AdminPlanEntitlement[];
@@ -161,8 +223,9 @@ export interface AdminPlanVersion {
   id: string;
   /** @minimum 1 */
   version: number;
+  displayName: string;
+  description: string;
   annualPriceMinor: number;
-  nfcIssuePriceMinor: number;
   billingUnit: AdminPlanVersionBillingUnit;
   billingCycle: AdminPlanVersionBillingCycle;
   currency: AdminPlanVersionCurrency;
@@ -189,6 +252,7 @@ export interface AdminPlan {
   code: string;
   audience: AdminPlanAudience;
   name: string;
+  description: string;
   active: boolean;
   /** @nullable */
   stopNewAt: string | null;
@@ -202,7 +266,6 @@ export const AdminSubscriptionRequestRequestType = {
   new: 'new',
   renewal: 'renewal',
   plan_change: 'plan_change',
-  custom_price: 'custom_price',
 } as const;
 
 export type AdminSubscriptionRequestCoverageState = typeof AdminSubscriptionRequestCoverageState[keyof typeof AdminSubscriptionRequestCoverageState];
@@ -299,10 +362,129 @@ export interface AdminSubscription {
   createdAt: string;
 }
 
+export type AdminBillingPriceDefaultsStationAnnualPriceMinor = typeof AdminBillingPriceDefaultsStationAnnualPriceMinor[keyof typeof AdminBillingPriceDefaultsStationAnnualPriceMinor];
+
+
+export const AdminBillingPriceDefaultsStationAnnualPriceMinor = {
+  NUMBER_0: 0,
+} as const;
+
+export type AdminBillingPriceDefaultsCurrency = typeof AdminBillingPriceDefaultsCurrency[keyof typeof AdminBillingPriceDefaultsCurrency];
+
+
+export const AdminBillingPriceDefaultsCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export type AdminBillingPriceDefaultsBillingCycle = typeof AdminBillingPriceDefaultsBillingCycle[keyof typeof AdminBillingPriceDefaultsBillingCycle];
+
+
+export const AdminBillingPriceDefaultsBillingCycle = {
+  annual: 'annual',
+} as const;
+
+export interface AdminBillingPriceDefaults {
+  /** @items.minimum 1 */
+  companyAnnualPricesMinor: number[];
+  /** @minimum 1 */
+  providerAnnualPriceMinor: number;
+  stationAnnualPriceMinor: AdminBillingPriceDefaultsStationAnnualPriceMinor;
+  /** @minimum 0 */
+  nfcIssuePriceMinor: number;
+  currency: AdminBillingPriceDefaultsCurrency;
+  billingCycle: AdminBillingPriceDefaultsBillingCycle;
+  updatedAt: string;
+}
+
+export type AdminProviderPriceOverridePriority = typeof AdminProviderPriceOverridePriority[keyof typeof AdminProviderPriceOverridePriority];
+
+
+export const AdminProviderPriceOverridePriority = {
+  organization: 'organization',
+  branch: 'branch',
+} as const;
+
+export interface AdminProviderPriceOverride {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  /** @nullable */
+  branchId: string | null;
+  /** @nullable */
+  branchName: string | null;
+  planId: string;
+  planName: string;
+  priceMinor: number;
+  /** @nullable */
+  standardPriceMinor: number | null;
+  priority: AdminProviderPriceOverridePriority;
+  effectiveFrom: string;
+  /** @nullable */
+  effectiveTo: string | null;
+  reason: string;
+  approvedBy: string;
+  /** @nullable */
+  approverName: string | null;
+  /** @nullable */
+  previousOverrideId: string | null;
+  /** @nullable */
+  previousPriceMinor: number | null;
+  createdAt: string;
+}
+
 export interface AdminBillingCatalog {
   plans: AdminPlan[];
   requests: AdminSubscriptionRequest[];
   subscriptions: AdminSubscription[];
+  pricingDefaults: AdminBillingPriceDefaults;
+  priceOverrides: AdminProviderPriceOverride[];
+}
+
+export interface AdminBillingPriceDefaultsInput {
+  /**
+     * @minItems 1
+     * @maxItems 5
+     * @items.minimum 1
+     * @items.maximum 1000000000
+     */
+  companyAnnualPricesMinor: number[];
+  /**
+     * @minimum 1
+     * @maximum 1000000000
+     */
+  providerAnnualPriceMinor: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  nfcIssuePriceMinor: number;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface AdminProviderPriceOverrideInput {
+  organizationId: string;
+  /** @nullable */
+  branchId: string | null;
+  planId: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000
+     */
+  priceMinor: number;
+  effectiveFrom: string;
+  /** @nullable */
+  effectiveTo: string | null;
+  /** @nullable */
+  supersedesOverrideId: string | null;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
 }
 
 export type AdminSubscriptionRequestInputRequestType = typeof AdminSubscriptionRequestInputRequestType[keyof typeof AdminSubscriptionRequestInputRequestType];
@@ -312,7 +494,6 @@ export const AdminSubscriptionRequestInputRequestType = {
   new: 'new',
   renewal: 'renewal',
   plan_change: 'plan_change',
-  custom_price: 'custom_price',
 } as const;
 
 export interface AdminSubscriptionRequestInput {

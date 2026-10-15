@@ -1,4 +1,4 @@
--- Disposable local-only acceptance tests for 0010. All fixtures are synthetic and roll back.
+-- Disposable local-only acceptance tests for 0010/0011. All fixtures are synthetic and roll back.
 BEGIN;
 
 INSERT INTO auth.users (id, email, raw_user_meta_data, email_confirmed_at)
@@ -75,8 +75,14 @@ DECLARE
   station_change_version_id uuid;
   company_plan_id uuid;
   company_version_id uuid;
+  editable_plan_id uuid;
+  editable_version_id uuid;
+  second_draft_version_id uuid;
   provider_request_id uuid;
   provider_subscription_id uuid;
+  provider_override_id uuid;
+  provider_override_v2_id uuid;
+  organization_override_id uuid;
   overlap_request_id uuid;
   station_request_id uuid;
   station_subscription_id uuid;
@@ -90,6 +96,7 @@ DECLARE
   action_status text;
   catalog jsonb;
   coverage text;
+  subscriptions_before integer;
 BEGIN
   provider_org_id := public.petro_create_organization_details(
     'مزود اختبار الباقات', 'provider', 'BILLING-PROVIDER', NULL, 'مسؤول الاختبار',
@@ -192,10 +199,165 @@ BEGIN
   );
   PERFORM public.petro_billing_admin_publish_plan_version(company_plan_id, company_version_id, 'اعتماد خطة اختبار');
 
+  editable_plan_id := public.petro_billing_admin_create_plan_v2(
+    'billing-editable-smoke', 'company', 'خطة قابلة للتحرير', 'وصف إداري قابل للتعديل',
+    60000, 'vehicle', 'annual', 'EGP', now(),
+    '[{"key":"vehicle_registry","label":"تغطية المركبات","value":true,"approved":false}]'::jsonb,
+    '[]'::jsonb, 'إنشاء مسودة قابلة للتحرير'
+  );
+  SELECT id INTO editable_version_id FROM public.petro_plan_versions
+  WHERE plan_id = editable_plan_id AND version = 1;
+  PERFORM public.petro_billing_admin_update_draft_version(
+    editable_plan_id, editable_version_id, 'خطة قابلة للتحرير', 'وصف محدث',
+    65000, 'vehicle', 'annual', 'EGP', now(),
+    '[{"key":"vehicle_registry","label":"تغطية المركبات","value":true,"approved":true}]'::jsonb,
+    '[]'::jsonb, 'تعديل مسودة قبل النشر'
+  );
+  IF public.petro_billing_admin_publish_plan_version(
+       editable_plan_id, editable_version_id, 'نشر نسخة اختبار'
+     ) <> 'published' THEN
+    RAISE EXCEPTION 'a fully approved editable draft did not publish';
+  END IF;
+  second_draft_version_id := public.petro_billing_admin_add_plan_version_v2(
+    editable_plan_id, 'نسخة ثانية', 'شروط مستقبلية', 75000, 'vehicle',
+    'annual', 'EGP', now() + interval '1 day',
+    '[{"key":"future_capability","label":"ميزة غير معتمدة","value":false,"approved":false}]'::jsonb,
+    '[]'::jsonb, 'إعداد نسخة مستقبلية غير منشورة'
+  );
+  IF (SELECT annual_price_minor FROM public.petro_plan_versions
+      WHERE id = editable_version_id) <> 65000
+     OR (SELECT publication_status FROM public.petro_plan_versions
+         WHERE id = second_draft_version_id) <> 'draft' THEN
+    RAISE EXCEPTION 'version editing changed a published snapshot or published an unapproved draft';
+  END IF;
+  catalog := public.petro_billing_admin_catalog_v2();
+  IF catalog #>> '{pricingDefaults,currency}' <> 'EGP'
+     OR catalog #>> '{pricingDefaults,nfcIssuePriceMinor}' <> '10000'
+     OR (SELECT count(*) FROM jsonb_array_elements(catalog -> 'plans') plan_item
+         WHERE plan_item ->> 'id' = editable_plan_id::text
+           AND jsonb_array_length(plan_item -> 'versions') = 2) <> 1
+     OR EXISTS (
+       SELECT 1 FROM jsonb_array_elements(catalog -> 'plans') plan_item
+       CROSS JOIN LATERAL jsonb_array_elements(plan_item -> 'versions') version_item
+       WHERE plan_item ->> 'id' = editable_plan_id::text
+         AND version_item ? 'nfcIssuePriceMinor'
+     ) THEN
+    RAISE EXCEPTION 'versioned catalog did not expose the editable terms independently from NFC';
+  END IF;
+  PERFORM public.petro_billing_admin_update_price_defaults(
+    ARRAY[60000, 80000]::bigint[], 510000, 12500, 'تغيير إعدادات الأسعار للاختبار'
+  );
+  catalog := public.petro_billing_admin_catalog_v2();
+  IF (SELECT annual_price_minor FROM public.petro_plan_versions
+      WHERE id = editable_version_id) <> 65000
+     OR catalog #>> '{pricingDefaults,nfcIssuePriceMinor}' <> '12500' THEN
+    RAISE EXCEPTION 'changing defaults altered a stored plan version or did not update NFC independently';
+  END IF;
+
+  catalog := public.petro_billing_admin_catalog();
+  subscriptions_before := jsonb_array_length(catalog -> 'subscriptions');
+  provider_override_id := public.petro_billing_admin_set_provider_price_override(
+    provider_org_id, provider_branch_id, provider_plan_id, 550000,
+    now() + interval '2 days', now() + interval '367 days', NULL,
+    'سعر خاص منفصل لاختبار فرع المزود'
+  );
+  catalog := public.petro_billing_admin_catalog();
+  IF jsonb_array_length(catalog -> 'subscriptions') <> subscriptions_before THEN
+    RAISE EXCEPTION 'creating a price override unexpectedly created a subscription';
+  END IF;
+  catalog := public.petro_billing_admin_catalog_v2();
+  IF NOT EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(catalog -> 'priceOverrides') override_item
+    WHERE override_item ->> 'id' = provider_override_id::text
+      AND override_item ->> 'priceMinor' = '550000'
+      AND override_item ->> 'standardPriceMinor' = '500000'
+      AND override_item ->> 'priority' = 'branch'
+      AND override_item ->> 'previousOverrideId' IS NULL
+  ) THEN
+    RAISE EXCEPTION 'catalog did not expose the custom/standard price, branch priority, and empty predecessor accurately';
+  END IF;
+  BEGIN
+    PERFORM public.petro_billing_admin_set_provider_price_override(
+      provider_org_id, provider_branch_id, provider_plan_id, 560000,
+      now() + interval '30 days', now() + interval '360 days', NULL,
+      'فترة متداخلة للاختبار'
+    );
+    RAISE EXCEPTION 'overlapping override for the same branch was accepted';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+  provider_override_v2_id := public.petro_billing_admin_set_provider_price_override(
+    provider_org_id, provider_branch_id, provider_plan_id, 560000,
+    now() + interval '368 days', NULL, provider_override_id,
+    'نسخة سعر لاحقة للاختبار'
+  );
+  catalog := public.petro_billing_admin_catalog_v2();
+  IF NOT EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(catalog -> 'priceOverrides') override_item
+    WHERE override_item ->> 'id' = provider_override_v2_id::text
+      AND override_item ->> 'previousOverrideId' = provider_override_id::text
+      AND override_item ->> 'previousPriceMinor' = '550000'
+      AND override_item ->> 'priority' = 'branch'
+  ) THEN
+    RAISE EXCEPTION 'successor price did not retain the prior price, predecessor, or branch priority';
+  END IF;
+  BEGIN
+    PERFORM public.petro_billing_admin_set_provider_price_override(
+      provider_org_id, provider_branch_id, provider_plan_id, 570000,
+      now() + interval '369 days', NULL, provider_override_id,
+      'محاولة تفرع سجل سعر سابق'
+    );
+    RAISE EXCEPTION 'a prior override was allowed to have multiple successors';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+  organization_override_id := public.petro_billing_admin_set_provider_price_override(
+    provider_org_id, NULL, provider_plan_id, 520000,
+    now() + interval '368 days', NULL, NULL,
+    'سعر قياسي خاص بالجهة للاختبار'
+  );
+  BEGIN
+    PERFORM public.petro_billing_admin_set_provider_price_override(
+      provider_org_id, station_branch_id, provider_plan_id, 530000,
+      now() + interval '500 days', NULL, NULL,
+      'اختبار رفض ربط فرع بجهة أخرى'
+    );
+    RAISE EXCEPTION 'cross-organization branch price was accepted';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+  BEGIN
+    PERFORM public.petro_billing_admin_set_provider_price_override(
+      station_org_id, station_branch_id, station_plan_id, 10000,
+      now() + interval '500 days', NULL, NULL,
+      'اختبار رفض سعر المحطة'
+    );
+    RAISE EXCEPTION 'station-specific subscription price was accepted';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+  catalog := public.petro_billing_admin_catalog_v2();
+  IF NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(catalog -> 'priceOverrides') price_item
+    WHERE price_item ->> 'id' = provider_override_v2_id::text
+      AND price_item ->> 'previousOverrideId' = provider_override_id::text
+      AND price_item ->> 'priority' = 'branch'
+      AND price_item ->> 'priceMinor' = '560000'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(catalog -> 'priceOverrides') price_item
+    WHERE price_item ->> 'id' = organization_override_id::text
+      AND price_item ->> 'priority' = 'organization'
+      AND price_item ->> 'priceMinor' = '520000'
+  ) THEN
+    RAISE EXCEPTION 'custom-price history or branch/organization priority was not visible';
+  END IF;
+
   provider_request_id := public.petro_billing_admin_create_request(
-    provider_org_id, provider_branch_id, 'custom_price', NULL, provider_plan_id, provider_version_id,
-    550000, now() + interval '2 days', now() + interval '367 days',
-    'فرع واحد موثق', 'طلب سعر مخصص للاختبار', true
+    provider_org_id, provider_branch_id, 'new', NULL, provider_plan_id, provider_version_id,
+    NULL, now() + interval '2 days', now() + interval '367 days',
+    'فرع واحد موثق', 'طلب اشتراك مدفوع للاختبار', true
   );
   provider_subscription_id := public.petro_billing_admin_review_request(
     provider_request_id, 'approve', 'اعتماد سعر الفرع للاختبار'
@@ -205,12 +367,12 @@ BEGIN
     SELECT 1 FROM jsonb_array_elements(catalog -> 'subscriptions') subscription_item
     WHERE subscription_item ->> 'id' = provider_subscription_id::text
       AND subscription_item ->> 'status' = 'pending_payment'
-      AND subscription_item ->> 'priceSnapshotMinor' = '550000'
+       AND subscription_item ->> 'priceSnapshotMinor' = '500000'
       AND subscription_item ->> 'billingUnit' = 'branch'
       AND subscription_item ->> 'units' = '1'
-      AND subscription_item #>> '{planSnapshot,priceOverride}' = 'true'
+       AND subscription_item #>> '{planSnapshot,nfcIssuePriceMinor}' IS NULL
   ) THEN
-    RAISE EXCEPTION 'paid custom price was not stored as a pending-payment snapshot';
+     RAISE EXCEPTION 'paid plan request was not kept pending without an NFC fee in its snapshot';
   END IF;
 
   overlap_request_id := public.petro_billing_admin_create_request(
@@ -239,9 +401,9 @@ BEGIN
     PERFORM public.petro_billing_admin_create_request(
       station_org_id, station_branch_id, 'custom_price', NULL, station_plan_id, station_version_id,
       10000, now() + interval '2 days', now() + interval '367 days',
-      'فرع المحطة', 'محاولة سعر مدفوع للمحطة', false
+      'فرع المحطة', 'محاولة خلط السعر المخصص بطلب الاشتراك', false
     );
-    RAISE EXCEPTION 'paid custom price was accepted for a station';
+    RAISE EXCEPTION 'custom prices were accepted as subscription requests';
   EXCEPTION WHEN check_violation THEN
     NULL;
   END;

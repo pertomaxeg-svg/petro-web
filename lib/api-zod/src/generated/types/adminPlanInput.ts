@@ -5,7 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminPlanEntitlement } from './adminPlanEntitlement';
 import type { AdminPlanInputAudience } from './adminPlanInputAudience';
+import type { AdminPlanInputBillingCycle } from './adminPlanInputBillingCycle';
+import type { AdminPlanInputBillingUnit } from './adminPlanInputBillingUnit';
+import type { AdminPlanInputCurrency } from './adminPlanInputCurrency';
 
 export interface AdminPlanInput {
   /** @pattern ^[a-z][a-z0-9_-]{2,47}$ */
@@ -16,8 +20,16 @@ export interface AdminPlanInput {
      * @maxLength 100
      */
   name: string;
+  /** @maxLength 1000 */
+  description: string;
   /** @minimum 0 */
   annualPriceMinor: bigint;
+  billingUnit: AdminPlanInputBillingUnit;
+  billingCycle: AdminPlanInputBillingCycle;
+  currency: AdminPlanInputCurrency;
+  effectiveAt: Date;
+  entitlements: AdminPlanEntitlement[];
+  settings: AdminPlanEntitlement[];
   /**
      * @minLength 5
      * @maxLength 500

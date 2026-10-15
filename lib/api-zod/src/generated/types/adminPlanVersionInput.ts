@@ -6,10 +6,23 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminPlanEntitlement } from './adminPlanEntitlement';
+import type { AdminPlanVersionInputBillingCycle } from './adminPlanVersionInputBillingCycle';
+import type { AdminPlanVersionInputBillingUnit } from './adminPlanVersionInputBillingUnit';
+import type { AdminPlanVersionInputCurrency } from './adminPlanVersionInputCurrency';
 
 export interface AdminPlanVersionInput {
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  displayName: string;
+  /** @maxLength 1000 */
+  description: string;
   /** @minimum 0 */
   annualPriceMinor: bigint;
+  billingUnit: AdminPlanVersionInputBillingUnit;
+  billingCycle: AdminPlanVersionInputBillingCycle;
+  currency: AdminPlanVersionInputCurrency;
   effectiveAt: Date;
   entitlements: AdminPlanEntitlement[];
   settings: AdminPlanEntitlement[];

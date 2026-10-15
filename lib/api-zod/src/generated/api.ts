@@ -1813,7 +1813,7 @@ export const CreateOrganizationDocumentDownloadResponse = zod.object({
 
 
 /**
- * @summary Read the owner-only plan, subscription request and subscription catalog
+ * @summary Read the owner-only plan, price settings, provider overrides and subscription catalog
  */
 
 export const getAdminBillingCatalogResponsePlansItemVersionsItemEntitlementsItemKeyMax = 64;
@@ -1827,19 +1827,25 @@ export const getAdminBillingCatalogResponsePlansItemVersionsItemSettingsItemLabe
 
 
 
+export const getAdminBillingCatalogResponsePricingDefaultsNfcIssuePriceMinorMin = 0;
+
+
+
 export const GetAdminBillingCatalogResponse = zod.object({
   "plans": zod.array(zod.object({
   "id": zod.string().uuid(),
   "code": zod.string(),
   "audience": zod.enum(['company', 'provider', 'station']),
   "name": zod.string(),
+  "description": zod.string(),
   "active": zod.boolean(),
   "stopNewAt": zod.coerce.date().nullable(),
   "versions": zod.array(zod.object({
   "id": zod.string().uuid(),
   "version": zod.number().int().min(1),
+  "displayName": zod.string(),
+  "description": zod.string(),
   "annualPriceMinor": zod.number().int(),
-  "nfcIssuePriceMinor": zod.number().int(),
   "billingUnit": zod.enum(['vehicle', 'branch']),
   "billingCycle": zod.enum(['annual']),
   "currency": zod.enum(['EGP']),
@@ -1866,7 +1872,7 @@ export const GetAdminBillingCatalogResponse = zod.object({
   "organizationName": zod.string(),
   "branchId": zod.string().uuid().nullable(),
   "branchName": zod.string().nullable(),
-  "requestType": zod.enum(['new', 'renewal', 'plan_change', 'custom_price']),
+  "requestType": zod.enum(['new', 'renewal', 'plan_change']),
   "currentSubscriptionId": zod.string().uuid().nullable(),
   "planId": zod.string().uuid(),
   "planVersionId": zod.string().uuid(),
@@ -1900,6 +1906,35 @@ export const GetAdminBillingCatalogResponse = zod.object({
   "status": zod.enum(['pending_payment', 'scheduled', 'active', 'expired', 'suspended', 'cancelled']),
   "cancellationEffectiveAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
+})),
+  "pricingDefaults": zod.object({
+  "companyAnnualPricesMinor": zod.array(zod.number().int().min(1)),
+  "providerAnnualPriceMinor": zod.number().int().min(1),
+  "stationAnnualPriceMinor": zod.literal(0),
+  "nfcIssuePriceMinor": zod.number().int().min(getAdminBillingCatalogResponsePricingDefaultsNfcIssuePriceMinorMin),
+  "currency": zod.enum(['EGP']),
+  "billingCycle": zod.enum(['annual']),
+  "updatedAt": zod.coerce.date()
+}),
+  "priceOverrides": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organizationId": zod.string().uuid(),
+  "organizationName": zod.string(),
+  "branchId": zod.string().uuid().nullable(),
+  "branchName": zod.string().nullable(),
+  "planId": zod.string().uuid(),
+  "planName": zod.string(),
+  "priceMinor": zod.number().int(),
+  "standardPriceMinor": zod.number().int().nullable(),
+  "priority": zod.enum(['organization', 'branch']),
+  "effectiveFrom": zod.coerce.date(),
+  "effectiveTo": zod.coerce.date().nullable(),
+  "reason": zod.string(),
+  "approvedBy": zod.string().uuid(),
+  "approverName": zod.string().nullable(),
+  "previousOverrideId": zod.string().uuid().nullable(),
+  "previousPriceMinor": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
 }))
 })
 
@@ -1911,7 +1946,17 @@ export const createAdminBillingPlanBodyCodeRegExp = new RegExp('^[a-z][a-z0-9_-]
 export const createAdminBillingPlanBodyNameMin = 2;
 export const createAdminBillingPlanBodyNameMax = 100;
 
+export const createAdminBillingPlanBodyDescriptionMax = 1000;
+
 export const createAdminBillingPlanBodyAnnualPriceMinorMin = 0;
+
+export const createAdminBillingPlanBodyEntitlementsItemKeyMax = 64;
+
+export const createAdminBillingPlanBodyEntitlementsItemLabelMax = 120;
+
+export const createAdminBillingPlanBodySettingsItemKeyMax = 64;
+
+export const createAdminBillingPlanBodySettingsItemLabelMax = 120;
 
 export const createAdminBillingPlanBodyReasonMin = 5;
 export const createAdminBillingPlanBodyReasonMax = 500;
@@ -1922,7 +1967,24 @@ export const CreateAdminBillingPlanBody = zod.object({
   "code": zod.string().regex(createAdminBillingPlanBodyCodeRegExp),
   "audience": zod.enum(['company', 'provider', 'station']),
   "name": zod.string().min(createAdminBillingPlanBodyNameMin).max(createAdminBillingPlanBodyNameMax),
+  "description": zod.string().max(createAdminBillingPlanBodyDescriptionMax),
   "annualPriceMinor": zod.number().int().min(createAdminBillingPlanBodyAnnualPriceMinorMin),
+  "billingUnit": zod.enum(['vehicle', 'branch']),
+  "billingCycle": zod.enum(['annual']),
+  "currency": zod.enum(['EGP']),
+  "effectiveAt": zod.coerce.date(),
+  "entitlements": zod.array(zod.object({
+  "key": zod.string().min(1).max(createAdminBillingPlanBodyEntitlementsItemKeyMax),
+  "label": zod.string().min(1).max(createAdminBillingPlanBodyEntitlementsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})),
+  "settings": zod.array(zod.object({
+  "key": zod.string().min(1).max(createAdminBillingPlanBodySettingsItemKeyMax),
+  "label": zod.string().min(1).max(createAdminBillingPlanBodySettingsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})),
   "reason": zod.string().min(createAdminBillingPlanBodyReasonMin).max(createAdminBillingPlanBodyReasonMax)
 })
 
@@ -1936,6 +1998,11 @@ export const CreateAdminBillingPlanResponse = zod.object({
 export const CreateAdminBillingPlanVersionParams = zod.object({
   "planId": zod.coerce.string().uuid()
 })
+
+export const createAdminBillingPlanVersionBodyDisplayNameMin = 2;
+export const createAdminBillingPlanVersionBodyDisplayNameMax = 100;
+
+export const createAdminBillingPlanVersionBodyDescriptionMax = 1000;
 
 export const createAdminBillingPlanVersionBodyAnnualPriceMinorMin = 0;
 
@@ -1953,7 +2020,12 @@ export const createAdminBillingPlanVersionBodyReasonMax = 500;
 
 
 export const CreateAdminBillingPlanVersionBody = zod.object({
+  "displayName": zod.string().min(createAdminBillingPlanVersionBodyDisplayNameMin).max(createAdminBillingPlanVersionBodyDisplayNameMax),
+  "description": zod.string().max(createAdminBillingPlanVersionBodyDescriptionMax),
   "annualPriceMinor": zod.number().int().min(createAdminBillingPlanVersionBodyAnnualPriceMinorMin),
+  "billingUnit": zod.enum(['vehicle', 'branch']),
+  "billingCycle": zod.enum(['annual']),
+  "currency": zod.enum(['EGP']),
   "effectiveAt": zod.coerce.date(),
   "entitlements": zod.array(zod.object({
   "key": zod.string().min(1).max(createAdminBillingPlanVersionBodyEntitlementsItemKeyMax),
@@ -1971,6 +2043,114 @@ export const CreateAdminBillingPlanVersionBody = zod.object({
 })
 
 export const CreateAdminBillingPlanVersionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const UpdateAdminBillingPlanDraftParams = zod.object({
+  "planId": zod.coerce.string().uuid(),
+  "versionId": zod.coerce.string().uuid()
+})
+
+export const updateAdminBillingPlanDraftBodyDisplayNameMin = 2;
+export const updateAdminBillingPlanDraftBodyDisplayNameMax = 100;
+
+export const updateAdminBillingPlanDraftBodyDescriptionMax = 1000;
+
+export const updateAdminBillingPlanDraftBodyAnnualPriceMinorMin = 0;
+
+export const updateAdminBillingPlanDraftBodyEntitlementsItemKeyMax = 64;
+
+export const updateAdminBillingPlanDraftBodyEntitlementsItemLabelMax = 120;
+
+export const updateAdminBillingPlanDraftBodySettingsItemKeyMax = 64;
+
+export const updateAdminBillingPlanDraftBodySettingsItemLabelMax = 120;
+
+export const updateAdminBillingPlanDraftBodyReasonMin = 5;
+export const updateAdminBillingPlanDraftBodyReasonMax = 500;
+
+
+
+export const UpdateAdminBillingPlanDraftBody = zod.object({
+  "displayName": zod.string().min(updateAdminBillingPlanDraftBodyDisplayNameMin).max(updateAdminBillingPlanDraftBodyDisplayNameMax),
+  "description": zod.string().max(updateAdminBillingPlanDraftBodyDescriptionMax),
+  "annualPriceMinor": zod.number().int().min(updateAdminBillingPlanDraftBodyAnnualPriceMinorMin),
+  "billingUnit": zod.enum(['vehicle', 'branch']),
+  "billingCycle": zod.enum(['annual']),
+  "currency": zod.enum(['EGP']),
+  "effectiveAt": zod.coerce.date(),
+  "entitlements": zod.array(zod.object({
+  "key": zod.string().min(1).max(updateAdminBillingPlanDraftBodyEntitlementsItemKeyMax),
+  "label": zod.string().min(1).max(updateAdminBillingPlanDraftBodyEntitlementsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})),
+  "settings": zod.array(zod.object({
+  "key": zod.string().min(1).max(updateAdminBillingPlanDraftBodySettingsItemKeyMax),
+  "label": zod.string().min(1).max(updateAdminBillingPlanDraftBodySettingsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})),
+  "reason": zod.string().min(updateAdminBillingPlanDraftBodyReasonMin).max(updateAdminBillingPlanDraftBodyReasonMax)
+})
+
+export const UpdateAdminBillingPlanDraftResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const updateAdminBillingPriceDefaultsBodyCompanyAnnualPricesMinorItemMax = 1000000000;
+
+export const updateAdminBillingPriceDefaultsBodyCompanyAnnualPricesMinorMax = 5;
+
+export const updateAdminBillingPriceDefaultsBodyProviderAnnualPriceMinorMax = 1000000000;
+
+export const updateAdminBillingPriceDefaultsBodyNfcIssuePriceMinorMin = 0;
+export const updateAdminBillingPriceDefaultsBodyNfcIssuePriceMinorMax = 1000000000;
+
+export const updateAdminBillingPriceDefaultsBodyReasonMin = 5;
+export const updateAdminBillingPriceDefaultsBodyReasonMax = 500;
+
+
+
+export const UpdateAdminBillingPriceDefaultsBody = zod.object({
+  "companyAnnualPricesMinor": zod.array(zod.number().int().min(1).max(updateAdminBillingPriceDefaultsBodyCompanyAnnualPricesMinorItemMax)).min(1).max(updateAdminBillingPriceDefaultsBodyCompanyAnnualPricesMinorMax),
+  "providerAnnualPriceMinor": zod.number().int().min(1).max(updateAdminBillingPriceDefaultsBodyProviderAnnualPriceMinorMax),
+  "nfcIssuePriceMinor": zod.number().int().min(updateAdminBillingPriceDefaultsBodyNfcIssuePriceMinorMin).max(updateAdminBillingPriceDefaultsBodyNfcIssuePriceMinorMax),
+  "reason": zod.string().min(updateAdminBillingPriceDefaultsBodyReasonMin).max(updateAdminBillingPriceDefaultsBodyReasonMax)
+})
+
+export const UpdateAdminBillingPriceDefaultsResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const createAdminProviderPriceOverrideBodyPriceMinorMax = 1000000000;
+
+export const createAdminProviderPriceOverrideBodyReasonMin = 5;
+export const createAdminProviderPriceOverrideBodyReasonMax = 500;
+
+
+
+export const CreateAdminProviderPriceOverrideBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "branchId": zod.string().uuid().nullable(),
+  "planId": zod.string().uuid(),
+  "priceMinor": zod.number().int().min(1).max(createAdminProviderPriceOverrideBodyPriceMinorMax),
+  "effectiveFrom": zod.coerce.date(),
+  "effectiveTo": zod.coerce.date().nullable(),
+  "supersedesOverrideId": zod.string().uuid().nullable(),
+  "reason": zod.string().min(createAdminProviderPriceOverrideBodyReasonMin).max(createAdminProviderPriceOverrideBodyReasonMax)
+})
+
+export const CreateAdminProviderPriceOverrideResponse = zod.object({
   "id": zod.string().uuid(),
   "status": zod.string().nullish(),
   "message": zod.string()
@@ -2020,7 +2200,7 @@ export const ScheduleAdminBillingPlanStopResponse = zod.object({
 
 
 /**
- * @summary Save a subscription, renewal, plan-change or custom-price request
+ * @summary Save a subscription, renewal or plan-change request
  */
 export const createAdminSubscriptionRequestBodyRequestedPriceMinorMin = 0;
 
@@ -2034,7 +2214,7 @@ export const createAdminSubscriptionRequestBodyReasonMax = 500;
 export const CreateAdminSubscriptionRequestBody = zod.object({
   "organizationId": zod.string().uuid(),
   "branchId": zod.string().uuid().nullable(),
-  "requestType": zod.enum(['new', 'renewal', 'plan_change', 'custom_price']),
+  "requestType": zod.enum(['new', 'renewal', 'plan_change']),
   "currentSubscriptionId": zod.string().uuid().nullable(),
   "planId": zod.string().uuid(),
   "planVersionId": zod.string().uuid(),
