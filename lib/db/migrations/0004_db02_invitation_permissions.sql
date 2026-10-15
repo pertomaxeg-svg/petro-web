@@ -75,31 +75,8 @@ GRANT EXECUTE
   ON FUNCTION petro_private.can_view_membership(uuid)
   TO authenticated;
 
--- Future public objects must receive explicit grants and RLS policies.
--- Preserve the trusted service_role defaults; do not change existing object ACLs.
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON TABLES FROM PUBLIC, anon, authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON TABLES FROM PUBLIC, anon, authenticated;
-
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON SEQUENCES FROM PUBLIC, anon, authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON SEQUENCES FROM PUBLIC, anon, authenticated;
-
--- PostgreSQL's default EXECUTE grant to PUBLIC is global and cannot be removed
--- with a schema-scoped REVOKE. Remove that default for these migration owners;
--- this affects only future functions, in every schema. Existing function ACLs
--- remain unchanged and are reviewed separately below.
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres
-  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin
-  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
-
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON FUNCTIONS FROM PUBLIC, anon, authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
-  REVOKE ALL PRIVILEGES ON FUNCTIONS FROM PUBLIC, anon, authenticated;
+-- This proposal changes only the explicit Pertomax objects named below.
+-- In particular, it does not alter database- or schema-level default ACLs.
 
 CREATE OR REPLACE FUNCTION public.petro_set_membership(
   p_organization_id uuid,
@@ -121,6 +98,9 @@ DECLARE
   v_membership_id uuid;
   branch_count integer;
 BEGIN
+  -- Platform roles and organization membership roles are separate namespaces.
+  -- The platform grantor set is the existing owner/operations pair; a full-scope
+  -- organization_owner may grant that organization role only within their org.
   actor_is_platform_admin :=
     petro_private.platform_has(ARRAY['owner', 'operations']::text[]);
 
@@ -146,6 +126,8 @@ BEGIN
     RAISE EXCEPTION 'not authorized' USING ERRCODE = '42501';
   END IF;
 
+  -- Membership RPC accepts organization roles only; platform owner is never
+  -- assignable through a membership or an organization invitation.
   IF p_role NOT IN (
        'organization_owner', 'manager', 'finance', 'worker', 'viewer'
      )
@@ -289,6 +271,8 @@ DECLARE
   invitation_id uuid;
   branch_count integer;
 BEGIN
+  -- Only the existing platform owner/operations roles or a full-scope owner of
+  -- this same active organization may invite an organization_owner.
   actor_is_platform_admin :=
     petro_private.platform_has(ARRAY['owner', 'operations']::text[]);
 
@@ -314,6 +298,7 @@ BEGIN
     RAISE EXCEPTION 'not authorized' USING ERRCODE = '42501';
   END IF;
 
+  -- This is an organization membership invitation, never a platform-role grant.
   IF p_role NOT IN (
        'organization_owner', 'manager', 'finance', 'worker', 'viewer'
      )

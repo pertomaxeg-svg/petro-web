@@ -126,15 +126,33 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 \
 
 # The current snapshot already contains 0001-0003; do not replay them.
 # 0004 is a proposed, post-baseline migration and is applied only to this
-# temporary local database, twice to verify its idempotency.
+# temporary local database, twice to verify idempotency. Compare every default
+# ACL across every schema before/after: this proposal must not change defaults.
+default_acl_snapshot() {
+  psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 \
+    --command="SELECT COALESCE(string_agg(format('%s|%s|%s|%s', defaclrole::regrole, defaclnamespace::regnamespace, defaclobjtype, COALESCE(defaclacl::text, '')), E'\\n' ORDER BY defaclrole, defaclnamespace, defaclobjtype), '') FROM pg_default_acl;"
+}
+default_acl_snapshot >"$tmp_dir/default-acl-before.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$repo_root/lib/db/migrations/0004_db02_invitation_permissions.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-once.txt"
+if ! cmp -s "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-once.txt"; then
+  echo "DB-02 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-once.txt" >&2 || true
+  exit 1
+fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$repo_root/lib/db/migrations/0004_db02_invitation_permissions.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-twice.txt"
+if ! cmp -s "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-twice.txt"; then
+  echo "Repeated DB-02 application changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before.txt" "$tmp_dir/default-acl-after-twice.txt" >&2 || true
+  exit 1
+fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/db02-privilege-test.sql" >/dev/null
 
 echo "Fresh baseline matched: 11 tables, 57 constraints, 22 indexes, 23 functions, 12 RLS policies, 11 RLS-enabled tables."
-echo "DB-01 baseline RLS checks passed before DB-02; the proposed 0004 migration passed twice locally."
-echo "DB-02 invite RPC, privilege-default, role-escalation and tenant/branch isolation checks passed."
+echo "DB-01 baseline RLS checks passed; proposed 0004 passed twice and changed no default ACL in any schema."
+echo "DB-02 exact-object ACL, authorized invite RPC, role-separation and tenant/branch isolation checks passed."
 echo "Only a temporary local PostgreSQL cluster was used; no project Secrets or network connection were used."

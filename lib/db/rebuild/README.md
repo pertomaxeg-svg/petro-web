@@ -16,7 +16,7 @@ Run:
 bash lib/db/rebuild/run-local-test.sh
 ```
 
-The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`, and `pg_dump`) on `PATH`. It creates a temporary cluster under `/tmp` with TCP listening disabled, creates the local Auth stub, loads the saved schema baseline, recreates the Auth trigger fixture, verifies object counts, and compares a schema dump to the snapshot **before** later changes. It then runs the existing DB-01 RLS checks against that baseline, applies the proposed `0004_db02_invitation_permissions.sql` twice, runs `db02-privilege-test.sql`, and removes the temporary cluster even on failure.
+The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`, and `pg_dump`) on `PATH`. It creates a temporary cluster under `/tmp` with TCP listening disabled, creates the local Auth stub, loads the saved schema baseline, recreates the Auth trigger fixture, verifies object counts, and compares a schema dump to the snapshot **before** later changes. It then runs the existing DB-01 RLS checks against that baseline, snapshots `pg_default_acl` for every schema, applies the proposed `0004_db02_invitation_permissions.sql` twice and confirms the defaults are unchanged after each pass, runs `db02-privilege-test.sql`, and removes the temporary cluster even on failure.
 
 ## Snapshot and migration relationship
 
@@ -28,8 +28,8 @@ The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`,
 ## Tested boundaries and remaining limits
 
 - DB-01 tests continue to cover tenant/branch reads, cross-organization branch-link rejection, disabled-account denial, anonymous denial, direct role-write denial, invite-table RLS default-deny, and no automatic first-owner behavior.
-- DB-02 adds direct invite-table privilege denial, authenticated RPC availability, anonymous RPC denial, default grants for newly created public tables/sequences/functions, authorized and unauthorized invitation flows, one-time acceptance, stale manager-issued owner-invite rejection, manager-to-owner escalation denial, organization-owner delegation, and tenant/branch isolation.
+- DB-02 adds direct invite-table privilege denial, authenticated RPC availability, anonymous RPC denial, full default-ACL catalog equality before/after the proposed migration, authorized and unauthorized invitation flows, one-time acceptance, stale manager-issued owner-invite rejection, manager-to-owner escalation denial, actual platform-role allow/deny cases, role-namespace separation, organization-owner delegation, and tenant/branch isolation.
 - All test users use `.invalid` addresses. The DB-02 SQL test runs inside a transaction that rolls back; the runner also removes the entire local cluster on success or failure.
 - The local fixture validates SQL/RLS using a local `auth.uid()` stub. It does not prove real Supabase Auth sessions, SMTP, or production API behavior.
-- The proposed migration removes the global default `PUBLIC EXECUTE` grant for future functions created by `postgres` and `supabase_admin`. PostgreSQL makes this default global across schemas, so before any live application the effects on functions created in extension/other schemas need a separate review. Existing function grants are not changed by that default adjustment.
+- The proposed migration does not change default ACLs in any schema. Existing baseline defaults for future public objects remain as-is; this is a separate unresolved policy risk, not a claim that future objects are automatically safe.
 - No live DDL, DML, grant, RLS, owner, bootstrap, Secret, or migration-ledger change is part of this procedure.

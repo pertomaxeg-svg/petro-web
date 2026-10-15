@@ -1,10 +1,10 @@
 ---
 name: PostgreSQL default function grants
-description: PostgreSQL default ACL behavior for function EXECUTE and schema-scoped revocations.
+description: Avoid cross-schema default ACL changes in Pertomax database migrations.
 ---
 
-Do not assume `ALTER DEFAULT PRIVILEGES ... IN SCHEMA ... REVOKE EXECUTE FROM PUBLIC` removes PostgreSQL's global default `PUBLIC EXECUTE` on newly created functions. Removing the default globally for a role affects future functions created by that role in every schema, not just `public`; review extension and other schema consumers before proposing or applying that broader change. Test effective permissions by creating disposable objects under each relevant owner and checking `has_function_privilege`, `has_table_privilege`, and `has_sequence_privilege`.
+For Pertomax migrations, restrict ACL changes to the explicit application tables and functions under review. Do not modify `ALTER DEFAULT PRIVILEGES` unless the user separately approves a scope that has been checked across every affected schema. PostgreSQL's global `PUBLIC EXECUTE` default cannot be removed by a schema-scoped revoke; removing it globally changes future function ACLs for that owner across all schemas, including extension/Supabase schemas. Keep existing baseline defaults unchanged and describe them as a residual risk rather than implying they are safe.
 
-**Why:** A PostgreSQL 17 local probe for this project showed `anon` and `authenticated` still inherited function execution after a schema-scoped revoke; the global revoke worked but had cross-schema scope.
+**Why:** The user limited DB-02 to named Pertomax resources and explicitly rejected a broad default-privilege change that could affect extension or Supabase functions.
 
-**How to apply:** State the global impact explicitly in any permission migration. If that scope is not approved, retain explicit per-function ACL checks in future migrations and report the residual default instead of claiming schema-local hardening succeeded.
+**How to apply:** Use exact object-level `REVOKE`/`GRANT` for reviewed resources. In local tests, snapshot all `pg_default_acl` rows before and after the migration and assert equality across schemas; report the existing default ACL policy separately for future objects.

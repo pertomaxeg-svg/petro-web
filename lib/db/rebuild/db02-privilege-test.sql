@@ -19,7 +19,19 @@ VALUES
   ('00000000-0000-4000-8000-000000000107', 'assigned-owner-a@example.invalid',
    '{"username":"db02_assigned_owner_a","display_name":"DB02 Assigned Owner A"}'::jsonb, now()),
   ('00000000-0000-4000-8000-000000000108', 'legacy-owner-a@example.invalid',
-   '{"username":"db02_legacy_owner_a","display_name":"DB02 Legacy Owner A"}'::jsonb, now());
+   '{"username":"db02_legacy_owner_a","display_name":"DB02 Legacy Owner A"}'::jsonb, now()),
+  ('00000000-0000-4000-8000-000000000109', 'platform-owner@example.invalid',
+   '{"username":"db02_platform_owner","display_name":"DB02 Platform Owner"}'::jsonb, now()),
+  ('00000000-0000-4000-8000-000000000110', 'platform-operations@example.invalid',
+   '{"username":"db02_platform_operations","display_name":"DB02 Platform Operations"}'::jsonb, now()),
+  ('00000000-0000-4000-8000-000000000111', 'platform-finance@example.invalid',
+   '{"username":"db02_platform_finance","display_name":"DB02 Platform Finance"}'::jsonb, now()),
+  ('00000000-0000-4000-8000-000000000112', 'platform-support@example.invalid',
+   '{"username":"db02_platform_support","display_name":"DB02 Platform Support"}'::jsonb, now()),
+  ('00000000-0000-4000-8000-000000000113', 'platform-auditor@example.invalid',
+   '{"username":"db02_platform_auditor","display_name":"DB02 Platform Auditor"}'::jsonb, now()),
+  ('00000000-0000-4000-8000-000000000114', 'operations-invitee@example.invalid',
+   '{"username":"db02_operations_invitee","display_name":"DB02 Operations Invitee"}'::jsonb, now());
 
 UPDATE public.petro_profiles
 SET active = true, account_status = 'active'
@@ -27,8 +39,26 @@ WHERE user_id IN (
   '00000000-0000-4000-8000-000000000101',
   '00000000-0000-4000-8000-000000000102',
   '00000000-0000-4000-8000-000000000103',
-  '00000000-0000-4000-8000-000000000106'
+  '00000000-0000-4000-8000-000000000104',
+  '00000000-0000-4000-8000-000000000105',
+  '00000000-0000-4000-8000-000000000106',
+  '00000000-0000-4000-8000-000000000107',
+  '00000000-0000-4000-8000-000000000108',
+  '00000000-0000-4000-8000-000000000109',
+  '00000000-0000-4000-8000-000000000110',
+  '00000000-0000-4000-8000-000000000111',
+  '00000000-0000-4000-8000-000000000112',
+  '00000000-0000-4000-8000-000000000113',
+  '00000000-0000-4000-8000-000000000114'
 );
+
+INSERT INTO public.petro_platform_roles (user_id, role, active)
+VALUES
+  ('00000000-0000-4000-8000-000000000109', 'owner', true),
+  ('00000000-0000-4000-8000-000000000110', 'operations', true),
+  ('00000000-0000-4000-8000-000000000111', 'finance', true),
+  ('00000000-0000-4000-8000-000000000112', 'support', true),
+  ('00000000-0000-4000-8000-000000000113', 'auditor', true);
 
 INSERT INTO public.petro_organizations (id, name, kind, status, created_by)
 VALUES
@@ -159,70 +189,120 @@ BEGIN
 END
 $acl$;
 
--- Probe new-object defaults for both roles that own public migrations.
-GRANT CREATE ON SCHEMA public TO supabase_admin;
-SET LOCAL ROLE postgres;
-CREATE TABLE public.db02_postgres_default_table (id integer);
-CREATE SEQUENCE public.db02_postgres_default_sequence;
-CREATE FUNCTION public.db02_postgres_default_function()
-RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
-RESET ROLE;
+-- run-local-test.sh compares the complete pg_default_acl catalog before and
+-- after each migration application. DB-02 intentionally leaves all defaults
+-- unchanged; this test focuses on the explicit Pertomax resources below.
 
-SET LOCAL ROLE supabase_admin;
-CREATE TABLE public.db02_admin_default_table (id integer);
-CREATE SEQUENCE public.db02_admin_default_sequence;
-CREATE FUNCTION public.db02_admin_default_function()
-RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
-RESET ROLE;
-REVOKE CREATE ON SCHEMA public FROM supabase_admin;
-
-DO $defaults$
-DECLARE
-  table_name text;
-  sequence_name text;
-  function_name text;
+-- Platform owner can grant an organization role, but cannot pass its own
+-- platform-role name through a membership or organization invitation.
+SET LOCAL request.jwt.claim.sub = '00000000-0000-4000-8000-000000000109';
+SET LOCAL ROLE authenticated;
+DO $platform_owner_role_boundary$
 BEGIN
-  FOREACH table_name IN ARRAY ARRAY[
-    'public.db02_postgres_default_table',
-    'public.db02_admin_default_table'
-  ] LOOP
-    IF has_table_privilege('anon', table_name, 'SELECT')
-       OR has_table_privilege('anon', table_name, 'INSERT')
-       OR has_table_privilege('authenticated', table_name, 'SELECT')
-       OR has_table_privilege('authenticated', table_name, 'INSERT')
-       OR NOT has_table_privilege('service_role', table_name, 'SELECT') THEN
-      RAISE EXCEPTION 'unsafe or missing table default grants for %', table_name;
-    END IF;
-  END LOOP;
+  PERFORM public.petro_set_membership(
+    '10000000-0000-4000-8000-000000000101',
+    '00000000-0000-4000-8000-000000000107',
+    'organization_owner',
+    'organization',
+    '{}',
+    true
+  );
 
-  FOREACH sequence_name IN ARRAY ARRAY[
-    'public.db02_postgres_default_sequence',
-    'public.db02_admin_default_sequence'
-  ] LOOP
-    IF has_sequence_privilege('anon', sequence_name, 'USAGE')
-       OR has_sequence_privilege('authenticated', sequence_name, 'USAGE')
-       OR NOT has_sequence_privilege('service_role', sequence_name, 'USAGE') THEN
-      RAISE EXCEPTION 'unsafe or missing sequence default grants for %', sequence_name;
-    END IF;
-  END LOOP;
+  BEGIN
+    PERFORM public.petro_set_membership(
+      '10000000-0000-4000-8000-000000000101',
+      '00000000-0000-4000-8000-000000000107',
+      'owner',
+      'organization',
+      '{}',
+      true
+    );
+    RAISE EXCEPTION 'platform owner role was assigned as organization membership';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    NULL;
+  END;
 
-  FOREACH function_name IN ARRAY ARRAY[
-    'public.db02_postgres_default_function()',
-    'public.db02_admin_default_function()'
+  BEGIN
+    PERFORM public.petro_create_invitation(
+      '10000000-0000-4000-8000-000000000101',
+      'platform-owner-role@example.invalid',
+      'owner',
+      'organization',
+      '{}',
+      repeat('9', 64)
+    );
+    RAISE EXCEPTION 'platform owner role was issued through organization invitation';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    NULL;
+  END;
+END
+$platform_owner_role_boundary$;
+RESET ROLE;
+
+-- The actual platform operations role is an existing grantor role; the
+-- invitation still creates only an organization membership for its recipient.
+SET LOCAL request.jwt.claim.sub = '00000000-0000-4000-8000-000000000110';
+SET LOCAL ROLE authenticated;
+SELECT public.petro_create_invitation(
+  '10000000-0000-4000-8000-000000000101',
+  'operations-invitee@example.invalid',
+  'organization_owner',
+  'organization',
+  '{}',
+  repeat('e', 64)
+);
+RESET ROLE;
+SET LOCAL request.jwt.claim.sub = '00000000-0000-4000-8000-000000000114';
+SET LOCAL ROLE authenticated;
+SELECT public.petro_accept_invitation(repeat('e', 64));
+DO $operations_invite_scope$
+BEGIN
+  IF NOT EXISTS (
+       SELECT 1 FROM public.petro_memberships
+       WHERE user_id = auth.uid()
+         AND organization_id = '10000000-0000-4000-8000-000000000101'
+         AND role = 'organization_owner'
+         AND scope = 'organization'
+     )
+     OR EXISTS (
+       SELECT 1 FROM public.petro_platform_roles
+       WHERE user_id = auth.uid()
+     ) THEN
+    RAISE EXCEPTION 'organization invitation changed or assigned a platform role';
+  END IF;
+END
+$operations_invite_scope$;
+RESET ROLE;
+
+-- Other existing platform roles are not organization-owner grantors.
+SET LOCAL ROLE authenticated;
+DO $platform_non_grantors$
+DECLARE
+  actor_id uuid;
+BEGIN
+  FOREACH actor_id IN ARRAY ARRAY[
+    '00000000-0000-4000-8000-000000000111'::uuid,
+    '00000000-0000-4000-8000-000000000112'::uuid,
+    '00000000-0000-4000-8000-000000000113'::uuid
   ] LOOP
-    IF has_function_privilege('anon', function_name, 'EXECUTE')
-       OR has_function_privilege('authenticated', function_name, 'EXECUTE')
-       OR NOT has_function_privilege('service_role', function_name, 'EXECUTE') THEN
-      RAISE EXCEPTION
-        'function default grants for %: anon %, authenticated %, service_role %',
-        function_name,
-        has_function_privilege('anon', function_name, 'EXECUTE'),
-        has_function_privilege('authenticated', function_name, 'EXECUTE'),
-        has_function_privilege('service_role', function_name, 'EXECUTE');
-    END IF;
+    PERFORM set_config('request.jwt.claim.sub', actor_id::text, true);
+    BEGIN
+      PERFORM public.petro_create_invitation(
+        '10000000-0000-4000-8000-000000000101',
+        'non-grantor-role@example.invalid',
+        'organization_owner',
+        'organization',
+        '{}',
+        repeat('8', 64)
+      );
+      RAISE EXCEPTION 'platform finance/support/auditor granted organization ownership';
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END;
   END LOOP;
 END
-$defaults$;
+$platform_non_grantors$;
+RESET ROLE;
 
 -- Direct table access is denied; authorized invitation RPC remains usable.
 SET LOCAL request.jwt.claim.sub = '00000000-0000-4000-8000-000000000102';
@@ -270,7 +350,7 @@ DO $manager_authorized$
 BEGIN
   IF (SELECT count(*) FROM public.petro_list_invitations(
         '10000000-0000-4000-8000-000000000101'
-      )) <> 2 THEN
+      )) <> 3 THEN
     RAISE EXCEPTION 'authorized organization manager cannot list scoped invitations';
   END IF;
 
@@ -373,6 +453,20 @@ BEGIN
   BEGIN
     PERFORM public.petro_revoke_invitation(invite_id);
     RAISE EXCEPTION 'cross-organization invitation revoke was accepted';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+
+  BEGIN
+    PERFORM public.petro_create_invitation(
+      '10000000-0000-4000-8000-000000000101',
+      'cross-organization-owner@example.invalid',
+      'organization_owner',
+      'organization',
+      '{}',
+      repeat('7', 64)
+    );
+    RAISE EXCEPTION 'an organization owner granted ownership in another organization';
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
   END;
@@ -551,8 +645,11 @@ BEGIN
       AND organization_id = '10000000-0000-4000-8000-000000000101'
       AND role = 'organization_owner'
       AND scope = 'organization'
+  ) OR EXISTS (
+    SELECT 1 FROM public.petro_platform_roles
+    WHERE user_id = auth.uid()
   ) THEN
-    RAISE EXCEPTION 'authorized owner invitation did not create the expected membership';
+    RAISE EXCEPTION 'organization owner invitation changed or assigned a platform role';
   END IF;
 END
 $owner_invite_verified$;
