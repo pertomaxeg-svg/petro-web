@@ -19,7 +19,7 @@ const router: IRouter = Router();
 const BUCKET = "petro-private-documents";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PRIVATE_DOCUMENT_SELECT =
-  "id,uploader_id,organization_id,branch_id,join_request_id,change_request_id,bank_account_version_id,document_type,file_name,content_type,byte_size,expires_on,status,uploaded_at,reviewed_by,reviewed_at,review_reason,version,created_at";
+  "id,uploader_id,organization_id,branch_id,join_request_id,change_request_id,bank_account_version_id,finance_topup_request_id,finance_subscription_request_id,finance_bank_receipt_id,document_type,file_name,content_type,byte_size,expires_on,status,uploaded_at,reviewed_by,reviewed_at,review_reason,version,created_at";
 const BANK_VERSION_SELECT =
   "id,bank_account_id,organization_id,version,bank_name,beneficiary_name,account_last4,status,created_by,created_at,reviewed_by,reviewed_at,decision_reason";
 
@@ -615,7 +615,10 @@ router.get("/documents", async (req, res): Promise<void> => {
   setNoStore(res);
   const session = await requireSession(req, res, false);
   if (!session) return;
-  const filterKeys = ["organizationId", "branchId", "joinRequestId", "changeRequestId", "bankVersionId"] as const;
+  const filterKeys = [
+    "organizationId", "branchId", "joinRequestId", "changeRequestId", "bankVersionId",
+    "topupRequestId", "subscriptionRequestId", "receiptId",
+  ] as const;
   const filters: Array<[string, string]> = [];
   for (const key of filterKeys) {
     const value = req.query[key];
@@ -631,6 +634,9 @@ router.get("/documents", async (req, res): Promise<void> => {
   const columnByKey: Record<string, string> = {
     organizationId: "organization_id", branchId: "branch_id", joinRequestId: "join_request_id",
     changeRequestId: "change_request_id", bankVersionId: "bank_account_version_id",
+    topupRequestId: "finance_topup_request_id",
+    subscriptionRequestId: "finance_subscription_request_id",
+    receiptId: "finance_bank_receipt_id",
   };
   let query = session.supabase.from("petro_documents").select(PRIVATE_DOCUMENT_SELECT)
     .order("created_at", { ascending: false }).limit(100);
@@ -651,12 +657,19 @@ router.post("/documents", async (req, res): Promise<void> => {
     fail(res, 400, "امتداد الملف لا يطابق نوع المستند.");
     return;
   }
-  const { data, error } = await session.supabase.rpc("petro_create_document_upload", {
-    p_context_type: body.contextType, p_context_id: body.contextId,
-    p_document_type: body.documentType, p_file_name: cleanName,
-    p_content_type: body.contentType, p_byte_size: body.byteSize,
-    p_expires_on: body.expiresOn ? body.expiresOn.toISOString().slice(0, 10) : null,
-  });
+  const financeContext = ["topup_request", "subscription_request", "receipt"].includes(body.contextType);
+  const { data, error } = financeContext
+    ? await session.supabase.rpc("petro_finance_create_document_upload", {
+      p_context_type: body.contextType, p_context_id: body.contextId,
+      p_document_type: body.documentType, p_file_name: cleanName,
+      p_content_type: body.contentType, p_byte_size: body.byteSize,
+    })
+    : await session.supabase.rpc("petro_create_document_upload", {
+      p_context_type: body.contextType, p_context_id: body.contextId,
+      p_document_type: body.documentType, p_file_name: cleanName,
+      p_content_type: body.contentType, p_byte_size: body.byteSize,
+      p_expires_on: body.expiresOn ? body.expiresOn.toISOString().slice(0, 10) : null,
+    });
   if (error) { mapWorkflowError(res, error); return; }
   if (!isRecord(data) || typeof data["id"] !== "string") {
     fail(res, 503, "تعذر إنشاء طلب رفع الملف.");

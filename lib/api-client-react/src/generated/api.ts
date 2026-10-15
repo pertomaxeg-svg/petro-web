@@ -25,6 +25,9 @@ import type {
   AdminBillingActionResult,
   AdminBillingCatalog,
   AdminBillingPriceDefaultsInput,
+  AdminFinancePage,
+  AdminFinanceResult,
+  AdminFinanceSummary,
   AdminOrganizationRequestList,
   AdminPlanInput,
   AdminPlanStopInput,
@@ -34,8 +37,10 @@ import type {
   AdminSubscriptionCancelInput,
   AdminSubscriptionRequestInput,
   AdminSubscriptionReviewInput,
+  AllocateAdminFinanceReceipt,
   ApiErrorResponse,
   ApprovalRequest,
+  ApproveAdminFinanceTopup,
   AuthActionResult,
   AuthCallbackParams,
   AuthMe,
@@ -48,6 +53,9 @@ import type {
   BranchList,
   BranchPage,
   BranchStatusRequest,
+  CreateAdminFinanceBankAccount,
+  CreateAdminFinanceTopup,
+  CreateAdminFinanceTransfer,
   CreateBranchRequest,
   CreateDocumentUploadIntent,
   CreateInvitationRequest,
@@ -59,9 +67,18 @@ import type {
   DocumentList,
   DocumentUploadIntent,
   ExpectedVersionRequest,
+  FinanceReasonAction,
+  FinanceVersionedReasonAction,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
+  ListAdminFinanceAccountsParams,
+  ListAdminFinanceJournalParams,
+  ListAdminFinanceOrganizationsParams,
+  ListAdminFinanceReceiptsParams,
+  ListAdminFinanceSubscriptionsParams,
+  ListAdminFinanceTopupsParams,
+  ListAdminFinanceTransfersParams,
   ListAdminOrganizationRequestsParams,
   ListBranchesPaginatedParams,
   ListOrganizationChangeRequestsParams,
@@ -82,8 +99,10 @@ import type {
   PlatformUserList,
   PlatformUserRolesResult,
   ProposeBankAccountRequest,
+  RecordAdminFinanceReceipt,
   RecoveryRequest,
   ResubmitOrganizationChangeRequest,
+  ReviewAdminFinanceTopup,
   SetMembershipRequest,
   SetPlatformUserRolesRequest,
   SignInRequest,
@@ -92,6 +111,7 @@ import type {
   StatusRequest,
   StatusResult,
   SupabaseHealthStatus,
+  UpdateAdminFinanceTopup,
   UpdateBranchRequest,
   UpdateOrganizationJoinRequest,
   UpdateOrganizationRequest
@@ -4572,6 +4592,2043 @@ export function useCreateOrganizationDocumentDownload<TData = Awaited<ReturnType
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getCreateOrganizationDocumentDownloadQueryOptions(documentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminFinanceSummaryUrl = () => {
+
+
+
+
+  return `/api/admin/finance/summary`
+}
+
+/**
+ * @summary Read financial balances, held receipts and launch-policy gates
+ */
+export const getAdminFinanceSummary = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceSummary> => {
+
+  return customFetch<AdminFinanceSummary>(getGetAdminFinanceSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFinanceSummaryQueryKey = () => {
+    return [
+    `/api/admin/finance/summary`
+    ] as const;
+    }
+
+
+export const getGetAdminFinanceSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFinanceSummary>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFinanceSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFinanceSummary>>> = ({ signal }) => getAdminFinanceSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFinanceSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFinanceSummary>>>
+export type GetAdminFinanceSummaryQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read financial balances, held receipts and launch-policy gates
+ */
+
+export function useGetAdminFinanceSummary<TData = Awaited<ReturnType<typeof getAdminFinanceSummary>>, TError = ErrorType<ApiErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFinanceSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminFinanceOrganizationsUrl = (params?: ListAdminFinanceOrganizationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/organizations?${stringifiedParams}` : `/api/admin/finance/organizations`
+}
+
+/**
+ * @summary Search eligible company organizations for funding workflows
+ */
+export const listAdminFinanceOrganizations = async (params?: ListAdminFinanceOrganizationsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceOrganizationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceOrganizationsQueryKey = (params?: ListAdminFinanceOrganizationsParams,) => {
+    return [
+    `/api/admin/finance/organizations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminFinanceOrganizationsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceOrganizations>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminFinanceOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceOrganizationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceOrganizations>>> = ({ signal }) => listAdminFinanceOrganizations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceOrganizations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceOrganizationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceOrganizations>>>
+export type ListAdminFinanceOrganizationsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Search eligible company organizations for funding workflows
+ */
+
+export function useListAdminFinanceOrganizations<TData = Awaited<ReturnType<typeof listAdminFinanceOrganizations>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminFinanceOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceOrganizationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminFinanceAccountsUrl = (params?: ListAdminFinanceAccountsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/accounts?${stringifiedParams}` : `/api/admin/finance/accounts`
+}
+
+/**
+ * @summary List company and branch funding balances derived from the ledger
+ */
+export const listAdminFinanceAccounts = async (params?: ListAdminFinanceAccountsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceAccountsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceAccountsQueryKey = (params?: ListAdminFinanceAccountsParams,) => {
+    return [
+    `/api/admin/finance/accounts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminFinanceAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceAccounts>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminFinanceAccountsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceAccountsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceAccounts>>> = ({ signal }) => listAdminFinanceAccounts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceAccounts>>>
+export type ListAdminFinanceAccountsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary List company and branch funding balances derived from the ledger
+ */
+
+export function useListAdminFinanceAccounts<TData = Awaited<ReturnType<typeof listAdminFinanceAccounts>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminFinanceAccountsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceAccountsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminFinanceBankAccountsUrl = () => {
+
+
+
+
+  return `/api/admin/finance/bank-accounts`
+}
+
+/**
+ * @summary List masked platform receiving-account details and approval state
+ */
+export const listAdminFinanceBankAccounts = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceBankAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceBankAccountsQueryKey = () => {
+    return [
+    `/api/admin/finance/bank-accounts`
+    ] as const;
+    }
+
+
+export const getListAdminFinanceBankAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceBankAccounts>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceBankAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceBankAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceBankAccounts>>> = ({ signal }) => listAdminFinanceBankAccounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceBankAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceBankAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceBankAccounts>>>
+export type ListAdminFinanceBankAccountsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary List masked platform receiving-account details and approval state
+ */
+
+export function useListAdminFinanceBankAccounts<TData = Awaited<ReturnType<typeof listAdminFinanceBankAccounts>>, TError = ErrorType<ApiErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceBankAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceBankAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminFinanceBankAccountUrl = () => {
+
+
+
+
+  return `/api/admin/finance/bank-accounts`
+}
+
+/**
+ * @summary Add a masked receiving bank account as a pending configuration
+ */
+export const createAdminFinanceBankAccount = async (createAdminFinanceBankAccountBody: CreateAdminFinanceBankAccount, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getCreateAdminFinanceBankAccountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createAdminFinanceBankAccountBody)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminFinanceBankAccountMutationKey = () => ['createAdminFinanceBankAccount'] as const;
+
+export const getCreateAdminFinanceBankAccountMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceBankAccount>>, TError,CreateAdminFinanceBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceBankAccount>>, TError,CreateAdminFinanceBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminFinanceBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminFinanceBankAccount>>, CreateAdminFinanceBankAccountMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminFinanceBankAccount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminFinanceBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminFinanceBankAccount>>>
+    export type CreateAdminFinanceBankAccountMutationBody = BodyType<CreateAdminFinanceBankAccount>
+    export type CreateAdminFinanceBankAccountMutationError = ErrorType<ApiErrorResponse>
+    export type CreateAdminFinanceBankAccountMutationVariables = {data: BodyType<CreateAdminFinanceBankAccount>}
+
+    /**
+ * @summary Add a masked receiving bank account as a pending configuration
+ */
+export const useCreateAdminFinanceBankAccount = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceBankAccount>>, TError,CreateAdminFinanceBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminFinanceBankAccount>>,
+        TError,
+        CreateAdminFinanceBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminFinanceBankAccountMutationOptions(options));
+    }
+
+export const getApproveAdminFinanceBankAccountUrl = (bankAccountId: string,) => {
+
+
+
+
+  return `/api/admin/finance/bank-accounts/${bankAccountId}/approve`
+}
+
+/**
+ * @summary Approve a receiving account by a different authorized reviewer
+ */
+export const approveAdminFinanceBankAccount = async (bankAccountId: string,
+    financeReasonAction: FinanceReasonAction, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getApproveAdminFinanceBankAccountUrl(bankAccountId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(financeReasonAction)
+  }
+);}
+
+
+
+
+
+export const getApproveAdminFinanceBankAccountMutationKey = () => ['approveAdminFinanceBankAccount'] as const;
+
+export const getApproveAdminFinanceBankAccountMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAdminFinanceBankAccount>>, TError,ApproveAdminFinanceBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveAdminFinanceBankAccount>>, TError,ApproveAdminFinanceBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getApproveAdminFinanceBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveAdminFinanceBankAccount>>, ApproveAdminFinanceBankAccountMutationVariables> = (props) => {
+          const {bankAccountId,data} = props ?? {};
+
+          return  approveAdminFinanceBankAccount(bankAccountId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveAdminFinanceBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof approveAdminFinanceBankAccount>>>
+    export type ApproveAdminFinanceBankAccountMutationBody = BodyType<FinanceReasonAction>
+    export type ApproveAdminFinanceBankAccountMutationError = ErrorType<ApiErrorResponse>
+    export type ApproveAdminFinanceBankAccountMutationVariables = {bankAccountId: string;data: BodyType<FinanceReasonAction>}
+
+    /**
+ * @summary Approve a receiving account by a different authorized reviewer
+ */
+export const useApproveAdminFinanceBankAccount = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAdminFinanceBankAccount>>, TError,ApproveAdminFinanceBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveAdminFinanceBankAccount>>,
+        TError,
+        ApproveAdminFinanceBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveAdminFinanceBankAccountMutationOptions(options));
+    }
+
+export const getDisableAdminFinanceBankAccountUrl = (bankAccountId: string,) => {
+
+
+
+
+  return `/api/admin/finance/bank-accounts/${bankAccountId}/disable`
+}
+
+/**
+ * @summary Stop future use of a receiving account without changing historical receipts
+ */
+export const disableAdminFinanceBankAccount = async (bankAccountId: string,
+    financeReasonAction: FinanceReasonAction, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getDisableAdminFinanceBankAccountUrl(bankAccountId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(financeReasonAction)
+  }
+);}
+
+
+
+
+
+export const getDisableAdminFinanceBankAccountMutationKey = () => ['disableAdminFinanceBankAccount'] as const;
+
+export const getDisableAdminFinanceBankAccountMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableAdminFinanceBankAccount>>, TError,DisableAdminFinanceBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disableAdminFinanceBankAccount>>, TError,DisableAdminFinanceBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getDisableAdminFinanceBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disableAdminFinanceBankAccount>>, DisableAdminFinanceBankAccountMutationVariables> = (props) => {
+          const {bankAccountId,data} = props ?? {};
+
+          return  disableAdminFinanceBankAccount(bankAccountId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisableAdminFinanceBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof disableAdminFinanceBankAccount>>>
+    export type DisableAdminFinanceBankAccountMutationBody = BodyType<FinanceReasonAction>
+    export type DisableAdminFinanceBankAccountMutationError = ErrorType<ApiErrorResponse>
+    export type DisableAdminFinanceBankAccountMutationVariables = {bankAccountId: string;data: BodyType<FinanceReasonAction>}
+
+    /**
+ * @summary Stop future use of a receiving account without changing historical receipts
+ */
+export const useDisableAdminFinanceBankAccount = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableAdminFinanceBankAccount>>, TError,DisableAdminFinanceBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disableAdminFinanceBankAccount>>,
+        TError,
+        DisableAdminFinanceBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisableAdminFinanceBankAccountMutationOptions(options));
+    }
+
+export const getListAdminFinanceTopupsUrl = (params?: ListAdminFinanceTopupsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/topups?${stringifiedParams}` : `/api/admin/finance/topups`
+}
+
+/**
+ * @summary Search bank-funding requests with status filters
+ */
+export const listAdminFinanceTopups = async (params?: ListAdminFinanceTopupsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceTopupsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceTopupsQueryKey = (params?: ListAdminFinanceTopupsParams,) => {
+    return [
+    `/api/admin/finance/topups`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminFinanceTopupsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceTopups>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminFinanceTopupsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceTopups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceTopupsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceTopups>>> = ({ signal }) => listAdminFinanceTopups(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceTopups>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceTopupsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceTopups>>>
+export type ListAdminFinanceTopupsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Search bank-funding requests with status filters
+ */
+
+export function useListAdminFinanceTopups<TData = Awaited<ReturnType<typeof listAdminFinanceTopups>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminFinanceTopupsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceTopups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceTopupsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminFinanceTopupUrl = () => {
+
+
+
+
+  return `/api/admin/finance/topups`
+}
+
+/**
+ * @summary Create a company top-up draft without posting money
+ */
+export const createAdminFinanceTopup = async (createAdminFinanceTopupBody: CreateAdminFinanceTopup, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getCreateAdminFinanceTopupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createAdminFinanceTopupBody)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminFinanceTopupMutationKey = () => ['createAdminFinanceTopup'] as const;
+
+export const getCreateAdminFinanceTopupMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceTopup>>, TError,CreateAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceTopup>>, TError,CreateAdminFinanceTopupMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminFinanceTopupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminFinanceTopup>>, CreateAdminFinanceTopupMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminFinanceTopup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminFinanceTopupMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminFinanceTopup>>>
+    export type CreateAdminFinanceTopupMutationBody = BodyType<CreateAdminFinanceTopup>
+    export type CreateAdminFinanceTopupMutationError = ErrorType<ApiErrorResponse>
+    export type CreateAdminFinanceTopupMutationVariables = {data: BodyType<CreateAdminFinanceTopup>}
+
+    /**
+ * @summary Create a company top-up draft without posting money
+ */
+export const useCreateAdminFinanceTopup = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceTopup>>, TError,CreateAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminFinanceTopup>>,
+        TError,
+        CreateAdminFinanceTopupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminFinanceTopupMutationOptions(options));
+    }
+
+export const getGetAdminFinanceTopupUrl = (topupId: string,) => {
+
+
+
+
+  return `/api/admin/finance/topups/${topupId}`
+}
+
+/**
+ * @summary Read a top-up request, evidence metadata and receipt allocations
+ */
+export const getAdminFinanceTopup = async (topupId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+  return customFetch<AdminFinanceResult>(getGetAdminFinanceTopupUrl(topupId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFinanceTopupQueryKey = (topupId: string,) => {
+    return [
+    `/api/admin/finance/topups/${topupId}`
+    ] as const;
+    }
+
+
+export const getGetAdminFinanceTopupQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFinanceTopup>>, TError = ErrorType<ApiErrorResponse>>(topupId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceTopup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFinanceTopupQueryKey(topupId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFinanceTopup>>> = ({ signal }) => getAdminFinanceTopup(topupId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: topupId !== null && topupId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceTopup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFinanceTopupQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFinanceTopup>>>
+export type GetAdminFinanceTopupQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read a top-up request, evidence metadata and receipt allocations
+ */
+
+export function useGetAdminFinanceTopup<TData = Awaited<ReturnType<typeof getAdminFinanceTopup>>, TError = ErrorType<ApiErrorResponse>>(
+ topupId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceTopup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFinanceTopupQueryOptions(topupId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminFinanceTopupUrl = (topupId: string,) => {
+
+
+
+
+  return `/api/admin/finance/topups/${topupId}`
+}
+
+/**
+ * @summary Edit an eligible draft using optimistic version checking
+ */
+export const updateAdminFinanceTopup = async (topupId: string,
+    updateAdminFinanceTopupBody: UpdateAdminFinanceTopup, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getUpdateAdminFinanceTopupUrl(topupId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateAdminFinanceTopupBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminFinanceTopupMutationKey = () => ['updateAdminFinanceTopup'] as const;
+
+export const getUpdateAdminFinanceTopupMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminFinanceTopup>>, TError,UpdateAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminFinanceTopup>>, TError,UpdateAdminFinanceTopupMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminFinanceTopupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminFinanceTopup>>, UpdateAdminFinanceTopupMutationVariables> = (props) => {
+          const {topupId,data} = props ?? {};
+
+          return  updateAdminFinanceTopup(topupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminFinanceTopupMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminFinanceTopup>>>
+    export type UpdateAdminFinanceTopupMutationBody = BodyType<UpdateAdminFinanceTopup>
+    export type UpdateAdminFinanceTopupMutationError = ErrorType<ApiErrorResponse>
+    export type UpdateAdminFinanceTopupMutationVariables = {topupId: string;data: BodyType<UpdateAdminFinanceTopup>}
+
+    /**
+ * @summary Edit an eligible draft using optimistic version checking
+ */
+export const useUpdateAdminFinanceTopup = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminFinanceTopup>>, TError,UpdateAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminFinanceTopup>>,
+        TError,
+        UpdateAdminFinanceTopupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminFinanceTopupMutationOptions(options));
+    }
+
+export const getSubmitAdminFinanceTopupUrl = (topupId: string,) => {
+
+
+
+
+  return `/api/admin/finance/topups/${topupId}/submit`
+}
+
+/**
+ * @summary Submit a top-up draft with its private evidence for review
+ */
+export const submitAdminFinanceTopup = async (topupId: string,
+    financeVersionedReasonAction: FinanceVersionedReasonAction, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getSubmitAdminFinanceTopupUrl(topupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(financeVersionedReasonAction)
+  }
+);}
+
+
+
+
+
+export const getSubmitAdminFinanceTopupMutationKey = () => ['submitAdminFinanceTopup'] as const;
+
+export const getSubmitAdminFinanceTopupMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAdminFinanceTopup>>, TError,SubmitAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitAdminFinanceTopup>>, TError,SubmitAdminFinanceTopupMutationVariables, TContext> => {
+
+const mutationKey = getSubmitAdminFinanceTopupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitAdminFinanceTopup>>, SubmitAdminFinanceTopupMutationVariables> = (props) => {
+          const {topupId,data} = props ?? {};
+
+          return  submitAdminFinanceTopup(topupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitAdminFinanceTopupMutationResult = NonNullable<Awaited<ReturnType<typeof submitAdminFinanceTopup>>>
+    export type SubmitAdminFinanceTopupMutationBody = BodyType<FinanceVersionedReasonAction>
+    export type SubmitAdminFinanceTopupMutationError = ErrorType<ApiErrorResponse>
+    export type SubmitAdminFinanceTopupMutationVariables = {topupId: string;data: BodyType<FinanceVersionedReasonAction>}
+
+    /**
+ * @summary Submit a top-up draft with its private evidence for review
+ */
+export const useSubmitAdminFinanceTopup = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAdminFinanceTopup>>, TError,SubmitAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitAdminFinanceTopup>>,
+        TError,
+        SubmitAdminFinanceTopupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitAdminFinanceTopupMutationOptions(options));
+    }
+
+export const getReviewAdminFinanceTopupUrl = (topupId: string,) => {
+
+
+
+
+  return `/api/admin/finance/topups/${topupId}/review`
+}
+
+/**
+ * @summary Request more information or reject with a mandatory reason
+ */
+export const reviewAdminFinanceTopup = async (topupId: string,
+    reviewAdminFinanceTopupBody: ReviewAdminFinanceTopup, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getReviewAdminFinanceTopupUrl(topupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reviewAdminFinanceTopupBody)
+  }
+);}
+
+
+
+
+
+export const getReviewAdminFinanceTopupMutationKey = () => ['reviewAdminFinanceTopup'] as const;
+
+export const getReviewAdminFinanceTopupMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdminFinanceTopup>>, TError,ReviewAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewAdminFinanceTopup>>, TError,ReviewAdminFinanceTopupMutationVariables, TContext> => {
+
+const mutationKey = getReviewAdminFinanceTopupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewAdminFinanceTopup>>, ReviewAdminFinanceTopupMutationVariables> = (props) => {
+          const {topupId,data} = props ?? {};
+
+          return  reviewAdminFinanceTopup(topupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewAdminFinanceTopupMutationResult = NonNullable<Awaited<ReturnType<typeof reviewAdminFinanceTopup>>>
+    export type ReviewAdminFinanceTopupMutationBody = BodyType<ReviewAdminFinanceTopup>
+    export type ReviewAdminFinanceTopupMutationError = ErrorType<ApiErrorResponse>
+    export type ReviewAdminFinanceTopupMutationVariables = {topupId: string;data: BodyType<ReviewAdminFinanceTopup>}
+
+    /**
+ * @summary Request more information or reject with a mandatory reason
+ */
+export const useReviewAdminFinanceTopup = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdminFinanceTopup>>, TError,ReviewAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewAdminFinanceTopup>>,
+        TError,
+        ReviewAdminFinanceTopupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewAdminFinanceTopupMutationOptions(options));
+    }
+
+export const getApproveAdminFinanceTopupUrl = (topupId: string,) => {
+
+
+
+
+  return `/api/admin/finance/topups/${topupId}/approve`
+}
+
+/**
+ * @summary Verify the actual bank transfer and atomically post the receipt and top-up allocation
+ */
+export const approveAdminFinanceTopup = async (topupId: string,
+    approveAdminFinanceTopupBody: ApproveAdminFinanceTopup, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getApproveAdminFinanceTopupUrl(topupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approveAdminFinanceTopupBody)
+  }
+);}
+
+
+
+
+
+export const getApproveAdminFinanceTopupMutationKey = () => ['approveAdminFinanceTopup'] as const;
+
+export const getApproveAdminFinanceTopupMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAdminFinanceTopup>>, TError,ApproveAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveAdminFinanceTopup>>, TError,ApproveAdminFinanceTopupMutationVariables, TContext> => {
+
+const mutationKey = getApproveAdminFinanceTopupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveAdminFinanceTopup>>, ApproveAdminFinanceTopupMutationVariables> = (props) => {
+          const {topupId,data} = props ?? {};
+
+          return  approveAdminFinanceTopup(topupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveAdminFinanceTopupMutationResult = NonNullable<Awaited<ReturnType<typeof approveAdminFinanceTopup>>>
+    export type ApproveAdminFinanceTopupMutationBody = BodyType<ApproveAdminFinanceTopup>
+    export type ApproveAdminFinanceTopupMutationError = ErrorType<ApiErrorResponse>
+    export type ApproveAdminFinanceTopupMutationVariables = {topupId: string;data: BodyType<ApproveAdminFinanceTopup>}
+
+    /**
+ * @summary Verify the actual bank transfer and atomically post the receipt and top-up allocation
+ */
+export const useApproveAdminFinanceTopup = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAdminFinanceTopup>>, TError,ApproveAdminFinanceTopupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveAdminFinanceTopup>>,
+        TError,
+        ApproveAdminFinanceTopupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveAdminFinanceTopupMutationOptions(options));
+    }
+
+export const getListAdminFinanceReceiptsUrl = (params?: ListAdminFinanceReceiptsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/receipts?${stringifiedParams}` : `/api/admin/finance/receipts`
+}
+
+/**
+ * @summary Search bank receipts and their allocated or unallocated amounts
+ */
+export const listAdminFinanceReceipts = async (params?: ListAdminFinanceReceiptsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceReceiptsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceReceiptsQueryKey = (params?: ListAdminFinanceReceiptsParams,) => {
+    return [
+    `/api/admin/finance/receipts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminFinanceReceiptsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceReceipts>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminFinanceReceiptsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceReceipts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceReceiptsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceReceipts>>> = ({ signal }) => listAdminFinanceReceipts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceReceipts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceReceiptsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceReceipts>>>
+export type ListAdminFinanceReceiptsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Search bank receipts and their allocated or unallocated amounts
+ */
+
+export function useListAdminFinanceReceipts<TData = Awaited<ReturnType<typeof listAdminFinanceReceipts>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminFinanceReceiptsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceReceipts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceReceiptsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordAdminFinanceReceiptUrl = () => {
+
+
+
+
+  return `/api/admin/finance/receipts`
+}
+
+/**
+ * @summary Record an actually verified bank transfer as unallocated cash
+ */
+export const recordAdminFinanceReceipt = async (recordAdminFinanceReceiptBody: RecordAdminFinanceReceipt, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getRecordAdminFinanceReceiptUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(recordAdminFinanceReceiptBody)
+  }
+);}
+
+
+
+
+
+export const getRecordAdminFinanceReceiptMutationKey = () => ['recordAdminFinanceReceipt'] as const;
+
+export const getRecordAdminFinanceReceiptMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAdminFinanceReceipt>>, TError,RecordAdminFinanceReceiptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordAdminFinanceReceipt>>, TError,RecordAdminFinanceReceiptMutationVariables, TContext> => {
+
+const mutationKey = getRecordAdminFinanceReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordAdminFinanceReceipt>>, RecordAdminFinanceReceiptMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordAdminFinanceReceipt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordAdminFinanceReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof recordAdminFinanceReceipt>>>
+    export type RecordAdminFinanceReceiptMutationBody = BodyType<RecordAdminFinanceReceipt>
+    export type RecordAdminFinanceReceiptMutationError = ErrorType<ApiErrorResponse>
+    export type RecordAdminFinanceReceiptMutationVariables = {data: BodyType<RecordAdminFinanceReceipt>}
+
+    /**
+ * @summary Record an actually verified bank transfer as unallocated cash
+ */
+export const useRecordAdminFinanceReceipt = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAdminFinanceReceipt>>, TError,RecordAdminFinanceReceiptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordAdminFinanceReceipt>>,
+        TError,
+        RecordAdminFinanceReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordAdminFinanceReceiptMutationOptions(options));
+    }
+
+export const getAllocateAdminFinanceReceiptUrl = (receiptId: string,) => {
+
+
+
+
+  return `/api/admin/finance/receipts/${receiptId}/allocate`
+}
+
+/**
+ * @summary Allocate part of a confirmed receipt once to a top-up or pending subscription
+ */
+export const allocateAdminFinanceReceipt = async (receiptId: string,
+    allocateAdminFinanceReceiptBody: AllocateAdminFinanceReceipt, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getAllocateAdminFinanceReceiptUrl(receiptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(allocateAdminFinanceReceiptBody)
+  }
+);}
+
+
+
+
+
+export const getAllocateAdminFinanceReceiptMutationKey = () => ['allocateAdminFinanceReceipt'] as const;
+
+export const getAllocateAdminFinanceReceiptMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocateAdminFinanceReceipt>>, TError,AllocateAdminFinanceReceiptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof allocateAdminFinanceReceipt>>, TError,AllocateAdminFinanceReceiptMutationVariables, TContext> => {
+
+const mutationKey = getAllocateAdminFinanceReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allocateAdminFinanceReceipt>>, AllocateAdminFinanceReceiptMutationVariables> = (props) => {
+          const {receiptId,data} = props ?? {};
+
+          return  allocateAdminFinanceReceipt(receiptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AllocateAdminFinanceReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof allocateAdminFinanceReceipt>>>
+    export type AllocateAdminFinanceReceiptMutationBody = BodyType<AllocateAdminFinanceReceipt>
+    export type AllocateAdminFinanceReceiptMutationError = ErrorType<ApiErrorResponse>
+    export type AllocateAdminFinanceReceiptMutationVariables = {receiptId: string;data: BodyType<AllocateAdminFinanceReceipt>}
+
+    /**
+ * @summary Allocate part of a confirmed receipt once to a top-up or pending subscription
+ */
+export const useAllocateAdminFinanceReceipt = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocateAdminFinanceReceipt>>, TError,AllocateAdminFinanceReceiptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof allocateAdminFinanceReceipt>>,
+        TError,
+        AllocateAdminFinanceReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAllocateAdminFinanceReceiptMutationOptions(options));
+    }
+
+export const getListAdminFinanceTransfersUrl = (params?: ListAdminFinanceTransfersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/transfers?${stringifiedParams}` : `/api/admin/finance/transfers`
+}
+
+/**
+ * @summary List same-company transfers between a main account and one branch
+ */
+export const listAdminFinanceTransfers = async (params?: ListAdminFinanceTransfersParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceTransfersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceTransfersQueryKey = (params?: ListAdminFinanceTransfersParams,) => {
+    return [
+    `/api/admin/finance/transfers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminFinanceTransfersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceTransfers>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminFinanceTransfersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceTransfers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceTransfersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceTransfers>>> = ({ signal }) => listAdminFinanceTransfers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceTransfers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceTransfersQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceTransfers>>>
+export type ListAdminFinanceTransfersQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary List same-company transfers between a main account and one branch
+ */
+
+export function useListAdminFinanceTransfers<TData = Awaited<ReturnType<typeof listAdminFinanceTransfers>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminFinanceTransfersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceTransfers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceTransfersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminFinanceTransferUrl = () => {
+
+
+
+
+  return `/api/admin/finance/transfers`
+}
+
+/**
+ * @summary Transfer available funds between one company's main account and one branch
+ */
+export const createAdminFinanceTransfer = async (createAdminFinanceTransferBody: CreateAdminFinanceTransfer, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getCreateAdminFinanceTransferUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createAdminFinanceTransferBody)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminFinanceTransferMutationKey = () => ['createAdminFinanceTransfer'] as const;
+
+export const getCreateAdminFinanceTransferMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceTransfer>>, TError,CreateAdminFinanceTransferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceTransfer>>, TError,CreateAdminFinanceTransferMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminFinanceTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminFinanceTransfer>>, CreateAdminFinanceTransferMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminFinanceTransfer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminFinanceTransferMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminFinanceTransfer>>>
+    export type CreateAdminFinanceTransferMutationBody = BodyType<CreateAdminFinanceTransfer>
+    export type CreateAdminFinanceTransferMutationError = ErrorType<ApiErrorResponse>
+    export type CreateAdminFinanceTransferMutationVariables = {data: BodyType<CreateAdminFinanceTransfer>}
+
+    /**
+ * @summary Transfer available funds between one company's main account and one branch
+ */
+export const useCreateAdminFinanceTransfer = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFinanceTransfer>>, TError,CreateAdminFinanceTransferMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminFinanceTransfer>>,
+        TError,
+        CreateAdminFinanceTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminFinanceTransferMutationOptions(options));
+    }
+
+export const getListAdminFinanceSubscriptionsUrl = (params?: ListAdminFinanceSubscriptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/subscriptions?${stringifiedParams}` : `/api/admin/finance/subscriptions`
+}
+
+/**
+ * @summary List pending-payment subscriptions, frozen price snapshots and collected cash on hold
+ */
+export const listAdminFinanceSubscriptions = async (params?: ListAdminFinanceSubscriptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceSubscriptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceSubscriptionsQueryKey = (params?: ListAdminFinanceSubscriptionsParams,) => {
+    return [
+    `/api/admin/finance/subscriptions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminFinanceSubscriptionsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceSubscriptions>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminFinanceSubscriptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceSubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceSubscriptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceSubscriptions>>> = ({ signal }) => listAdminFinanceSubscriptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceSubscriptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceSubscriptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceSubscriptions>>>
+export type ListAdminFinanceSubscriptionsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary List pending-payment subscriptions, frozen price snapshots and collected cash on hold
+ */
+
+export function useListAdminFinanceSubscriptions<TData = Awaited<ReturnType<typeof listAdminFinanceSubscriptions>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminFinanceSubscriptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceSubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceSubscriptionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminFinanceJournalUrl = (params?: ListAdminFinanceJournalParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/journal?${stringifiedParams}` : `/api/admin/finance/journal`
+}
+
+/**
+ * @summary Search immutable journal entries with account and organization filters
+ */
+export const listAdminFinanceJournal = async (params?: ListAdminFinanceJournalParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinancePage> => {
+
+  return customFetch<AdminFinancePage>(getListAdminFinanceJournalUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminFinanceJournalQueryKey = (params?: ListAdminFinanceJournalParams,) => {
+    return [
+    `/api/admin/finance/journal`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminFinanceJournalQueryOptions = <TData = Awaited<ReturnType<typeof listAdminFinanceJournal>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminFinanceJournalParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceJournal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminFinanceJournalQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminFinanceJournal>>> = ({ signal }) => listAdminFinanceJournal(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceJournal>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminFinanceJournalQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminFinanceJournal>>>
+export type ListAdminFinanceJournalQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Search immutable journal entries with account and organization filters
+ */
+
+export function useListAdminFinanceJournal<TData = Awaited<ReturnType<typeof listAdminFinanceJournal>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminFinanceJournalParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminFinanceJournal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminFinanceJournalQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminFinanceJournalEntryUrl = (entryId: string,) => {
+
+
+
+
+  return `/api/admin/finance/journal/${entryId}`
+}
+
+/**
+ * @summary Read an immutable entry and its balanced debit and credit lines
+ */
+export const getAdminFinanceJournalEntry = async (entryId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+  return customFetch<AdminFinanceResult>(getGetAdminFinanceJournalEntryUrl(entryId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFinanceJournalEntryQueryKey = (entryId: string,) => {
+    return [
+    `/api/admin/finance/journal/${entryId}`
+    ] as const;
+    }
+
+
+export const getGetAdminFinanceJournalEntryQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFinanceJournalEntry>>, TError = ErrorType<ApiErrorResponse>>(entryId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceJournalEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFinanceJournalEntryQueryKey(entryId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFinanceJournalEntry>>> = ({ signal }) => getAdminFinanceJournalEntry(entryId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: entryId !== null && entryId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceJournalEntry>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFinanceJournalEntryQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFinanceJournalEntry>>>
+export type GetAdminFinanceJournalEntryQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read an immutable entry and its balanced debit and credit lines
+ */
+
+export function useGetAdminFinanceJournalEntry<TData = Awaited<ReturnType<typeof getAdminFinanceJournalEntry>>, TError = ErrorType<ApiErrorResponse>>(
+ entryId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceJournalEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFinanceJournalEntryQueryOptions(entryId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReverseAdminFinanceJournalEntryUrl = (entryId: string,) => {
+
+
+
+
+  return `/api/admin/finance/journal/${entryId}/reverse`
+}
+
+/**
+ * @summary Correct an eligible journal entry with a linked reversing entry
+ */
+export const reverseAdminFinanceJournalEntry = async (entryId: string,
+    financeReasonAction: FinanceReasonAction, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFinanceResult>(getReverseAdminFinanceJournalEntryUrl(entryId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(financeReasonAction)
+  }
+);}
+
+
+
+
+
+export const getReverseAdminFinanceJournalEntryMutationKey = () => ['reverseAdminFinanceJournalEntry'] as const;
+
+export const getReverseAdminFinanceJournalEntryMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseAdminFinanceJournalEntry>>, TError,ReverseAdminFinanceJournalEntryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reverseAdminFinanceJournalEntry>>, TError,ReverseAdminFinanceJournalEntryMutationVariables, TContext> => {
+
+const mutationKey = getReverseAdminFinanceJournalEntryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reverseAdminFinanceJournalEntry>>, ReverseAdminFinanceJournalEntryMutationVariables> = (props) => {
+          const {entryId,data} = props ?? {};
+
+          return  reverseAdminFinanceJournalEntry(entryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReverseAdminFinanceJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof reverseAdminFinanceJournalEntry>>>
+    export type ReverseAdminFinanceJournalEntryMutationBody = BodyType<FinanceReasonAction>
+    export type ReverseAdminFinanceJournalEntryMutationError = ErrorType<ApiErrorResponse>
+    export type ReverseAdminFinanceJournalEntryMutationVariables = {entryId: string;data: BodyType<FinanceReasonAction>}
+
+    /**
+ * @summary Correct an eligible journal entry with a linked reversing entry
+ */
+export const useReverseAdminFinanceJournalEntry = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseAdminFinanceJournalEntry>>, TError,ReverseAdminFinanceJournalEntryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reverseAdminFinanceJournalEntry>>,
+        TError,
+        ReverseAdminFinanceJournalEntryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReverseAdminFinanceJournalEntryMutationOptions(options));
+    }
+
+export const getGetAdminFinanceReconciliationUrl = () => {
+
+
+
+
+  return `/api/admin/finance/reconciliation`
+}
+
+/**
+ * @summary Check ledger and account consistency without changing records
+ */
+export const getAdminFinanceReconciliation = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+  return customFetch<AdminFinanceResult>(getGetAdminFinanceReconciliationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFinanceReconciliationQueryKey = () => {
+    return [
+    `/api/admin/finance/reconciliation`
+    ] as const;
+    }
+
+
+export const getGetAdminFinanceReconciliationQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFinanceReconciliation>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFinanceReconciliationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFinanceReconciliation>>> = ({ signal }) => getAdminFinanceReconciliation({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceReconciliation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFinanceReconciliationQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFinanceReconciliation>>>
+export type GetAdminFinanceReconciliationQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Check ledger and account consistency without changing records
+ */
+
+export function useGetAdminFinanceReconciliation<TData = Awaited<ReturnType<typeof getAdminFinanceReconciliation>>, TError = ErrorType<ApiErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFinanceReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFinanceReconciliationQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

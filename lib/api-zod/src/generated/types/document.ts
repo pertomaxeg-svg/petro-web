@@ -21,6 +21,12 @@ export interface Document {
   change_request_id?: string | null;
   /** @nullable */
   bank_account_version_id?: string | null;
+  /** @nullable */
+  finance_topup_request_id?: string | null;
+  /** @nullable */
+  finance_subscription_request_id?: string | null;
+  /** @nullable */
+  finance_bank_receipt_id?: string | null;
   document_type: string;
   file_name: string;
   content_type: DocumentContentType;

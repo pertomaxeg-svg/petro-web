@@ -1709,6 +1709,9 @@ export const CreateDocumentUploadIntentContextType = {
   branch: 'branch',
   change_request: 'change_request',
   bank_version: 'bank_version',
+  topup_request: 'topup_request',
+  subscription_request: 'subscription_request',
+  receipt: 'receipt',
 } as const;
 
 export type CreateDocumentUploadIntentContentType = typeof CreateDocumentUploadIntentContentType[keyof typeof CreateDocumentUploadIntentContentType];
@@ -1741,6 +1744,291 @@ export interface CreateDocumentUploadIntent {
   byteSize: number;
   /** @nullable */
   expiresOn?: string | null;
+}
+
+export type AdminFinanceSummaryCurrency = typeof AdminFinanceSummaryCurrency[keyof typeof AdminFinanceSummaryCurrency];
+
+
+export const AdminFinanceSummaryCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export interface AdminFinanceSummary {
+  currency: AdminFinanceSummaryCurrency;
+  companyFundsMinor: string;
+  reservedMinor: string;
+  availableMinor: string;
+  unallocatedReceiptsMinor: string;
+  subscriptionHeldMinor: string;
+  merchantPayableMinor: string;
+  pendingTopups?: number;
+  pendingBankAccounts?: number;
+  collectedSubscriptionsOnHold?: number;
+  [key: string]: unknown;
+ }
+
+export type AdminFinancePageItemsItem = { [key: string]: unknown };
+
+export interface AdminFinancePage {
+  items: AdminFinancePageItemsItem[];
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  totalPages?: number;
+  [key: string]: unknown;
+ }
+
+export interface AdminFinanceResult { [key: string]: unknown }
+
+export interface FinanceReasonAction {
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface FinanceVersionedReasonAction {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface CreateAdminFinanceBankAccount {
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  bankName: string;
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  displayLabel: string;
+  /** @pattern ^[0-9]{4}$ */
+  accountLast4: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface CreateAdminFinanceTopup {
+  organizationId: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000
+     */
+  amountMinor: number;
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  payerBankName: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  bankReference: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface UpdateAdminFinanceTopup {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000
+     */
+  amountMinor: number;
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  payerBankName: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  bankReference: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export type ReviewAdminFinanceTopupDecision = typeof ReviewAdminFinanceTopupDecision[keyof typeof ReviewAdminFinanceTopupDecision];
+
+
+export const ReviewAdminFinanceTopupDecision = {
+  needs_info: 'needs_info',
+  reject: 'reject',
+} as const;
+
+export interface ReviewAdminFinanceTopup {
+  /** @minimum 1 */
+  expectedVersion: number;
+  decision: ReviewAdminFinanceTopupDecision;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface ApproveAdminFinanceTopup {
+  bankAccountId: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000
+     */
+  actualAmountMinor: number;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000
+     * @nullable
+     */
+  allocationAmountMinor?: number | null;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  confirmedAgainstBank: true;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface RecordAdminFinanceReceipt {
+  organizationId: string;
+  /** @nullable */
+  branchId?: string | null;
+  bankAccountId: string;
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  payerBankName: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  bankReference: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000
+     */
+  amountMinor: number;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  confirmedAgainstBank: true;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export type AllocateAdminFinanceReceiptTargetType = typeof AllocateAdminFinanceReceiptTargetType[keyof typeof AllocateAdminFinanceReceiptTargetType];
+
+
+export const AllocateAdminFinanceReceiptTargetType = {
+  topup: 'topup',
+  subscription: 'subscription',
+} as const;
+
+export interface AllocateAdminFinanceReceipt {
+  targetType: AllocateAdminFinanceReceiptTargetType;
+  targetId: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000
+     */
+  amountMinor: number;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface CreateAdminFinanceTransfer {
+  organizationId: string;
+  /** @nullable */
+  sourceBranchId?: string | null;
+  /** @nullable */
+  targetBranchId?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000
+     */
+  amountMinor: number;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  reference: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 8
+     * @maxLength 160
+     */
+  idempotencyKey: string;
 }
 
 export interface DocumentUploadIntent {
@@ -1783,6 +2071,12 @@ export interface Document {
   change_request_id?: string | null;
   /** @nullable */
   bank_account_version_id?: string | null;
+  /** @nullable */
+  finance_topup_request_id?: string | null;
+  /** @nullable */
+  finance_subscription_request_id?: string | null;
+  /** @nullable */
+  finance_bank_receipt_id?: string | null;
   document_type: string;
   file_name: string;
   content_type: DocumentContentType;
@@ -2030,5 +2324,156 @@ branchId?: string;
 joinRequestId?: string;
 changeRequestId?: string;
 bankVersionId?: string;
+topupRequestId?: string;
+subscriptionRequestId?: string;
+receiptId?: string;
 };
+
+export type ListAdminFinanceOrganizationsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminFinanceAccountsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminFinanceTopupsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+status?: ListAdminFinanceTopupsStatus;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminFinanceTopupsStatus = typeof ListAdminFinanceTopupsStatus[keyof typeof ListAdminFinanceTopupsStatus];
+
+
+export const ListAdminFinanceTopupsStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  needs_info: 'needs_info',
+  rejected: 'rejected',
+  partially_funded: 'partially_funded',
+  funded: 'funded',
+  cancelled: 'cancelled',
+} as const;
+
+export type ListAdminFinanceReceiptsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminFinanceTransfersParams = {
+organizationId?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminFinanceSubscriptionsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+status?: ListAdminFinanceSubscriptionsStatus;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminFinanceSubscriptionsStatus = typeof ListAdminFinanceSubscriptionsStatus[keyof typeof ListAdminFinanceSubscriptionsStatus];
+
+
+export const ListAdminFinanceSubscriptionsStatus = {
+  unpaid: 'unpaid',
+  partially_collected: 'partially_collected',
+  collected_on_hold: 'collected_on_hold',
+  reversed: 'reversed',
+} as const;
+
+export type ListAdminFinanceJournalParams = {
+organizationId?: string;
+accountId?: string;
+entryType?: ListAdminFinanceJournalEntryType;
+/**
+ * @maxLength 120
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminFinanceJournalEntryType = typeof ListAdminFinanceJournalEntryType[keyof typeof ListAdminFinanceJournalEntryType];
+
+
+export const ListAdminFinanceJournalEntryType = {
+  bank_receipt: 'bank_receipt',
+  topup_allocation: 'topup_allocation',
+  subscription_collection: 'subscription_collection',
+  internal_transfer: 'internal_transfer',
+  reversal: 'reversal',
+} as const;
 

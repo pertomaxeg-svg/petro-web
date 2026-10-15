@@ -1426,6 +1426,9 @@ export const ListOrganizationJoinRequestDocumentsResponse = zod.object({
   "join_request_id": zod.string().uuid().nullish(),
   "change_request_id": zod.string().uuid().nullish(),
   "bank_account_version_id": zod.string().uuid().nullish(),
+  "finance_topup_request_id": zod.string().uuid().nullish(),
+  "finance_subscription_request_id": zod.string().uuid().nullish(),
+  "finance_bank_receipt_id": zod.string().uuid().nullish(),
   "document_type": zod.string(),
   "file_name": zod.string(),
   "content_type": zod.enum(['application/pdf', 'image/png', 'image/jpeg']),
@@ -1734,7 +1737,10 @@ export const ListOrganizationDocumentsQueryParams = zod.object({
   "branchId": zod.coerce.string().uuid().optional(),
   "joinRequestId": zod.coerce.string().uuid().optional(),
   "changeRequestId": zod.coerce.string().uuid().optional(),
-  "bankVersionId": zod.coerce.string().uuid().optional()
+  "bankVersionId": zod.coerce.string().uuid().optional(),
+  "topupRequestId": zod.coerce.string().uuid().optional(),
+  "subscriptionRequestId": zod.coerce.string().uuid().optional(),
+  "receiptId": zod.coerce.string().uuid().optional()
 })
 
 
@@ -1752,6 +1758,9 @@ export const ListOrganizationDocumentsResponse = zod.object({
   "join_request_id": zod.string().uuid().nullish(),
   "change_request_id": zod.string().uuid().nullish(),
   "bank_account_version_id": zod.string().uuid().nullish(),
+  "finance_topup_request_id": zod.string().uuid().nullish(),
+  "finance_subscription_request_id": zod.string().uuid().nullish(),
+  "finance_bank_receipt_id": zod.string().uuid().nullish(),
   "document_type": zod.string(),
   "file_name": zod.string(),
   "content_type": zod.enum(['application/pdf', 'image/png', 'image/jpeg']),
@@ -1778,7 +1787,7 @@ export const createDocumentUploadIntentBodyByteSizeMax = 10485760;
 
 
 export const CreateDocumentUploadIntentBody = zod.object({
-  "contextType": zod.enum(['join_request', 'organization', 'branch', 'change_request', 'bank_version']),
+  "contextType": zod.enum(['join_request', 'organization', 'branch', 'change_request', 'bank_version', 'topup_request', 'subscription_request', 'receipt']),
   "contextId": zod.string().uuid(),
   "documentType": zod.string().min(createDocumentUploadIntentBodyDocumentTypeMin).max(createDocumentUploadIntentBodyDocumentTypeMax),
   "fileName": zod.string().min(1).max(createDocumentUploadIntentBodyFileNameMax),
@@ -1810,6 +1819,591 @@ export const CreateOrganizationDocumentDownloadResponse = zod.object({
   "url": zod.string().url(),
   "expiresInSeconds": zod.literal(60)
 })
+
+
+/**
+ * @summary Read financial balances, held receipts and launch-policy gates
+ */
+export const GetAdminFinanceSummaryResponse = zod.object({
+  "currency": zod.enum(['EGP']),
+  "companyFundsMinor": zod.string(),
+  "reservedMinor": zod.string(),
+  "availableMinor": zod.string(),
+  "unallocatedReceiptsMinor": zod.string(),
+  "subscriptionHeldMinor": zod.string(),
+  "merchantPayableMinor": zod.string(),
+  "pendingTopups": zod.number().int().optional(),
+  "pendingBankAccounts": zod.number().int().optional(),
+  "collectedSubscriptionsOnHold": zod.number().int().optional()
+})
+
+
+/**
+ * @summary Search eligible company organizations for funding workflows
+ */
+export const listAdminFinanceOrganizationsQuerySearchMax = 120;
+
+export const listAdminFinanceOrganizationsQueryPageDefault = 1;
+
+export const listAdminFinanceOrganizationsQueryPageSizeDefault = 20;
+export const listAdminFinanceOrganizationsQueryPageSizeMax = 100;
+
+
+
+export const ListAdminFinanceOrganizationsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminFinanceOrganizationsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminFinanceOrganizationsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminFinanceOrganizationsQueryPageSizeMax).default(listAdminFinanceOrganizationsQueryPageSizeDefault)
+})
+
+export const ListAdminFinanceOrganizationsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary List company and branch funding balances derived from the ledger
+ */
+export const listAdminFinanceAccountsQuerySearchMax = 120;
+
+export const listAdminFinanceAccountsQueryPageDefault = 1;
+
+export const listAdminFinanceAccountsQueryPageSizeDefault = 20;
+export const listAdminFinanceAccountsQueryPageSizeMax = 100;
+
+
+
+export const ListAdminFinanceAccountsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminFinanceAccountsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminFinanceAccountsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminFinanceAccountsQueryPageSizeMax).default(listAdminFinanceAccountsQueryPageSizeDefault)
+})
+
+export const ListAdminFinanceAccountsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary List masked platform receiving-account details and approval state
+ */
+export const ListAdminFinanceBankAccountsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary Add a masked receiving bank account as a pending configuration
+ */
+export const createAdminFinanceBankAccountBodyBankNameMin = 2;
+export const createAdminFinanceBankAccountBodyBankNameMax = 100;
+
+export const createAdminFinanceBankAccountBodyDisplayLabelMin = 2;
+export const createAdminFinanceBankAccountBodyDisplayLabelMax = 100;
+
+export const createAdminFinanceBankAccountBodyAccountLast4RegExp = new RegExp('^[0-9]{4}$');
+export const createAdminFinanceBankAccountBodyReasonMin = 5;
+export const createAdminFinanceBankAccountBodyReasonMax = 500;
+
+export const createAdminFinanceBankAccountBodyIdempotencyKeyMin = 8;
+export const createAdminFinanceBankAccountBodyIdempotencyKeyMax = 160;
+
+
+
+export const CreateAdminFinanceBankAccountBody = zod.object({
+  "bankName": zod.string().min(createAdminFinanceBankAccountBodyBankNameMin).max(createAdminFinanceBankAccountBodyBankNameMax),
+  "displayLabel": zod.string().min(createAdminFinanceBankAccountBodyDisplayLabelMin).max(createAdminFinanceBankAccountBodyDisplayLabelMax),
+  "accountLast4": zod.string().regex(createAdminFinanceBankAccountBodyAccountLast4RegExp),
+  "reason": zod.string().min(createAdminFinanceBankAccountBodyReasonMin).max(createAdminFinanceBankAccountBodyReasonMax),
+  "idempotencyKey": zod.string().min(createAdminFinanceBankAccountBodyIdempotencyKeyMin).max(createAdminFinanceBankAccountBodyIdempotencyKeyMax)
+})
+
+export const CreateAdminFinanceBankAccountResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Approve a receiving account by a different authorized reviewer
+ */
+export const ApproveAdminFinanceBankAccountParams = zod.object({
+  "bankAccountId": zod.coerce.string().uuid()
+})
+
+export const approveAdminFinanceBankAccountBodyReasonMin = 5;
+export const approveAdminFinanceBankAccountBodyReasonMax = 500;
+
+export const approveAdminFinanceBankAccountBodyIdempotencyKeyMin = 8;
+export const approveAdminFinanceBankAccountBodyIdempotencyKeyMax = 160;
+
+
+
+export const ApproveAdminFinanceBankAccountBody = zod.object({
+  "reason": zod.string().min(approveAdminFinanceBankAccountBodyReasonMin).max(approveAdminFinanceBankAccountBodyReasonMax),
+  "idempotencyKey": zod.string().min(approveAdminFinanceBankAccountBodyIdempotencyKeyMin).max(approveAdminFinanceBankAccountBodyIdempotencyKeyMax)
+})
+
+export const ApproveAdminFinanceBankAccountResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Stop future use of a receiving account without changing historical receipts
+ */
+export const DisableAdminFinanceBankAccountParams = zod.object({
+  "bankAccountId": zod.coerce.string().uuid()
+})
+
+export const disableAdminFinanceBankAccountBodyReasonMin = 5;
+export const disableAdminFinanceBankAccountBodyReasonMax = 500;
+
+export const disableAdminFinanceBankAccountBodyIdempotencyKeyMin = 8;
+export const disableAdminFinanceBankAccountBodyIdempotencyKeyMax = 160;
+
+
+
+export const DisableAdminFinanceBankAccountBody = zod.object({
+  "reason": zod.string().min(disableAdminFinanceBankAccountBodyReasonMin).max(disableAdminFinanceBankAccountBodyReasonMax),
+  "idempotencyKey": zod.string().min(disableAdminFinanceBankAccountBodyIdempotencyKeyMin).max(disableAdminFinanceBankAccountBodyIdempotencyKeyMax)
+})
+
+export const DisableAdminFinanceBankAccountResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Search bank-funding requests with status filters
+ */
+export const listAdminFinanceTopupsQuerySearchMax = 120;
+
+export const listAdminFinanceTopupsQueryPageDefault = 1;
+
+export const listAdminFinanceTopupsQueryPageSizeDefault = 20;
+export const listAdminFinanceTopupsQueryPageSizeMax = 100;
+
+
+
+export const ListAdminFinanceTopupsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminFinanceTopupsQuerySearchMax).optional(),
+  "status": zod.enum(['draft', 'submitted', 'needs_info', 'rejected', 'partially_funded', 'funded', 'cancelled']).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminFinanceTopupsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminFinanceTopupsQueryPageSizeMax).default(listAdminFinanceTopupsQueryPageSizeDefault)
+})
+
+export const ListAdminFinanceTopupsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary Create a company top-up draft without posting money
+ */
+export const createAdminFinanceTopupBodyAmountMinorMax = 1000000000000;
+
+export const createAdminFinanceTopupBodyPayerBankNameMin = 2;
+export const createAdminFinanceTopupBodyPayerBankNameMax = 100;
+
+export const createAdminFinanceTopupBodyBankReferenceMin = 2;
+export const createAdminFinanceTopupBodyBankReferenceMax = 160;
+
+export const createAdminFinanceTopupBodyReasonMin = 5;
+export const createAdminFinanceTopupBodyReasonMax = 500;
+
+export const createAdminFinanceTopupBodyIdempotencyKeyMin = 8;
+export const createAdminFinanceTopupBodyIdempotencyKeyMax = 160;
+
+
+
+export const CreateAdminFinanceTopupBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "amountMinor": zod.number().int().min(1).max(createAdminFinanceTopupBodyAmountMinorMax),
+  "payerBankName": zod.string().min(createAdminFinanceTopupBodyPayerBankNameMin).max(createAdminFinanceTopupBodyPayerBankNameMax),
+  "bankReference": zod.string().min(createAdminFinanceTopupBodyBankReferenceMin).max(createAdminFinanceTopupBodyBankReferenceMax),
+  "reason": zod.string().min(createAdminFinanceTopupBodyReasonMin).max(createAdminFinanceTopupBodyReasonMax),
+  "idempotencyKey": zod.string().min(createAdminFinanceTopupBodyIdempotencyKeyMin).max(createAdminFinanceTopupBodyIdempotencyKeyMax)
+})
+
+export const CreateAdminFinanceTopupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Read a top-up request, evidence metadata and receipt allocations
+ */
+export const GetAdminFinanceTopupParams = zod.object({
+  "topupId": zod.coerce.string().uuid()
+})
+
+export const GetAdminFinanceTopupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Edit an eligible draft using optimistic version checking
+ */
+export const UpdateAdminFinanceTopupParams = zod.object({
+  "topupId": zod.coerce.string().uuid()
+})
+
+
+export const updateAdminFinanceTopupBodyAmountMinorMax = 1000000000000;
+
+export const updateAdminFinanceTopupBodyPayerBankNameMin = 2;
+export const updateAdminFinanceTopupBodyPayerBankNameMax = 100;
+
+export const updateAdminFinanceTopupBodyBankReferenceMin = 2;
+export const updateAdminFinanceTopupBodyBankReferenceMax = 160;
+
+export const updateAdminFinanceTopupBodyReasonMin = 5;
+export const updateAdminFinanceTopupBodyReasonMax = 500;
+
+export const updateAdminFinanceTopupBodyIdempotencyKeyMin = 8;
+export const updateAdminFinanceTopupBodyIdempotencyKeyMax = 160;
+
+
+
+export const UpdateAdminFinanceTopupBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "amountMinor": zod.number().int().min(1).max(updateAdminFinanceTopupBodyAmountMinorMax),
+  "payerBankName": zod.string().min(updateAdminFinanceTopupBodyPayerBankNameMin).max(updateAdminFinanceTopupBodyPayerBankNameMax),
+  "bankReference": zod.string().min(updateAdminFinanceTopupBodyBankReferenceMin).max(updateAdminFinanceTopupBodyBankReferenceMax),
+  "reason": zod.string().min(updateAdminFinanceTopupBodyReasonMin).max(updateAdminFinanceTopupBodyReasonMax),
+  "idempotencyKey": zod.string().min(updateAdminFinanceTopupBodyIdempotencyKeyMin).max(updateAdminFinanceTopupBodyIdempotencyKeyMax)
+})
+
+export const UpdateAdminFinanceTopupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Submit a top-up draft with its private evidence for review
+ */
+export const SubmitAdminFinanceTopupParams = zod.object({
+  "topupId": zod.coerce.string().uuid()
+})
+
+
+export const submitAdminFinanceTopupBodyReasonMin = 5;
+export const submitAdminFinanceTopupBodyReasonMax = 500;
+
+export const submitAdminFinanceTopupBodyIdempotencyKeyMin = 8;
+export const submitAdminFinanceTopupBodyIdempotencyKeyMax = 160;
+
+
+
+export const SubmitAdminFinanceTopupBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "reason": zod.string().min(submitAdminFinanceTopupBodyReasonMin).max(submitAdminFinanceTopupBodyReasonMax),
+  "idempotencyKey": zod.string().min(submitAdminFinanceTopupBodyIdempotencyKeyMin).max(submitAdminFinanceTopupBodyIdempotencyKeyMax)
+})
+
+export const SubmitAdminFinanceTopupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Request more information or reject with a mandatory reason
+ */
+export const ReviewAdminFinanceTopupParams = zod.object({
+  "topupId": zod.coerce.string().uuid()
+})
+
+
+export const reviewAdminFinanceTopupBodyReasonMin = 5;
+export const reviewAdminFinanceTopupBodyReasonMax = 500;
+
+export const reviewAdminFinanceTopupBodyIdempotencyKeyMin = 8;
+export const reviewAdminFinanceTopupBodyIdempotencyKeyMax = 160;
+
+
+
+export const ReviewAdminFinanceTopupBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "decision": zod.enum(['needs_info', 'reject']),
+  "reason": zod.string().min(reviewAdminFinanceTopupBodyReasonMin).max(reviewAdminFinanceTopupBodyReasonMax),
+  "idempotencyKey": zod.string().min(reviewAdminFinanceTopupBodyIdempotencyKeyMin).max(reviewAdminFinanceTopupBodyIdempotencyKeyMax)
+})
+
+export const ReviewAdminFinanceTopupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Verify the actual bank transfer and atomically post the receipt and top-up allocation
+ */
+export const ApproveAdminFinanceTopupParams = zod.object({
+  "topupId": zod.coerce.string().uuid()
+})
+
+export const approveAdminFinanceTopupBodyActualAmountMinorMax = 1000000000000;
+
+export const approveAdminFinanceTopupBodyAllocationAmountMinorMax = 1000000000000;
+
+export const approveAdminFinanceTopupBodyReasonMin = 5;
+export const approveAdminFinanceTopupBodyReasonMax = 500;
+
+export const approveAdminFinanceTopupBodyIdempotencyKeyMin = 8;
+export const approveAdminFinanceTopupBodyIdempotencyKeyMax = 160;
+
+
+
+export const ApproveAdminFinanceTopupBody = zod.object({
+  "bankAccountId": zod.string().uuid(),
+  "actualAmountMinor": zod.number().int().min(1).max(approveAdminFinanceTopupBodyActualAmountMinorMax),
+  "allocationAmountMinor": zod.number().int().min(1).max(approveAdminFinanceTopupBodyAllocationAmountMinorMax).nullish(),
+  "reason": zod.string().min(approveAdminFinanceTopupBodyReasonMin).max(approveAdminFinanceTopupBodyReasonMax),
+  "confirmedAgainstBank": zod.literal(true),
+  "idempotencyKey": zod.string().min(approveAdminFinanceTopupBodyIdempotencyKeyMin).max(approveAdminFinanceTopupBodyIdempotencyKeyMax)
+})
+
+export const ApproveAdminFinanceTopupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Search bank receipts and their allocated or unallocated amounts
+ */
+export const listAdminFinanceReceiptsQuerySearchMax = 120;
+
+export const listAdminFinanceReceiptsQueryPageDefault = 1;
+
+export const listAdminFinanceReceiptsQueryPageSizeDefault = 20;
+export const listAdminFinanceReceiptsQueryPageSizeMax = 100;
+
+
+
+export const ListAdminFinanceReceiptsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminFinanceReceiptsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminFinanceReceiptsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminFinanceReceiptsQueryPageSizeMax).default(listAdminFinanceReceiptsQueryPageSizeDefault)
+})
+
+export const ListAdminFinanceReceiptsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary Record an actually verified bank transfer as unallocated cash
+ */
+export const recordAdminFinanceReceiptBodyPayerBankNameMin = 2;
+export const recordAdminFinanceReceiptBodyPayerBankNameMax = 100;
+
+export const recordAdminFinanceReceiptBodyBankReferenceMin = 2;
+export const recordAdminFinanceReceiptBodyBankReferenceMax = 160;
+
+export const recordAdminFinanceReceiptBodyAmountMinorMax = 1000000000000;
+
+export const recordAdminFinanceReceiptBodyReasonMin = 5;
+export const recordAdminFinanceReceiptBodyReasonMax = 500;
+
+export const recordAdminFinanceReceiptBodyIdempotencyKeyMin = 8;
+export const recordAdminFinanceReceiptBodyIdempotencyKeyMax = 160;
+
+
+
+export const RecordAdminFinanceReceiptBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "branchId": zod.string().uuid().nullish(),
+  "bankAccountId": zod.string().uuid(),
+  "payerBankName": zod.string().min(recordAdminFinanceReceiptBodyPayerBankNameMin).max(recordAdminFinanceReceiptBodyPayerBankNameMax),
+  "bankReference": zod.string().min(recordAdminFinanceReceiptBodyBankReferenceMin).max(recordAdminFinanceReceiptBodyBankReferenceMax),
+  "amountMinor": zod.number().int().min(1).max(recordAdminFinanceReceiptBodyAmountMinorMax),
+  "reason": zod.string().min(recordAdminFinanceReceiptBodyReasonMin).max(recordAdminFinanceReceiptBodyReasonMax),
+  "confirmedAgainstBank": zod.literal(true),
+  "idempotencyKey": zod.string().min(recordAdminFinanceReceiptBodyIdempotencyKeyMin).max(recordAdminFinanceReceiptBodyIdempotencyKeyMax)
+})
+
+export const RecordAdminFinanceReceiptResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Allocate part of a confirmed receipt once to a top-up or pending subscription
+ */
+export const AllocateAdminFinanceReceiptParams = zod.object({
+  "receiptId": zod.coerce.string().uuid()
+})
+
+export const allocateAdminFinanceReceiptBodyAmountMinorMax = 1000000000000;
+
+export const allocateAdminFinanceReceiptBodyReasonMin = 5;
+export const allocateAdminFinanceReceiptBodyReasonMax = 500;
+
+export const allocateAdminFinanceReceiptBodyIdempotencyKeyMin = 8;
+export const allocateAdminFinanceReceiptBodyIdempotencyKeyMax = 160;
+
+
+
+export const AllocateAdminFinanceReceiptBody = zod.object({
+  "targetType": zod.enum(['topup', 'subscription']),
+  "targetId": zod.string().uuid(),
+  "amountMinor": zod.number().int().min(1).max(allocateAdminFinanceReceiptBodyAmountMinorMax),
+  "reason": zod.string().min(allocateAdminFinanceReceiptBodyReasonMin).max(allocateAdminFinanceReceiptBodyReasonMax),
+  "idempotencyKey": zod.string().min(allocateAdminFinanceReceiptBodyIdempotencyKeyMin).max(allocateAdminFinanceReceiptBodyIdempotencyKeyMax)
+})
+
+export const AllocateAdminFinanceReceiptResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary List same-company transfers between a main account and one branch
+ */
+export const listAdminFinanceTransfersQueryPageDefault = 1;
+
+export const listAdminFinanceTransfersQueryPageSizeDefault = 20;
+export const listAdminFinanceTransfersQueryPageSizeMax = 100;
+
+
+
+export const ListAdminFinanceTransfersQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminFinanceTransfersQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminFinanceTransfersQueryPageSizeMax).default(listAdminFinanceTransfersQueryPageSizeDefault)
+})
+
+export const ListAdminFinanceTransfersResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary Transfer available funds between one company's main account and one branch
+ */
+export const createAdminFinanceTransferBodyAmountMinorMax = 1000000000000;
+
+export const createAdminFinanceTransferBodyReferenceMin = 2;
+export const createAdminFinanceTransferBodyReferenceMax = 160;
+
+export const createAdminFinanceTransferBodyReasonMin = 5;
+export const createAdminFinanceTransferBodyReasonMax = 500;
+
+export const createAdminFinanceTransferBodyIdempotencyKeyMin = 8;
+export const createAdminFinanceTransferBodyIdempotencyKeyMax = 160;
+
+
+
+export const CreateAdminFinanceTransferBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "sourceBranchId": zod.string().uuid().nullish(),
+  "targetBranchId": zod.string().uuid().nullish(),
+  "amountMinor": zod.number().int().min(1).max(createAdminFinanceTransferBodyAmountMinorMax),
+  "reference": zod.string().min(createAdminFinanceTransferBodyReferenceMin).max(createAdminFinanceTransferBodyReferenceMax),
+  "reason": zod.string().min(createAdminFinanceTransferBodyReasonMin).max(createAdminFinanceTransferBodyReasonMax),
+  "idempotencyKey": zod.string().min(createAdminFinanceTransferBodyIdempotencyKeyMin).max(createAdminFinanceTransferBodyIdempotencyKeyMax)
+})
+
+export const CreateAdminFinanceTransferResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary List pending-payment subscriptions, frozen price snapshots and collected cash on hold
+ */
+export const listAdminFinanceSubscriptionsQuerySearchMax = 120;
+
+export const listAdminFinanceSubscriptionsQueryPageDefault = 1;
+
+export const listAdminFinanceSubscriptionsQueryPageSizeDefault = 20;
+export const listAdminFinanceSubscriptionsQueryPageSizeMax = 100;
+
+
+
+export const ListAdminFinanceSubscriptionsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminFinanceSubscriptionsQuerySearchMax).optional(),
+  "status": zod.enum(['unpaid', 'partially_collected', 'collected_on_hold', 'reversed']).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminFinanceSubscriptionsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminFinanceSubscriptionsQueryPageSizeMax).default(listAdminFinanceSubscriptionsQueryPageSizeDefault)
+})
+
+export const ListAdminFinanceSubscriptionsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary Search immutable journal entries with account and organization filters
+ */
+export const listAdminFinanceJournalQuerySearchMax = 120;
+
+export const listAdminFinanceJournalQueryPageDefault = 1;
+
+export const listAdminFinanceJournalQueryPageSizeDefault = 20;
+export const listAdminFinanceJournalQueryPageSizeMax = 100;
+
+
+
+export const ListAdminFinanceJournalQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "accountId": zod.coerce.string().uuid().optional(),
+  "entryType": zod.enum(['bank_receipt', 'topup_allocation', 'subscription_collection', 'internal_transfer', 'reversal']).optional(),
+  "search": zod.coerce.string().max(listAdminFinanceJournalQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminFinanceJournalQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminFinanceJournalQueryPageSizeMax).default(listAdminFinanceJournalQueryPageSizeDefault)
+})
+
+export const ListAdminFinanceJournalResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().optional(),
+  "pageSize": zod.number().int().optional(),
+  "total": zod.number().int().optional(),
+  "totalPages": zod.number().int().optional()
+})
+
+
+/**
+ * @summary Read an immutable entry and its balanced debit and credit lines
+ */
+export const GetAdminFinanceJournalEntryParams = zod.object({
+  "entryId": zod.coerce.string().uuid()
+})
+
+export const GetAdminFinanceJournalEntryResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Correct an eligible journal entry with a linked reversing entry
+ */
+export const ReverseAdminFinanceJournalEntryParams = zod.object({
+  "entryId": zod.coerce.string().uuid()
+})
+
+export const reverseAdminFinanceJournalEntryBodyReasonMin = 5;
+export const reverseAdminFinanceJournalEntryBodyReasonMax = 500;
+
+export const reverseAdminFinanceJournalEntryBodyIdempotencyKeyMin = 8;
+export const reverseAdminFinanceJournalEntryBodyIdempotencyKeyMax = 160;
+
+
+
+export const ReverseAdminFinanceJournalEntryBody = zod.object({
+  "reason": zod.string().min(reverseAdminFinanceJournalEntryBodyReasonMin).max(reverseAdminFinanceJournalEntryBodyReasonMax),
+  "idempotencyKey": zod.string().min(reverseAdminFinanceJournalEntryBodyIdempotencyKeyMin).max(reverseAdminFinanceJournalEntryBodyIdempotencyKeyMax)
+})
+
+export const ReverseAdminFinanceJournalEntryResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Check ledger and account consistency without changing records
+ */
+export const GetAdminFinanceReconciliationResponse = zod.record(zod.string(), zod.unknown())
 
 
 /**

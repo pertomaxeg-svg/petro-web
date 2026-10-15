@@ -1079,6 +1079,15 @@ paths:
         - name: bankVersionId
           in: query
           schema: { type: string, format: uuid }
+        - name: topupRequestId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: subscriptionRequestId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: receiptId
+          in: query
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: Document metadata visible to the caller; object bytes remain in a private bucket
@@ -1146,6 +1155,402 @@ paths:
           $ref: "#/components/responses/ApiError"
         "404":
           $ref: "#/components/responses/ApiError"
+  /admin/finance/summary:
+    get:
+      operationId: getAdminFinanceSummary
+      tags: [management]
+      summary: Read financial balances, held receipts and launch-policy gates
+      responses:
+        "200":
+          description: EGP summary derived from the immutable ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceSummary" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/organizations:
+    get:
+      operationId: listAdminFinanceOrganizations
+      tags: [management]
+      summary: Search eligible company organizations for funding workflows
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated company list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/accounts:
+    get:
+      operationId: listAdminFinanceAccounts
+      tags: [management]
+      summary: List company and branch funding balances derived from the ledger
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated funding accounts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/bank-accounts:
+    get:
+      operationId: listAdminFinanceBankAccounts
+      tags: [management]
+      summary: List masked platform receiving-account details and approval state
+      responses:
+        "200":
+          description: Masked receiving bank accounts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+    post:
+      operationId: createAdminFinanceBankAccount
+      tags: [management]
+      summary: Add a masked receiving bank account as a pending configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAdminFinanceBankAccount" }
+      responses:
+        "201":
+          description: Pending receiving bank account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/bank-accounts/{bankAccountId}/approve:
+    post:
+      operationId: approveAdminFinanceBankAccount
+      tags: [management]
+      summary: Approve a receiving account by a different authorized reviewer
+      parameters:
+        - { name: bankAccountId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinanceReasonAction" }
+      responses:
+        "200":
+          description: Account approval result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/bank-accounts/{bankAccountId}/disable:
+    post:
+      operationId: disableAdminFinanceBankAccount
+      tags: [management]
+      summary: Stop future use of a receiving account without changing historical receipts
+      parameters:
+        - { name: bankAccountId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinanceReasonAction" }
+      responses:
+        "200":
+          description: Account disable result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/topups:
+    get:
+      operationId: listAdminFinanceTopups
+      tags: [management]
+      summary: Search bank-funding requests with status filters
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, submitted, needs_info, rejected, partially_funded, funded, cancelled] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated funding requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+    post:
+      operationId: createAdminFinanceTopup
+      tags: [management]
+      summary: Create a company top-up draft without posting money
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAdminFinanceTopup" }
+      responses:
+        "201":
+          description: Draft request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/topups/{topupId}:
+    get:
+      operationId: getAdminFinanceTopup
+      tags: [management]
+      summary: Read a top-up request, evidence metadata and receipt allocations
+      parameters:
+        - { name: topupId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Top-up detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+    patch:
+      operationId: updateAdminFinanceTopup
+      tags: [management]
+      summary: Edit an eligible draft using optimistic version checking
+      parameters:
+        - { name: topupId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateAdminFinanceTopup" }
+      responses:
+        "200":
+          description: Updated draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/topups/{topupId}/submit:
+    post:
+      operationId: submitAdminFinanceTopup
+      tags: [management]
+      summary: Submit a top-up draft with its private evidence for review
+      parameters:
+        - { name: topupId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinanceVersionedReasonAction" }
+      responses:
+        "200":
+          description: Submission result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/topups/{topupId}/review:
+    post:
+      operationId: reviewAdminFinanceTopup
+      tags: [management]
+      summary: Request more information or reject with a mandatory reason
+      parameters:
+        - { name: topupId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewAdminFinanceTopup" }
+      responses:
+        "200":
+          description: Review result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/topups/{topupId}/approve:
+    post:
+      operationId: approveAdminFinanceTopup
+      tags: [management]
+      summary: Verify the actual bank transfer and atomically post the receipt and top-up allocation
+      parameters:
+        - { name: topupId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApproveAdminFinanceTopup" }
+      responses:
+        "200":
+          description: Matched receipt and allocation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/receipts:
+    get:
+      operationId: listAdminFinanceReceipts
+      tags: [management]
+      summary: Search bank receipts and their allocated or unallocated amounts
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated receipts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+    post:
+      operationId: recordAdminFinanceReceipt
+      tags: [management]
+      summary: Record an actually verified bank transfer as unallocated cash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordAdminFinanceReceipt" }
+      responses:
+        "201":
+          description: Receipt record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/receipts/{receiptId}/allocate:
+    post:
+      operationId: allocateAdminFinanceReceipt
+      tags: [management]
+      summary: Allocate part of a confirmed receipt once to a top-up or pending subscription
+      parameters:
+        - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AllocateAdminFinanceReceipt" }
+      responses:
+        "200":
+          description: Allocation result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/transfers:
+    get:
+      operationId: listAdminFinanceTransfers
+      tags: [management]
+      summary: List same-company transfers between a main account and one branch
+      parameters:
+        - { name: organizationId, in: query, schema: { type: string, format: uuid } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated internal transfers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+    post:
+      operationId: createAdminFinanceTransfer
+      tags: [management]
+      summary: Transfer available funds between one company's main account and one branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAdminFinanceTransfer" }
+      responses:
+        "201":
+          description: Posted internal transfer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/subscriptions:
+    get:
+      operationId: listAdminFinanceSubscriptions
+      tags: [management]
+      summary: List pending-payment subscriptions, frozen price snapshots and collected cash on hold
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: status, in: query, schema: { type: string, enum: [unpaid, partially_collected, collected_on_hold, reversed] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated subscription collection records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/journal:
+    get:
+      operationId: listAdminFinanceJournal
+      tags: [management]
+      summary: Search immutable journal entries with account and organization filters
+      parameters:
+        - { name: organizationId, in: query, schema: { type: string, format: uuid } }
+        - { name: accountId, in: query, schema: { type: string, format: uuid } }
+        - { name: entryType, in: query, schema: { type: string, enum: [bank_receipt, topup_allocation, subscription_collection, internal_transfer, reversal] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated journal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinancePage" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/journal/{entryId}:
+    get:
+      operationId: getAdminFinanceJournalEntry
+      tags: [management]
+      summary: Read an immutable entry and its balanced debit and credit lines
+      parameters:
+        - { name: entryId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Journal entry detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/journal/{entryId}/reverse:
+    post:
+      operationId: reverseAdminFinanceJournalEntry
+      tags: [management]
+      summary: Correct an eligible journal entry with a linked reversing entry
+      parameters:
+        - { name: entryId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinanceReasonAction" }
+      responses:
+        "200":
+          description: Linked reversing entry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/reconciliation:
+    get:
+      operationId: getAdminFinanceReconciliation
+      tags: [management]
+      summary: Check ledger and account consistency without changing records
+      responses:
+        "200":
+          description: Read-only consistency report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
   /admin/billing/catalog:
     get:
       operationId: getAdminBillingCatalog
@@ -2375,7 +2780,7 @@ components:
     CreateDocumentUploadIntent:
       type: object
       properties:
-        contextType: { type: string, enum: [join_request, organization, branch, change_request, bank_version] }
+        contextType: { type: string, enum: [join_request, organization, branch, change_request, bank_version, topup_request, subscription_request, receipt] }
         contextId: { type: string, format: uuid }
         documentType: { type: string, minLength: 2, maxLength: 80 }
         fileName: { type: string, minLength: 1, maxLength: 160 }
@@ -2383,6 +2788,129 @@ components:
         byteSize: { type: integer, minimum: 1, maximum: 10485760 }
         expiresOn: { type: [string, "null"], format: date }
       required: [contextType, contextId, documentType, fileName, contentType, byteSize]
+    AdminFinanceSummary:
+      type: object
+      additionalProperties: true
+      properties:
+        currency: { type: string, enum: [EGP] }
+        companyFundsMinor: { type: string }
+        reservedMinor: { type: string }
+        availableMinor: { type: string }
+        unallocatedReceiptsMinor: { type: string }
+        subscriptionHeldMinor: { type: string }
+        merchantPayableMinor: { type: string }
+        pendingTopups: { type: integer }
+        pendingBankAccounts: { type: integer }
+        collectedSubscriptionsOnHold: { type: integer }
+      required: [currency, companyFundsMinor, reservedMinor, availableMinor, unallocatedReceiptsMinor, subscriptionHeldMinor, merchantPayableMinor]
+    AdminFinancePage:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+      required: [items]
+    AdminFinanceResult:
+      type: object
+      additionalProperties: true
+    FinanceReasonAction:
+      type: object
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [reason, idempotencyKey]
+    FinanceVersionedReasonAction:
+      type: object
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [expectedVersion, reason, idempotencyKey]
+    CreateAdminFinanceBankAccount:
+      type: object
+      properties:
+        bankName: { type: string, minLength: 2, maxLength: 100 }
+        displayLabel: { type: string, minLength: 2, maxLength: 100 }
+        accountLast4: { type: string, pattern: "^[0-9]{4}$" }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [bankName, displayLabel, accountLast4, reason, idempotencyKey]
+    CreateAdminFinanceTopup:
+      type: object
+      properties:
+        organizationId: { type: string, format: uuid }
+        amountMinor: { type: integer, minimum: 1, maximum: 1000000000000 }
+        payerBankName: { type: string, minLength: 2, maxLength: 100 }
+        bankReference: { type: string, minLength: 2, maxLength: 160 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [organizationId, amountMinor, payerBankName, bankReference, reason, idempotencyKey]
+    UpdateAdminFinanceTopup:
+      type: object
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        amountMinor: { type: integer, minimum: 1, maximum: 1000000000000 }
+        payerBankName: { type: string, minLength: 2, maxLength: 100 }
+        bankReference: { type: string, minLength: 2, maxLength: 160 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [expectedVersion, amountMinor, payerBankName, bankReference, reason, idempotencyKey]
+    ReviewAdminFinanceTopup:
+      type: object
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        decision: { type: string, enum: [needs_info, reject] }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [expectedVersion, decision, reason, idempotencyKey]
+    ApproveAdminFinanceTopup:
+      type: object
+      properties:
+        bankAccountId: { type: string, format: uuid }
+        actualAmountMinor: { type: integer, minimum: 1, maximum: 1000000000000 }
+        allocationAmountMinor: { type: [integer, "null"], minimum: 1, maximum: 1000000000000 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        confirmedAgainstBank: { type: boolean, enum: [true] }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [bankAccountId, actualAmountMinor, reason, confirmedAgainstBank, idempotencyKey]
+    RecordAdminFinanceReceipt:
+      type: object
+      properties:
+        organizationId: { type: string, format: uuid }
+        branchId: { type: [string, "null"], format: uuid }
+        bankAccountId: { type: string, format: uuid }
+        payerBankName: { type: string, minLength: 2, maxLength: 100 }
+        bankReference: { type: string, minLength: 2, maxLength: 160 }
+        amountMinor: { type: integer, minimum: 1, maximum: 1000000000000 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        confirmedAgainstBank: { type: boolean, enum: [true] }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [organizationId, bankAccountId, payerBankName, bankReference, amountMinor, reason, confirmedAgainstBank, idempotencyKey]
+    AllocateAdminFinanceReceipt:
+      type: object
+      properties:
+        targetType: { type: string, enum: [topup, subscription] }
+        targetId: { type: string, format: uuid }
+        amountMinor: { type: integer, minimum: 1, maximum: 1000000000000 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [targetType, targetId, amountMinor, reason, idempotencyKey]
+    CreateAdminFinanceTransfer:
+      type: object
+      properties:
+        organizationId: { type: string, format: uuid }
+        sourceBranchId: { type: [string, "null"], format: uuid }
+        targetBranchId: { type: [string, "null"], format: uuid }
+        amountMinor: { type: integer, minimum: 1, maximum: 1000000000000 }
+        reference: { type: string, minLength: 2, maxLength: 160 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+      required: [organizationId, amountMinor, reference, reason, idempotencyKey]
     DocumentUploadIntent:
       type: object
       properties:
@@ -2399,6 +2927,9 @@ components:
         join_request_id: { type: [string, "null"], format: uuid }
         change_request_id: { type: [string, "null"], format: uuid }
         bank_account_version_id: { type: [string, "null"], format: uuid }
+        finance_topup_request_id: { type: [string, "null"], format: uuid }
+        finance_subscription_request_id: { type: [string, "null"], format: uuid }
+        finance_bank_receipt_id: { type: [string, "null"], format: uuid }
         document_type: { type: string }
         file_name: { type: string }
         content_type: { type: string, enum: [application/pdf, image/png, image/jpeg] }

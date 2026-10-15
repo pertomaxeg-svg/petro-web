@@ -12,4 +12,7 @@ branchId?: string;
 joinRequestId?: string;
 changeRequestId?: string;
 bankVersionId?: string;
+topupRequestId?: string;
+subscriptionRequestId?: string;
+receiptId?: string;
 };

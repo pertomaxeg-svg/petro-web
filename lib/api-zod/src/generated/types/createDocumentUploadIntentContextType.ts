@@ -15,4 +15,7 @@ export const CreateDocumentUploadIntentContextType = {
   branch: 'branch',
   change_request: 'change_request',
   bank_version: 'bank_version',
+  topup_request: 'topup_request',
+  subscription_request: 'subscription_request',
+  receipt: 'receipt',
 } as const;

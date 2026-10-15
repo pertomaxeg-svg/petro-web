@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X } from "lucide-react";
 import {
   getGetAuthMeQueryKey, getGetPlatformUserQueryKey, getListAdminOrganizationRequestsQueryKey,
   getListOrganizationsQueryKey, getListPlatformUsersQueryKey, useGetAuthMe, useGetPlatformUser,
@@ -9,6 +9,7 @@ import {
   useSetUserStatus, useSignOut,
 } from "@workspace/api-client-react";
 import type { PlatformRole, PlatformUser } from "@workspace/api-client-react";
+import { AdminFinancePage } from "./admin-finance/AdminFinancePage";
 
 const roles: PlatformRole[] = ["owner", "operations", "finance", "support", "auditor"];
 const roleFallback: Record<PlatformRole, string> = { owner: "مالك المنصة", operations: "العمليات", finance: "المالية", support: "الدعم", auditor: "مراجع" };
@@ -17,27 +18,39 @@ const kindLabel: Record<string, string> = { company: "شركة", station: "مح�
 const requestLabel: Record<string, string> = { join: "انضمام جهة", change: "تغيير بيانات", bank: "حساب بنكي", document: "مستند" };
 const errorInfo = (err: unknown) => err as { status?: number; message?: string; data?: { message?: string } };
 const apiMessage = (err: unknown) => errorInfo(err)?.data?.message || errorInfo(err)?.message || "تعذر إتمام الطلب. حاول مرة أخرى.";
-const isOwner = (ctx: unknown) => {
-  if (!ctx || typeof ctx !== "object") return false;
+const platformRoles = (ctx: unknown): PlatformRole[] => {
+  if (!ctx || typeof ctx !== "object") return [];
   const c = ctx as Record<string, unknown>;
   const value = c.platform_roles ?? c.platformRoles;
-  return Array.isArray(value) && value.includes("owner");
+  return Array.isArray(value)
+    ? value.filter((role): role is PlatformRole => roles.includes(role as PlatformRole))
+    : [];
 };
 const dateText = (value?: string) => value ? new Date(value).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" }) : "—";
 
-function AdminGate({ children }: { children: (name: string, userId: string) => ReactNode }) {
+function AdminGate({ children, allowedRoles = ["owner"] }: {
+  children: (name: string, userId: string, roles: PlatformRole[]) => ReactNode;
+  allowedRoles?: PlatformRole[];
+}) {
   const me = useGetAuthMe({ query: { queryKey: getGetAuthMeQueryKey(), retry: false, staleTime: 20_000 } });
   if (me.isLoading) return <main className="ac-page" dir="rtl"><div className="ac-loading"><i/><i/><i/></div></main>;
-  if (me.isError || !me.data) return <main className="ac-guard" dir="rtl"><div className="ac-guard-mark"><LockKeyhole/></div><h1>يلزم تسجيل الدخول</h1><p>تتطلب الإدارة المركزية جلسة موثّقة بحساب مالك المنصة.</p><Link className="ac-button" href="/sign-in">تسجيل الدخول <ArrowLeft size={16}/></Link></main>;
-  if (me.data.state !== "active" || !isOwner(me.data.accessContext)) return <main className="ac-guard" dir="rtl"><div className="ac-guard-mark"><ShieldCheck/></div><h1>هذه المساحة غير متاحة</h1><p>صلاحية مالك المنصة منفصلة عن عضوية أي جهة. لا يملك الحساب الحالي التفويض المطلوب.</p><Link className="ac-button ac-button-quiet" href="/workspace">العودة إلى مساحة العمل <ArrowLeft size={16}/></Link></main>;
-  return <AdminShell name={me.data.displayName}>{children(me.data.displayName, me.data.id)}</AdminShell>;
+  if (me.isError || !me.data) return <main className="ac-guard" dir="rtl"><div className="ac-guard-mark"><LockKeyhole/></div><h1>يلزم تسجيل الدخول</h1><p>تتطلب الإدارة المركزية جلسة موثّقة بصلاحية منصة مخوّلة.</p><Link className="ac-button" href="/sign-in">تسجيل الدخول <ArrowLeft size={16}/></Link></main>;
+  const userRoles = platformRoles(me.data.accessContext);
+  if (me.data.state !== "active" || !allowedRoles.some((role) => userRoles.includes(role))) return <main className="ac-guard" dir="rtl"><div className="ac-guard-mark"><ShieldCheck/></div><h1>هذه المساحة غير متاحة</h1><p>لا يملك الحساب الحالي تفويض المنصة المطلوب لهذا القسم.</p><Link className="ac-button ac-button-quiet" href="/workspace">العودة إلى مساحة العمل <ArrowLeft size={16}/></Link></main>;
+  return <AdminShell name={me.data.displayName} userRoles={userRoles}>{children(me.data.displayName, me.data.id, userRoles)}</AdminShell>;
 }
 
 export function CentralAdminFrame({ children }: { children: ReactNode }) {
   return <AdminGate>{() => children}</AdminGate>;
 }
 
-function AdminShell({ children, name }: { children: ReactNode; name: string }) {
+export function FinanceAdminFrame() {
+  return <AdminGate allowedRoles={["owner", "finance", "auditor", "operations"]}>
+    {(_name, _userId, userRoles) => <AdminFinancePage roles={userRoles}/>}
+  </AdminGate>;
+}
+
+function AdminShell({ children, name, userRoles }: { children: ReactNode; name: string; userRoles: PlatformRole[] }) {
   const [route] = useRoute("/admin/platform-users/:userId");
   const [orgRoute] = useRoute("/admin/organizations/:id");
   const [path, navigate] = useLocation();
@@ -56,17 +69,26 @@ function AdminShell({ children, name }: { children: ReactNode; name: string }) {
       setSignOutError("تعذر تسجيل الخروج. حاول مرة أخرى.");
     }
   }
-  const active = path === "/admin" ? "overview" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
-  const pageTitle = active === "overview" ? "نظرة عامة" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const isOwner = userRoles.includes("owner");
+  const canSeeFinance = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
+  const active = path === "/admin" ? "overview" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
+  const pageTitle = active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
   const nav = <nav className="ac-nav" aria-label="التنقل المركزي">
-    <span className="ac-nav-group">مركز الإدارة</span>
-    <Link href="/admin" onClick={()=>setDrawerOpen(false)} className={active === "overview" ? "selected" : ""}><span className="ac-nav-icon"><FileSearch size={17}/></span><span className="ac-nav-label">نظرة عامة</span></Link>
-    <Link href="/admin/organizations" onClick={()=>setDrawerOpen(false)} className={active === "organizations" ? "selected" : ""}><span className="ac-nav-icon"><Building2 size={17}/></span><span className="ac-nav-label">الجهات والفروع</span></Link>
-    <Link href="/admin/organization-requests" onClick={()=>setDrawerOpen(false)} className={active === "requests" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">طلبات الجهات</span></Link>
-    <Link href="/admin/platform-users" onClick={()=>setDrawerOpen(false)} className={active === "users" ? "selected" : ""}><span className="ac-nav-icon"><Users size={17}/></span><span className="ac-nav-label">مستخدمو المنصة</span></Link>
-    <span className="ac-nav-group ac-nav-group-spaced">التسعير والاشتراكات</span>
-    <Link href="/admin/plans" onClick={()=>setDrawerOpen(false)} className={active === "plans" ? "selected" : ""}><span className="ac-nav-icon"><CreditCard size={17}/></span><span className="ac-nav-label">الباقات والأسعار</span></Link>
-    <Link href="/admin/subscriptions" onClick={()=>setDrawerOpen(false)} className={active === "subscriptions" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">الطلبات والاشتراكات</span></Link>
+    {isOwner && <>
+      <span className="ac-nav-group">مركز الإدارة</span>
+      <Link href="/admin" onClick={()=>setDrawerOpen(false)} className={active === "overview" ? "selected" : ""}><span className="ac-nav-icon"><FileSearch size={17}/></span><span className="ac-nav-label">نظرة عامة</span></Link>
+      <Link href="/admin/organizations" onClick={()=>setDrawerOpen(false)} className={active === "organizations" ? "selected" : ""}><span className="ac-nav-icon"><Building2 size={17}/></span><span className="ac-nav-label">الجهات والفروع</span></Link>
+      <Link href="/admin/organization-requests" onClick={()=>setDrawerOpen(false)} className={active === "requests" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">طلبات الجهات</span></Link>
+      <Link href="/admin/platform-users" onClick={()=>setDrawerOpen(false)} className={active === "users" ? "selected" : ""}><span className="ac-nav-icon"><Users size={17}/></span><span className="ac-nav-label">مستخدمو المنصة</span></Link>
+      <span className="ac-nav-group ac-nav-group-spaced">التسعير والاشتراكات</span>
+      <Link href="/admin/plans" onClick={()=>setDrawerOpen(false)} className={active === "plans" ? "selected" : ""}><span className="ac-nav-icon"><CreditCard size={17}/></span><span className="ac-nav-label">الباقات والأسعار</span></Link>
+      <Link href="/admin/subscriptions" onClick={()=>setDrawerOpen(false)} className={active === "subscriptions" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">الطلبات والاشتراكات</span></Link>
+    </>}
+    {canSeeFinance && <>
+      <span className="ac-nav-group ac-nav-group-spaced">المالية والتحصيل</span>
+      <Link href="/admin/finance" onClick={()=>setDrawerOpen(false)} className={active === "finance" ? "selected" : ""}><span className="ac-nav-icon"><Banknote size={17}/></span><span className="ac-nav-label">الدفتر المالي</span></Link>
+    </>}
     <div className="ac-nav-bottom"><ShieldCheck size={15}/><span>قرارات موثقة<br/><small>نطاق المنصة فقط</small></span></div>
   </nav>;
   return <div className={`ac-app ${collapsed ? "ac-collapsed" : ""}`} dir="rtl">
@@ -74,7 +96,7 @@ function AdminShell({ children, name }: { children: ReactNode; name: string }) {
       <button className="ac-mobile-menu" aria-label="فتح قائمة الأقسام" onClick={()=>setDrawerOpen(true)}><Menu size={19}/></button>
       <Link href="/admin" className="ac-brand" aria-label="Pertomax EG — لوحة الإدارة"><img src={`${import.meta.env.BASE_URL}petro-max-lockup.png`} alt="Pertomax EG"/></Link>
       <div className="ac-context"><span>الإدارة المركزية</span><b>{pageTitle}</b></div>
-      <div className="ac-top-user"><span className="ac-owner-chip"><ShieldCheck size={15}/> مالك المنصة</span><span className="ac-avatar">{name.trim().slice(0, 1) || "م"}</span><span className="ac-top-name">{name}</span><button className="ac-signout" disabled={signOut.isPending} onClick={()=>void exit()}>{signOut.isPending?"جارٍ الخروج…":"تسجيل الخروج"}</button></div>
+      <div className="ac-top-user"><span className="ac-owner-chip"><ShieldCheck size={15}/> {roleTitle}</span><span className="ac-avatar">{name.trim().slice(0, 1) || "م"}</span><span className="ac-top-name">{name}</span><button className="ac-signout" disabled={signOut.isPending} onClick={()=>void exit()}>{signOut.isPending?"جارٍ الخروج…":"تسجيل الخروج"}</button></div>
     </header>
     {signOutError && <p className="ac-signout-error" role="alert">{signOutError}</p>}
     {drawerOpen && <button className="ac-drawer-scrim" aria-label="إغلاق القائمة" onClick={()=>setDrawerOpen(false)}/>}
