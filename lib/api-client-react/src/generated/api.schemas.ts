@@ -372,6 +372,146 @@ export interface StatusRequest {
   reason: string;
 }
 
+export type PlatformRole = typeof PlatformRole[keyof typeof PlatformRole];
+
+
+export const PlatformRole = {
+  owner: 'owner',
+  operations: 'operations',
+  finance: 'finance',
+  support: 'support',
+  auditor: 'auditor',
+} as const;
+
+export type AccountStatusRequestStatus = typeof AccountStatusRequestStatus[keyof typeof AccountStatusRequestStatus];
+
+
+export const AccountStatusRequestStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface AccountStatusRequest {
+  status: AccountStatusRequestStatus;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface SetPlatformUserRolesRequest {
+  /** @maxItems 5 */
+  roles: PlatformRole[];
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type PlatformUserAccountStatus = typeof PlatformUserAccountStatus[keyof typeof PlatformUserAccountStatus];
+
+
+export const PlatformUserAccountStatus = {
+  pending: 'pending',
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface PlatformUser {
+  userId: string;
+  username: string;
+  displayName: string;
+  active: boolean;
+  accountStatus: PlatformUserAccountStatus;
+  createdAt: string;
+  platformRoles: PlatformRole[];
+}
+
+export interface PlatformUserList {
+  items: PlatformUser[];
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 0 */
+  totalPages: number;
+}
+
+export interface PlatformRolePermission {
+  code: string;
+  label: string;
+}
+
+export type PlatformRoleOptionScope = typeof PlatformRoleOptionScope[keyof typeof PlatformRoleOptionScope];
+
+
+export const PlatformRoleOptionScope = {
+  platform: 'platform',
+} as const;
+
+export interface PlatformRoleOption {
+  role: PlatformRole;
+  label: string;
+  scope: PlatformRoleOptionScope;
+  permissions: PlatformRolePermission[];
+}
+
+export type PlatformUserActivityAction = typeof PlatformUserActivityAction[keyof typeof PlatformUserActivityAction];
+
+
+export const PlatformUserActivityAction = {
+  accountstatus_changed: 'account.status_changed',
+  platformroles_changed: 'platform.roles_changed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type PlatformUserActivityStatus = typeof PlatformUserActivityStatus[keyof typeof PlatformUserActivityStatus] | null;
+
+
+export const PlatformUserActivityStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface PlatformUserActivity {
+  activityId: string;
+  action: PlatformUserActivityAction;
+  occurredAt: string;
+  /** @nullable */
+  actorUsername: string | null;
+  /** @nullable */
+  actorDisplayName: string | null;
+  /** @nullable */
+  status: PlatformUserActivityStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  reason: string | null;
+  previousRoles: PlatformRole[];
+  newRoles: PlatformRole[];
+}
+
+export interface PlatformUserDetail {
+  user: PlatformUser;
+  roleCatalog: PlatformRoleOption[];
+  activity: PlatformUserActivity[];
+}
+
+export interface PlatformUserRolesResult {
+  roles: PlatformRole[];
+  message: string;
+}
+
 export type BranchStatusRequestOperationalStatus = typeof BranchStatusRequestOperationalStatus[keyof typeof BranchStatusRequestOperationalStatus];
 
 
@@ -1310,6 +1450,34 @@ export type ListBranchesPaginatedSortDirection = typeof ListBranchesPaginatedSor
 export const ListBranchesPaginatedSortDirection = {
   asc: 'asc',
   desc: 'desc',
+} as const;
+
+export type ListPlatformUsersParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+/**
+ * @minLength 2
+ * @maxLength 100
+ */
+search?: string;
+accountStatus?: ListPlatformUsersAccountStatus;
+role?: PlatformRole;
+};
+
+export type ListPlatformUsersAccountStatus = typeof ListPlatformUsersAccountStatus[keyof typeof ListPlatformUsersAccountStatus];
+
+
+export const ListPlatformUsersAccountStatus = {
+  pending: 'pending',
+  active: 'active',
+  suspended: 'suspended',
 } as const;
 
 export type ListOrganizationJoinRequestsParams = {

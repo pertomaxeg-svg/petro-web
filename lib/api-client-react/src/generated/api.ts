@@ -21,6 +21,7 @@ import type {
 
 import type {
   AcceptInvitationRequest,
+  AccountStatusRequest,
   AdminOrganizationRequestList,
   ApiErrorResponse,
   ApprovalRequest,
@@ -56,6 +57,7 @@ import type {
   ListOrganizationDocumentsParams,
   ListOrganizationJoinRequestsParams,
   ListOrganizationsParams,
+  ListPlatformUsersParams,
   MembershipList,
   MessageResult,
   Organization,
@@ -65,10 +67,14 @@ import type {
   OrganizationPage,
   OrganizationReviewDecision,
   PasswordUpdateRequest,
+  PlatformUserDetail,
+  PlatformUserList,
+  PlatformUserRolesResult,
   ProposeBankAccountRequest,
   RecoveryRequest,
   ResubmitOrganizationChangeRequest,
   SetMembershipRequest,
+  SetPlatformUserRolesRequest,
   SignInRequest,
   SignUpRequest,
   SignUpResult,
@@ -178,6 +184,13 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getSupabaseHealthCheckUrl = () => {
 
 
@@ -249,6 +262,12 @@ export function useSupabaseHealthCheck<TData = Awaited<ReturnType<typeof supabas
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
 
 export const getSignUpUrl = () => {
 
@@ -747,6 +766,12 @@ export function useGetAuthMe<TData = Awaited<ReturnType<typeof getAuthMe>>, TErr
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+
+
+
+
+
+
 export const getGetOwnerBootstrapStatusUrl = () => {
 
 
@@ -817,6 +842,13 @@ export function useGetOwnerBootstrapStatus<TData = Awaited<ReturnType<typeof get
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getBootstrapOwnerUrl = () => {
 
 
@@ -2525,10 +2557,10 @@ export const getSetUserStatusUrl = (userId: string,) => {
 }
 
 /**
- * @summary Activate or suspend an account; suspended owners cannot retain a stale session
+ * @summary Activate or suspend an account with a required audit reason; only a platform owner may do so
  */
 export const setUserStatus = async (userId: string,
-    statusRequest: StatusRequest, options?: Parameters<typeof customFetch>[1]): Promise<StatusResult> => {
+    accountStatusRequest: AccountStatusRequest, options?: Parameters<typeof customFetch>[1]): Promise<StatusResult> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -2549,7 +2581,7 @@ return customFetch<StatusResult>(getSetUserStatusUrl(userId),
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(statusRequest)
+    body: JSON.stringify(accountStatusRequest)
   }
 );}
 
@@ -2587,12 +2619,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SetUserStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setUserStatus>>>
-    export type SetUserStatusMutationBody = BodyType<StatusRequest>
+    export type SetUserStatusMutationBody = BodyType<AccountStatusRequest>
     export type SetUserStatusMutationError = ErrorType<ApiErrorResponse>
-    export type SetUserStatusMutationVariables = {userId: string;data: BodyType<StatusRequest>}
+    export type SetUserStatusMutationVariables = {userId: string;data: BodyType<AccountStatusRequest>}
 
     /**
- * @summary Activate or suspend an account; suspended owners cannot retain a stale session
+ * @summary Activate or suspend an account with a required audit reason; only a platform owner may do so
  */
 export const useSetUserStatus = <TError = ErrorType<ApiErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserStatus>>, TError,SetUserStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2603,6 +2635,256 @@ export const useSetUserStatus = <TError = ErrorType<ApiErrorResponse>,
         TContext
       > => {
       return useMutation(getSetUserStatusMutationOptions(options));
+    }
+
+export const getListPlatformUsersUrl = (params?: ListPlatformUsersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/platform-users?${stringifiedParams}` : `/api/admin/platform-users`
+}
+
+/**
+ * @summary List platform accounts and their active platform roles; owner only
+ */
+export const listPlatformUsers = async (params?: ListPlatformUsersParams, options?: Parameters<typeof customFetch>[1]): Promise<PlatformUserList> => {
+
+  return customFetch<PlatformUserList>(getListPlatformUsersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformUsersQueryKey = (params?: ListPlatformUsersParams,) => {
+    return [
+    `/api/admin/platform-users`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPlatformUsersQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformUsers>>, TError = ErrorType<ApiErrorResponse>>(params?: ListPlatformUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformUsersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformUsers>>> = ({ signal }) => listPlatformUsers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformUsers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformUsersQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformUsers>>>
+export type ListPlatformUsersQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary List platform accounts and their active platform roles; owner only
+ */
+
+export function useListPlatformUsers<TData = Awaited<ReturnType<typeof listPlatformUsers>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListPlatformUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformUsersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPlatformUserUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/platform-users/${userId}`
+}
+
+/**
+ * @summary Read a platform account, actual role capabilities, and audited account changes; owner only
+ */
+export const getPlatformUser = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<PlatformUserDetail> => {
+
+  return customFetch<PlatformUserDetail>(getGetPlatformUserUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformUserQueryKey = (userId: string,) => {
+    return [
+    `/api/admin/platform-users/${userId}`
+    ] as const;
+    }
+
+
+export const getGetPlatformUserQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformUser>>, TError = ErrorType<ApiErrorResponse>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformUserQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformUser>>> = ({ signal }) => getPlatformUser(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformUser>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformUserQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformUser>>>
+export type GetPlatformUserQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read a platform account, actual role capabilities, and audited account changes; owner only
+ */
+
+export function useGetPlatformUser<TData = Awaited<ReturnType<typeof getPlatformUser>>, TError = ErrorType<ApiErrorResponse>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformUserQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetPlatformUserRolesUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/platform-users/${userId}/roles`
+}
+
+/**
+ * @summary Replace a user's active platform roles with an audited reason; owner only
+ */
+export const setPlatformUserRoles = async (userId: string,
+    setPlatformUserRolesRequest: SetPlatformUserRolesRequest, options?: Parameters<typeof customFetch>[1]): Promise<PlatformUserRolesResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformUserRolesResult>(getSetPlatformUserRolesUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(setPlatformUserRolesRequest)
+  }
+);}
+
+
+
+
+
+export const getSetPlatformUserRolesMutationKey = () => ['setPlatformUserRoles'] as const;
+
+export const getSetPlatformUserRolesMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPlatformUserRoles>>, TError,SetPlatformUserRolesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setPlatformUserRoles>>, TError,SetPlatformUserRolesMutationVariables, TContext> => {
+
+const mutationKey = getSetPlatformUserRolesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setPlatformUserRoles>>, SetPlatformUserRolesMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  setPlatformUserRoles(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetPlatformUserRolesMutationResult = NonNullable<Awaited<ReturnType<typeof setPlatformUserRoles>>>
+    export type SetPlatformUserRolesMutationBody = BodyType<SetPlatformUserRolesRequest>
+    export type SetPlatformUserRolesMutationError = ErrorType<ApiErrorResponse>
+    export type SetPlatformUserRolesMutationVariables = {userId: string;data: BodyType<SetPlatformUserRolesRequest>}
+
+    /**
+ * @summary Replace a user's active platform roles with an audited reason; owner only
+ */
+export const useSetPlatformUserRoles = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPlatformUserRoles>>, TError,SetPlatformUserRolesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setPlatformUserRoles>>,
+        TError,
+        SetPlatformUserRolesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetPlatformUserRolesMutationOptions(options));
     }
 
 export const getListOrganizationJoinRequestsUrl = (params?: ListOrganizationJoinRequestsParams,) => {

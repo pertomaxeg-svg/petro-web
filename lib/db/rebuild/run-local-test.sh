@@ -206,11 +206,53 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0007:-}" ]; then
       's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0007"
 fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0008.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0008_platform_user_administration.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0008.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0008.txt" "$tmp_dir/default-acl-after-0008.txt"; then
+  echo "0008 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0008.txt" "$tmp_dir/default-acl-after-0008.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/platform-user-administration-smoke-test.sql" >/dev/null
+if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0008:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0008")"
+  pg_dump --no-owner --no-privileges --schema-only \
+    --schema=public --schema=petro_private |
+    sed -E \
+      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0008"
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0009.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0009_revoke_legacy_account_status_rpc.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0009.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0009.txt" "$tmp_dir/default-acl-after-0009.txt"; then
+  echo "0009 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0009.txt" "$tmp_dir/default-acl-after-0009.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/legacy-status-rpc-revocation-smoke-test.sql" >/dev/null
+node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0009:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0009")"
+  pg_dump --no-owner --no-privileges --schema-only \
+    --schema=public --schema=petro_private |
+    sed -E \
+      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0009"
+fi
 
 echo "Fresh baseline matched: 11 tables, 57 constraints, 22 indexes, 23 functions, 12 RLS policies, 11 RLS-enabled tables."
 echo "DB-01 baseline RLS checks passed; 0004 was applied once to the disposable baseline and DB-02 invitation checks passed."
 echo "0005 organization/branch schema, reasoned audit, state separation, uniqueness, optimistic concurrency, role separation and tenant/branch isolation checks passed."
 echo "0006 organization requests, document metadata/private-storage RLS policies, bank versioning, review decisions, no-owner-escalation and optimistic-concurrency tests passed."
 echo "0007 confirmed pending self-service, beneficiary immutability, private attachment isolation, withdrawal, completion, review, resubmission, one-time approval and central on-behalf regression tests passed."
-echo "0004/0005/0006/0007 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
-echo "Only a temporary local PostgreSQL cluster was used; no project Secrets or network connection were used."
+echo "0008 platform-user directory, role/status audit, owner-only authorization, self-change denial, inactive-account guard, and legacy-RPC compatibility checks passed."
+echo "0009 client-role revocation of the legacy status RPC passed; service_role access remained unchanged."
+echo "The API router and 0008/0009 functions passed an isolated HTTP/PostgreSQL integration test using synthetic users and a local fake Supabase transport."
+echo "0004/0005/0006/0007/0008/0009 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
+echo "Only a temporary local PostgreSQL cluster and local HTTP test server were used; no project Secrets or external network connections were used."

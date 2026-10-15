@@ -23,12 +23,58 @@ const MEMBERSHIP_ROLES = new Set([
 ]);
 const ORGANIZATION_KINDS = new Set(["company", "station", "provider"]);
 const MEMBERSHIP_SCOPES = new Set(["organization", "branches"]);
+const PLATFORM_ROLES = new Set(["owner", "operations", "finance", "support", "auditor"]);
 const ORGANIZATION_SELECT =
   "id,name,kind,code,legal_name,contact_name,contact_phone,contact_email,address,country_code,currency,status,approval_status,operational_status,created_at,updated_at,version";
 const BRANCH_SELECT =
   "id,organization_id,code,name,address,governorate,latitude,longitude,hours,contact_name,contact_phone,status,approval_status,operational_status,created_at,updated_at,version";
 const SEARCH_RESTRICTED = /[^\p{L}\p{M}\p{N}\s_-]/gu;
 const PAGE_SIZE_MAX = 100;
+const PLATFORM_ROLE_CATALOG = [
+  {
+    role: "owner",
+    label: "مالك المنصة",
+    scope: "platform",
+    permissions: [
+      { code: "organizations.manage", label: "إدارة الجهات والفروع" },
+      { code: "organization_requests.review", label: "مراجعة طلبات الانضمام وتغييرات البيانات" },
+      { code: "bank_details.review", label: "مراجعة بيانات الحسابات البنكية" },
+      { code: "platform_users.manage", label: "إدارة مستخدمي المنصة وأدوارهم" },
+      { code: "audit.read", label: "قراءة سجل التدقيق المركزي" },
+    ],
+  },
+  {
+    role: "operations",
+    label: "العمليات",
+    scope: "platform",
+    permissions: [
+      { code: "organizations.manage", label: "إدارة الجهات والفروع" },
+      { code: "organization_requests.review", label: "مراجعة طلبات الانضمام وتغييرات البيانات" },
+      { code: "profiles.read", label: "قراءة ملفات الحسابات اللازمة للتشغيل" },
+    ],
+  },
+  {
+    role: "finance",
+    label: "المالية",
+    scope: "platform",
+    permissions: [
+      { code: "bank_details.read", label: "قراءة تفاصيل الحسابات البنكية المصرح بها" },
+      { code: "bank_changes.review", label: "مراجعة تغييرات الحسابات البنكية" },
+    ],
+  },
+  {
+    role: "support",
+    label: "الدعم",
+    scope: "platform",
+    permissions: [],
+  },
+  {
+    role: "auditor",
+    label: "مراجع",
+    scope: "platform",
+    permissions: [{ code: "audit.read", label: "قراءة سجل التدقيق المصرح به" }],
+  },
+] as const;
 
 export type SessionContext = {
   supabase: ReturnType<typeof createSupabaseServerClient>;
@@ -85,8 +131,19 @@ export async function requireSession(
 export function apiError(res: Response, error: { code?: string; message?: string } | null): void {
   if (error?.code === "42501" || error?.code === "PGRST301") {
     fail(res, 403, "ليست لديك صلاحية لهذا الإجراء.");
+  } else if (
+    (error?.code === "PGRST202" || error?.code === "42883") &&
+    error.message?.includes("petro_admin_")
+  ) {
+    fail(res, 503, "إدارة مستخدمي المنصة بانتظار تفعيل مخطط قاعدة البيانات المتوافق.");
   } else if (error?.code === "23505") {
     fail(res, 409, "الكود مستخدم بالفعل داخل هذا النطاق.");
+  } else if (error?.code === "23514" && error.message?.includes("last active platform owner")) {
+    fail(res, 409, "لا يمكن تنفيذ الإجراء لأنه سيترك المنصة بلا مالك نشط.");
+  } else if (error?.code === "23514" && error.message?.includes("target account must be active")) {
+    fail(res, 409, "فعّل الحساب أولًا قبل منحه دورًا على مستوى المنصة.");
+  } else if (error?.code === "23514") {
+    fail(res, 409, "تعذر تنفيذ الإجراء بسبب قيد حماية للحساب.");
   } else if (error?.code === "40001") {
     fail(res, 409, "تغير السجل بعد فتحه. حدّث الصفحة ثم أعد المحاولة.");
   } else if (error?.code === "55000" && error.message?.includes("SENSITIVE_CHANGE_REQUIRES_REVIEW")) {
@@ -735,19 +792,146 @@ router.patch("/users/:userId/status", async (req, res): Promise<void> => {
 
   const userId = req.params["userId"];
   const status = readString(req.body, "status", 20);
-  if (!validId(userId) || (status !== "active" && status !== "suspended")) {
-    fail(res, 400, "معرّف الحساب أو حالته غير صالح.");
+  const reason = readString(req.body, "reason", 500)?.trim();
+  if (
+    !validId(userId) ||
+    (status !== "active" && status !== "suspended") ||
+    !reason ||
+    reason.length < 5
+  ) {
+    fail(res, 400, "تحقق من معرّف الحساب والحالة وسبب الإجراء (5–500 حرف).");
     return;
   }
-  const { error } = await session.supabase.rpc("petro_set_account_status", {
+  const { error } = await session.supabase.rpc("petro_admin_set_account_status", {
     p_user_id: userId,
     p_status: status,
+    p_reason: reason,
   });
   if (error) {
     apiError(res, error);
     return;
   }
   res.json({ status, message: "تم تحديث حالة الحساب وتسجيل التغيير." });
+});
+
+router.get("/admin/platform-users", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const page = pageQuery(req);
+  const rawSearch = queryString(req, "search");
+  const search = safeSearch(req);
+  const accountStatus = queryString(req, "accountStatus");
+  const role = queryString(req, "role");
+  if (
+    !page ||
+    (rawSearch && !search) ||
+    (accountStatus && !["pending", "active", "suspended"].includes(accountStatus)) ||
+    (role && !PLATFORM_ROLES.has(role))
+  ) {
+    fail(res, 400, "تحقق من البحث وحالة الحساب والدور ورقم الصفحة.");
+    return;
+  }
+
+  const { data, error } = await session.supabase.rpc("petro_admin_list_platform_users", {
+    p_page: page.page,
+    p_page_size: page.pageSize,
+    p_search: search,
+    p_account_status: accountStatus ?? null,
+    p_role: role ?? null,
+  });
+  if (error) {
+    apiError(res, error);
+    return;
+  }
+
+  const rows = (data ?? []) as Array<{
+    user_id: string;
+    username: string;
+    display_name: string;
+    active: boolean;
+    account_status: "pending" | "active" | "suspended";
+    created_at: string;
+    platform_roles: string[];
+    total_count: number | string;
+  }>;
+  const total = rows.length ? Number(rows[0]?.total_count ?? 0) : 0;
+  res.json({
+    items: rows.map((row) => ({
+      userId: row.user_id,
+      username: row.username,
+      displayName: row.display_name,
+      active: row.active,
+      accountStatus: row.account_status,
+      createdAt: row.created_at,
+      platformRoles: row.platform_roles,
+    })),
+    page: page.page,
+    pageSize: page.pageSize,
+    total,
+    totalPages: Math.ceil(total / page.pageSize),
+  });
+});
+
+router.get("/admin/platform-users/:userId", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const userId = req.params["userId"];
+  if (!validId(userId)) {
+    fail(res, 400, "معرّف الحساب غير صالح.");
+    return;
+  }
+
+  const { data, error } = await session.supabase.rpc("petro_admin_get_platform_user", {
+    p_user_id: userId,
+  });
+  if (error) {
+    apiError(res, error);
+    return;
+  }
+  if (!isRecord(data) || !isRecord(data.user)) {
+    fail(res, 404, "لم يتم العثور على حساب المنصة.");
+    return;
+  }
+  res.json({ ...data, roleCatalog: PLATFORM_ROLE_CATALOG });
+});
+
+router.patch("/admin/platform-users/:userId/roles", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const userId = req.params["userId"];
+  const roles = readStringArray(req.body, "roles", 5);
+  const reason = readString(req.body, "reason", 500)?.trim();
+  if (
+    !validId(userId) ||
+    !roles ||
+    roles.some((role) => !PLATFORM_ROLES.has(role)) ||
+    new Set(roles).size !== roles.length ||
+    !reason ||
+    reason.length < 5
+  ) {
+    fail(res, 400, "تحقق من الحساب والأدوار وسبب التغيير (5–500 حرف).");
+    return;
+  }
+
+  const { data, error } = await session.supabase.rpc("petro_admin_set_platform_roles", {
+    p_user_id: userId,
+    p_roles: roles,
+    p_reason: reason,
+  });
+  if (error) {
+    apiError(res, error);
+    return;
+  }
+  res.json({
+    roles: data ?? [],
+    message: "تم تحديث أدوار المنصة وتسجيل السبب في سجل التدقيق.",
+  });
 });
 
 export default router;

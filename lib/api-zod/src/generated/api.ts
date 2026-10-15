@@ -952,12 +952,11 @@ export const RevokeInvitationResponse = zod.void()
 
 
 /**
- * @summary Activate or suspend an account; suspended owners cannot retain a stale session
+ * @summary Activate or suspend an account with a required audit reason; only a platform owner may do so
  */
 export const SetUserStatusParams = zod.object({
   "userId": zod.coerce.string().uuid()
 })
-
 
 export const setUserStatusBodyReasonMin = 5;
 export const setUserStatusBodyReasonMax = 500;
@@ -965,13 +964,128 @@ export const setUserStatusBodyReasonMax = 500;
 
 
 export const SetUserStatusBody = zod.object({
-  "expectedVersion": zod.number().int().min(1),
-  "operationalStatus": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended']),
   "reason": zod.string().min(setUserStatusBodyReasonMin).max(setUserStatusBodyReasonMax)
 })
 
 export const SetUserStatusResponse = zod.object({
   "status": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List platform accounts and their active platform roles; owner only
+ */
+export const listPlatformUsersQueryPageDefault = 1;
+
+export const listPlatformUsersQueryPageSizeDefault = 25;
+export const listPlatformUsersQueryPageSizeMax = 100;
+
+export const listPlatformUsersQuerySearchMin = 2;
+export const listPlatformUsersQuerySearchMax = 100;
+
+
+
+export const ListPlatformUsersQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).default(listPlatformUsersQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listPlatformUsersQueryPageSizeMax).default(listPlatformUsersQueryPageSizeDefault),
+  "search": zod.coerce.string().min(listPlatformUsersQuerySearchMin).max(listPlatformUsersQuerySearchMax).optional(),
+  "accountStatus": zod.enum(['pending', 'active', 'suspended']).optional(),
+  "role": zod.enum(['owner', 'operations', 'finance', 'support', 'auditor']).optional()
+})
+
+
+export const listPlatformUsersResponsePageSizeMax = 100;
+
+export const listPlatformUsersResponseTotalMin = 0;
+
+export const listPlatformUsersResponseTotalPagesMin = 0;
+
+
+
+export const ListPlatformUsersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "active": zod.boolean(),
+  "accountStatus": zod.enum(['pending', 'active', 'suspended']),
+  "createdAt": zod.coerce.date(),
+  "platformRoles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor']))
+})),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(listPlatformUsersResponsePageSizeMax),
+  "total": zod.number().int().min(listPlatformUsersResponseTotalMin),
+  "totalPages": zod.number().int().min(listPlatformUsersResponseTotalPagesMin)
+})
+
+
+/**
+ * @summary Read a platform account, actual role capabilities, and audited account changes; owner only
+ */
+export const GetPlatformUserParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const getPlatformUserResponseActivityItemReasonMax = 500;
+
+
+
+export const GetPlatformUserResponse = zod.object({
+  "user": zod.object({
+  "userId": zod.string().uuid(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "active": zod.boolean(),
+  "accountStatus": zod.enum(['pending', 'active', 'suspended']),
+  "createdAt": zod.coerce.date(),
+  "platformRoles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor']))
+}),
+  "roleCatalog": zod.array(zod.object({
+  "role": zod.enum(['owner', 'operations', 'finance', 'support', 'auditor']),
+  "label": zod.string(),
+  "scope": zod.enum(['platform']),
+  "permissions": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string()
+}))
+})),
+  "activity": zod.array(zod.object({
+  "activityId": zod.string(),
+  "action": zod.enum(['account.status_changed', 'platform.roles_changed']),
+  "occurredAt": zod.coerce.date(),
+  "actorUsername": zod.string().nullable(),
+  "actorDisplayName": zod.string().nullable(),
+  "status": zod.union([zod.literal('active'),zod.literal('suspended'),zod.literal(null)]).nullable(),
+  "reason": zod.string().max(getPlatformUserResponseActivityItemReasonMax).nullable(),
+  "previousRoles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor'])),
+  "newRoles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor']))
+}))
+})
+
+
+/**
+ * @summary Replace a user's active platform roles with an audited reason; owner only
+ */
+export const SetPlatformUserRolesParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const setPlatformUserRolesBodyRolesMax = 5;
+
+export const setPlatformUserRolesBodyReasonMin = 5;
+export const setPlatformUserRolesBodyReasonMax = 500;
+
+
+
+export const SetPlatformUserRolesBody = zod.object({
+  "roles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor'])).max(setPlatformUserRolesBodyRolesMax),
+  "reason": zod.string().min(setPlatformUserRolesBodyReasonMin).max(setPlatformUserRolesBodyReasonMax)
+})
+
+export const SetPlatformUserRolesResponse = zod.object({
+  "roles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor'])),
   "message": zod.string()
 })
 
