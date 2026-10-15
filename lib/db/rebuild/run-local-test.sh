@@ -53,6 +53,8 @@ sed '/^CREATE SCHEMA public;$/d' "$schema_dump" |
   psql --no-psqlrc --single-transaction --set ON_ERROR_STOP=1 >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/local-auth-post-baseline.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/local-storage-bootstrap.sql" >/dev/null
 
 psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
 DO $$
@@ -154,9 +156,33 @@ if ! cmp -s "$tmp_dir/default-acl-before-0005.txt" "$tmp_dir/default-acl-after-0
 fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/central-organizations-smoke-test.sql" >/dev/null
+if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP")"
+  pg_dump --no-owner --no-privileges --schema-only \
+    --schema=public --schema=petro_private \
+    >"$PERTOMAX_EXPECTED_SCHEMA_DUMP"
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0006.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0006_organization_requests_documents_banking.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0006.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0006.txt" "$tmp_dir/default-acl-after-0006.txt"; then
+  echo "0006 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0006.txt" "$tmp_dir/default-acl-after-0006.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/organization-workflows-smoke-test.sql" >/dev/null
+if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0006:-}" ]; then
+  mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0006")"
+  pg_dump --no-owner --no-privileges --schema-only \
+    --schema=public --schema=petro_private \
+    >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0006"
+fi
 
 echo "Fresh baseline matched: 11 tables, 57 constraints, 22 indexes, 23 functions, 12 RLS policies, 11 RLS-enabled tables."
 echo "DB-01 baseline RLS checks passed; 0004 was applied once to the disposable baseline and DB-02 invitation checks passed."
 echo "0005 organization/branch schema, reasoned audit, state separation, uniqueness, optimistic concurrency, role separation and tenant/branch isolation checks passed."
-echo "0004/0005 local migrations changed no default ACL in any schema."
+echo "0006 organization requests, document metadata/private-storage RLS policies, bank versioning, review decisions, no-owner-escalation and optimistic-concurrency tests passed."
+echo "0004/0005/0006 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
 echo "Only a temporary local PostgreSQL cluster was used; no project Secrets or network connection were used."

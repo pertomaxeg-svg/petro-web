@@ -30,7 +30,7 @@ const BRANCH_SELECT =
 const SEARCH_RESTRICTED = /[^\p{L}\p{M}\p{N}\s_-]/gu;
 const PAGE_SIZE_MAX = 100;
 
-type SessionContext = {
+export type SessionContext = {
   supabase: ReturnType<typeof createSupabaseServerClient>;
   userId: string;
 };
@@ -43,7 +43,7 @@ function validId(value: string | undefined): value is string {
   return Boolean(value && UUID_RE.test(value));
 }
 
-async function requireSession(
+export async function requireSession(
   req: Request,
   res: Response,
   requireActive = true,
@@ -82,13 +82,17 @@ async function requireSession(
   }
 }
 
-function apiError(res: Response, error: { code?: string } | null): void {
+export function apiError(res: Response, error: { code?: string; message?: string } | null): void {
   if (error?.code === "42501" || error?.code === "PGRST301") {
     fail(res, 403, "ليست لديك صلاحية لهذا الإجراء.");
   } else if (error?.code === "23505") {
     fail(res, 409, "الكود مستخدم بالفعل داخل هذا النطاق.");
   } else if (error?.code === "40001") {
     fail(res, 409, "تغير السجل بعد فتحه. حدّث الصفحة ثم أعد المحاولة.");
+  } else if (error?.code === "55000" && error.message?.includes("SENSITIVE_CHANGE_REQUIRES_REVIEW")) {
+    fail(res, 409, "هذا الحقل يحتاج طلب مراجعة قبل التعديل.");
+  } else if (error?.code === "55000") {
+    fail(res, 409, "تغيرت حالة السجل. حدّث الصفحة ثم أعد المحاولة.");
   } else if (error?.code === "P0002") {
     fail(res, 404, "لم يتم العثور على السجل المطلوب.");
   } else {
@@ -260,7 +264,7 @@ router.patch("/organizations/:organizationId", async (req, res): Promise<void> =
     p_contact_phone: input.contactPhone ?? null,
     p_contact_email: input.contactEmail?.trim().toLowerCase() ?? null,
     p_address: input.address.trim(),
-    p_reason: input.reason?.trim() ?? null,
+    p_reason: input.reason.trim(),
   });
   if (error) {
     apiError(res, error);
@@ -437,7 +441,7 @@ router.patch("/branches/:branchId", async (req, res): Promise<void> => {
     p_hours: input.hours,
     p_contact_name: input.contactName ?? null,
     p_contact_phone: input.contactPhone ?? null,
-    p_reason: input.reason?.trim() ?? null,
+    p_reason: input.reason.trim(),
   });
   if (error) {
     apiError(res, error);

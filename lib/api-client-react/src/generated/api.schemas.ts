@@ -339,9 +339,8 @@ export interface UpdateOrganizationRequest {
   /**
      * @minLength 5
      * @maxLength 500
-     * @nullable
      */
-  reason?: string | null;
+  reason: string;
 }
 
 export interface ApprovalRequest {
@@ -589,9 +588,8 @@ export interface UpdateBranchRequest {
   /**
      * @minLength 5
      * @maxLength 500
-     * @nullable
      */
-  reason?: string | null;
+  reason: string;
 }
 
 export interface MembershipProfile {
@@ -722,6 +720,462 @@ export interface AcceptInvitationRequest {
      * @maxLength 128
      */
   token: string;
+}
+
+export interface ExpectedVersionRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+}
+
+export interface CreateOrganizationJoinRequest {
+  /**
+     * @minLength 3
+     * @maxLength 64
+     */
+  applicantUsername?: string;
+  organization: CreateOrganizationRequest;
+  initialBranch: CreateBranchRequest;
+}
+
+export interface UpdateOrganizationJoinRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  organization: CreateOrganizationRequest;
+  initialBranch: CreateBranchRequest;
+}
+
+export type OrganizationJoinRequestOrganizationData = { [key: string]: unknown };
+
+export type OrganizationJoinRequestInitialBranchData = { [key: string]: unknown };
+
+export type OrganizationJoinRequestStatus = typeof OrganizationJoinRequestStatus[keyof typeof OrganizationJoinRequestStatus];
+
+
+export const OrganizationJoinRequestStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  needs_completion: 'needs_completion',
+  rejected: 'rejected',
+  approved: 'approved',
+  withdrawn: 'withdrawn',
+} as const;
+
+export interface OrganizationJoinRequest {
+  id: string;
+  applicant_id: string;
+  created_by: string;
+  organization_data: OrganizationJoinRequestOrganizationData;
+  initial_branch_data: OrganizationJoinRequestInitialBranchData;
+  status: OrganizationJoinRequestStatus;
+  /** @minimum 1 */
+  version: number;
+  created_at: string;
+  updated_at: string;
+  /** @nullable */
+  submitted_at?: string | null;
+  /** @nullable */
+  reviewed_by?: string | null;
+  /** @nullable */
+  reviewed_at?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  decision_reason?: string | null;
+  /** @nullable */
+  approved_organization_id?: string | null;
+  /** @nullable */
+  approved_branch_id?: string | null;
+}
+
+export interface OrganizationJoinRequestList {
+  items: OrganizationJoinRequest[];
+}
+
+export type OrganizationReviewDecisionAction = typeof OrganizationReviewDecisionAction[keyof typeof OrganizationReviewDecisionAction];
+
+
+export const OrganizationReviewDecisionAction = {
+  approve: 'approve',
+  reject: 'reject',
+  needs_completion: 'needs_completion',
+} as const;
+
+export type OrganizationReviewDecisionMembershipRole = typeof OrganizationReviewDecisionMembershipRole[keyof typeof OrganizationReviewDecisionMembershipRole];
+
+
+export const OrganizationReviewDecisionMembershipRole = {
+  organization_owner: 'organization_owner',
+  manager: 'manager',
+  finance: 'finance',
+  worker: 'worker',
+  viewer: 'viewer',
+} as const;
+
+export interface OrganizationReviewDecision {
+  /** @minimum 1 */
+  expectedVersion: number;
+  action: OrganizationReviewDecisionAction;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  linkOrganizationId?: string;
+  linkBranchId?: string;
+  membershipRole?: OrganizationReviewDecisionMembershipRole;
+  /** @minimum 0 */
+  expectedAccountVersion?: number;
+}
+
+export type AdminOrganizationRequestRequestType = typeof AdminOrganizationRequestRequestType[keyof typeof AdminOrganizationRequestRequestType];
+
+
+export const AdminOrganizationRequestRequestType = {
+  join: 'join',
+  change: 'change',
+  bank: 'bank',
+  document: 'document',
+} as const;
+
+export type AdminOrganizationRequestSummary = { [key: string]: unknown };
+
+export interface AdminOrganizationRequest {
+  id: string;
+  requestType: AdminOrganizationRequestRequestType;
+  /** @maxLength 30 */
+  status: string;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+  /** @nullable */
+  applicantId?: string | null;
+  /** @nullable */
+  organizationId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @maxLength 200 */
+  title: string;
+  summary: AdminOrganizationRequestSummary;
+}
+
+export interface AdminOrganizationRequestList {
+  items: AdminOrganizationRequest[];
+}
+
+export type CreateOrganizationChangeRequestProposedData = { [key: string]: unknown };
+
+export interface CreateOrganizationChangeRequest {
+  organizationId: string;
+  branchId?: string;
+  /** @minimum 1 */
+  expectedEntityVersion: number;
+  proposedData: CreateOrganizationChangeRequestProposedData;
+}
+
+export type ResubmitOrganizationChangeRequestProposedData = { [key: string]: unknown };
+
+export interface ResubmitOrganizationChangeRequest {
+  /** @minimum 1 */
+  expectedRequestVersion: number;
+  proposedData: ResubmitOrganizationChangeRequestProposedData;
+}
+
+export type OrganizationChangeRequestTargetType = typeof OrganizationChangeRequestTargetType[keyof typeof OrganizationChangeRequestTargetType];
+
+
+export const OrganizationChangeRequestTargetType = {
+  organization: 'organization',
+  branch: 'branch',
+} as const;
+
+export type OrganizationChangeRequestCurrentSnapshot = { [key: string]: unknown };
+
+export type OrganizationChangeRequestProposedData = { [key: string]: unknown };
+
+export type OrganizationChangeRequestStatus = typeof OrganizationChangeRequestStatus[keyof typeof OrganizationChangeRequestStatus];
+
+
+export const OrganizationChangeRequestStatus = {
+  submitted: 'submitted',
+  needs_completion: 'needs_completion',
+  approved: 'approved',
+  rejected: 'rejected',
+  withdrawn: 'withdrawn',
+  conflict: 'conflict',
+} as const;
+
+export interface OrganizationChangeRequest {
+  id: string;
+  organization_id: string;
+  /** @nullable */
+  branch_id?: string | null;
+  target_type: OrganizationChangeRequestTargetType;
+  applicant_id: string;
+  /** @minimum 1 */
+  expected_entity_version: number;
+  current_snapshot: OrganizationChangeRequestCurrentSnapshot;
+  proposed_data: OrganizationChangeRequestProposedData;
+  status: OrganizationChangeRequestStatus;
+  /** @minimum 1 */
+  version: number;
+  created_at: string;
+  updated_at: string;
+  /** @nullable */
+  reviewed_by?: string | null;
+  /** @nullable */
+  reviewed_at?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  decision_reason?: string | null;
+}
+
+export interface OrganizationChangeRequestList {
+  items: OrganizationChangeRequest[];
+}
+
+export interface ProposeBankAccountRequest {
+  bankAccountId?: string;
+  /** @minimum 0 */
+  expectedAccountVersion?: number;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  bankName: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  beneficiaryName: string;
+  /**
+     * @minLength 5
+     * @maxLength 64
+     */
+  accountIdentifier: string;
+}
+
+export type BankAccountVersionStatus = typeof BankAccountVersionStatus[keyof typeof BankAccountVersionStatus];
+
+
+export const BankAccountVersionStatus = {
+  pending: 'pending',
+  needs_completion: 'needs_completion',
+  approved: 'approved',
+  superseded: 'superseded',
+  rejected: 'rejected',
+  withdrawn: 'withdrawn',
+  conflict: 'conflict',
+} as const;
+
+export interface BankAccountVersion {
+  id: string;
+  bank_account_id: string;
+  /** @minimum 0 */
+  account_version: number;
+  organization_id: string;
+  /** @minimum 1 */
+  version: number;
+  bank_name: string;
+  beneficiary_name: string;
+  /**
+     * @minLength 4
+     * @maxLength 4
+     */
+  account_last4: string;
+  status: BankAccountVersionStatus;
+  created_by: string;
+  created_at: string;
+  /** @nullable */
+  reviewed_by?: string | null;
+  /** @nullable */
+  reviewed_at?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  decision_reason?: string | null;
+}
+
+export interface BankAccountList {
+  items: BankAccountVersion[];
+}
+
+export type BankProposalResultStatus = typeof BankProposalResultStatus[keyof typeof BankProposalResultStatus];
+
+
+export const BankProposalResultStatus = {
+  pending: 'pending',
+} as const;
+
+export interface BankProposalResult {
+  accountId: string;
+  versionId: string;
+  /** @minimum 1 */
+  version: number;
+  status: BankProposalResultStatus;
+  /**
+     * @minLength 4
+     * @maxLength 4
+     */
+  accountLast4: string;
+  message: string;
+}
+
+export type BankAccountVersionDetailsStatus = typeof BankAccountVersionDetailsStatus[keyof typeof BankAccountVersionDetailsStatus];
+
+
+export const BankAccountVersionDetailsStatus = {
+  pending: 'pending',
+  needs_completion: 'needs_completion',
+  approved: 'approved',
+  superseded: 'superseded',
+  rejected: 'rejected',
+  withdrawn: 'withdrawn',
+  conflict: 'conflict',
+} as const;
+
+export interface BankAccountVersionDetails {
+  id: string;
+  bankAccountId: string;
+  organizationId: string;
+  /** @minimum 1 */
+  version: number;
+  bankName: string;
+  beneficiaryName: string;
+  /** Returned only to a role authorized to manage or review this bank account; never included in list responses. */
+  accountIdentifier: string;
+  /**
+     * @minLength 4
+     * @maxLength 4
+     */
+  accountLast4: string;
+  status: BankAccountVersionDetailsStatus;
+}
+
+export type CreateDocumentUploadIntentContextType = typeof CreateDocumentUploadIntentContextType[keyof typeof CreateDocumentUploadIntentContextType];
+
+
+export const CreateDocumentUploadIntentContextType = {
+  join_request: 'join_request',
+  organization: 'organization',
+  branch: 'branch',
+  change_request: 'change_request',
+  bank_version: 'bank_version',
+} as const;
+
+export type CreateDocumentUploadIntentContentType = typeof CreateDocumentUploadIntentContentType[keyof typeof CreateDocumentUploadIntentContentType];
+
+
+export const CreateDocumentUploadIntentContentType = {
+  'application/pdf': 'application/pdf',
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export interface CreateDocumentUploadIntent {
+  contextType: CreateDocumentUploadIntentContextType;
+  contextId: string;
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  documentType: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  fileName: string;
+  contentType: CreateDocumentUploadIntentContentType;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  byteSize: number;
+  /** @nullable */
+  expiresOn?: string | null;
+}
+
+export interface DocumentUploadIntent {
+  id: string;
+  message: string;
+}
+
+export type DocumentContentType = typeof DocumentContentType[keyof typeof DocumentContentType];
+
+
+export const DocumentContentType = {
+  'application/pdf': 'application/pdf',
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export type DocumentStatus = typeof DocumentStatus[keyof typeof DocumentStatus];
+
+
+export const DocumentStatus = {
+  pending_upload: 'pending_upload',
+  attached: 'attached',
+  pending_review: 'pending_review',
+  approved: 'approved',
+  needs_completion: 'needs_completion',
+  rejected: 'rejected',
+  upload_failed: 'upload_failed',
+} as const;
+
+export interface Document {
+  id: string;
+  uploader_id: string;
+  /** @nullable */
+  organization_id?: string | null;
+  /** @nullable */
+  branch_id?: string | null;
+  /** @nullable */
+  join_request_id?: string | null;
+  /** @nullable */
+  change_request_id?: string | null;
+  /** @nullable */
+  bank_account_version_id?: string | null;
+  document_type: string;
+  file_name: string;
+  content_type: DocumentContentType;
+  /** @minimum 1 */
+  byte_size: number;
+  /** @nullable */
+  expires_on?: string | null;
+  status: DocumentStatus;
+  /** @nullable */
+  uploaded_at?: string | null;
+  /** @nullable */
+  reviewed_by?: string | null;
+  /** @nullable */
+  reviewed_at?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  review_reason?: string | null;
+  /** @minimum 1 */
+  version: number;
+  created_at: string;
+}
+
+export interface DocumentList {
+  items: Document[];
+}
+
+export type DocumentDownloadExpiresInSeconds = typeof DocumentDownloadExpiresInSeconds[keyof typeof DocumentDownloadExpiresInSeconds];
+
+
+export const DocumentDownloadExpiresInSeconds = {
+  NUMBER_60: 60,
+} as const;
+
+export interface DocumentDownload {
+  url: string;
+  expiresInSeconds: DocumentDownloadExpiresInSeconds;
 }
 
 /**
@@ -857,4 +1311,51 @@ export const ListBranchesPaginatedSortDirection = {
   asc: 'asc',
   desc: 'desc',
 } as const;
+
+export type ListOrganizationJoinRequestsParams = {
+status?: ListOrganizationJoinRequestsStatus;
+};
+
+export type ListOrganizationJoinRequestsStatus = typeof ListOrganizationJoinRequestsStatus[keyof typeof ListOrganizationJoinRequestsStatus];
+
+
+export const ListOrganizationJoinRequestsStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  needs_completion: 'needs_completion',
+  rejected: 'rejected',
+  approved: 'approved',
+  withdrawn: 'withdrawn',
+} as const;
+
+export type ListAdminOrganizationRequestsParams = {
+/**
+ * @maxLength 30
+ */
+status?: string;
+requestType?: ListAdminOrganizationRequestsRequestType;
+};
+
+export type ListAdminOrganizationRequestsRequestType = typeof ListAdminOrganizationRequestsRequestType[keyof typeof ListAdminOrganizationRequestsRequestType];
+
+
+export const ListAdminOrganizationRequestsRequestType = {
+  join: 'join',
+  change: 'change',
+  bank: 'bank',
+  document: 'document',
+} as const;
+
+export type ListOrganizationChangeRequestsParams = {
+organizationId?: string;
+branchId?: string;
+};
+
+export type ListOrganizationDocumentsParams = {
+organizationId?: string;
+branchId?: string;
+joinRequestId?: string;
+changeRequestId?: string;
+bankVersionId?: string;
+};
 

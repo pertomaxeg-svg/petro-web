@@ -661,6 +661,411 @@ paths:
                 $ref: "#/components/schemas/StatusResult"
         "403":
           $ref: "#/components/responses/ApiError"
+  /organization-join-requests:
+    get:
+      operationId: listOrganizationJoinRequests
+      tags: [management]
+      summary: List join requests visible to the signed-in applicant or central reviewer
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, submitted, needs_completion, rejected, approved, withdrawn] }
+      responses:
+        "200":
+          description: Join requests visible through row-level security
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationJoinRequestList" }
+        "401":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: createOrganizationJoinRequest
+      tags: [management]
+      summary: Start a verified applicant's organization request or let central staff create it for a username
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOrganizationJoinRequest" }
+      responses:
+        "201":
+          description: Draft request created; it is not an approved or active organization
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organization-join-requests/{requestId}:
+    get:
+      operationId: getOrganizationJoinRequest
+      tags: [management]
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          description: Request details visible to the applicant or reviewer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationJoinRequest" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "404":
+          $ref: "#/components/responses/ApiError"
+    patch:
+      operationId: updateOrganizationJoinRequest
+      tags: [management]
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateOrganizationJoinRequest" }
+      responses:
+        "200":
+          description: Draft or completion-request data updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organization-join-requests/{requestId}/documents:
+    get:
+      operationId: listOrganizationJoinRequestDocuments
+      tags: [management]
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          description: Private document metadata visible to the applicant or authorized reviewer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentList" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /organization-join-requests/{requestId}/submit:
+    post:
+      operationId: submitOrganizationJoinRequest
+      tags: [management]
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExpectedVersionRequest" }
+      responses:
+        "200":
+          description: Request submitted for central review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organization-join-requests/{requestId}/withdraw:
+    post:
+      operationId: withdrawOrganizationJoinRequest
+      tags: [management]
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExpectedVersionRequest" }
+      responses:
+        "204": { description: Request withdrawn before decision }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/organization-requests:
+    get:
+      operationId: listAdminOrganizationRequests
+      tags: [management]
+      summary: Central request inbox for organization, branch, banking, and document reviews
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, maxLength: 30 }
+        - name: requestType
+          in: query
+          schema: { type: string, enum: [join, change, bank, document] }
+      responses:
+        "200":
+          description: Central requests visible to an authorized platform reviewer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrganizationRequestList" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /admin/organization-requests/{requestType}/{requestId}/decision:
+    post:
+      operationId: decideAdminOrganizationRequest
+      tags: [management]
+      parameters:
+        - name: requestType
+          in: path
+          required: true
+          schema: { type: string, enum: [join, change, bank, document] }
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrganizationReviewDecision" }
+      responses:
+        "200":
+          description: Decision recorded with reason and audit event
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organization-change-requests:
+    get:
+      operationId: listOrganizationChangeRequests
+      tags: [management]
+      parameters:
+        - name: organizationId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: branchId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Change requests visible through RLS
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationChangeRequestList" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: createOrganizationChangeRequest
+      tags: [management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOrganizationChangeRequest" }
+      responses:
+        "201":
+          description: Sensitive change request created against a fixed entity version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organization-change-requests/{requestId}/resubmit:
+    post:
+      operationId: resubmitOrganizationChangeRequest
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResubmitOrganizationChangeRequest" }
+      responses:
+        "200":
+          description: Completion request updated and returned to central review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organization-change-requests/{requestId}/withdraw:
+    post:
+      operationId: withdrawOrganizationChangeRequest
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExpectedVersionRequest" }
+      responses:
+        "204": { description: Request withdrawn before decision }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /organizations/{organizationId}/bank-accounts:
+    get:
+      operationId: listOrganizationBankAccounts
+      tags: [management]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Bank account versions; identifiers are never returned in this response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankAccountList" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: proposeOrganizationBankAccount
+      tags: [management]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProposeBankAccountRequest" }
+      responses:
+        "201":
+          description: Proposed banking version pending central review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankProposalResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /bank-account-versions/{versionId}:
+    get:
+      operationId: getOrganizationBankAccountVersionDetails
+      tags: [management]
+      summary: Get full bank details only for an authorized organization banking role or central finance reviewer
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Full details for one bank version after an authorization check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankAccountVersionDetails" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "404":
+          $ref: "#/components/responses/ApiError"
+  /bank-account-versions/{versionId}/withdraw:
+    post:
+      operationId: withdrawOrganizationBankAccountVersion
+      tags: [management]
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExpectedVersionRequest" }
+      responses:
+        "204": { description: Proposed bank version withdrawn before a decision }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /documents:
+    get:
+      operationId: listOrganizationDocuments
+      tags: [management]
+      parameters:
+        - name: organizationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: joinRequestId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: changeRequestId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: bankVersionId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Document metadata visible to the caller; object bytes remain in a private bucket
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentList" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+    post:
+      operationId: createDocumentUploadIntent
+      tags: [management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateDocumentUploadIntent" }
+      responses:
+        "201":
+          description: Short-lived, user-bound upload intent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentUploadIntent" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /documents/{documentId}/content:
+    put:
+      operationId: uploadOrganizationDocumentContent
+      tags: [management]
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: File validated and uploaded to private storage
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResult" }
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /documents/{documentId}/download:
+    get:
+      operationId: createOrganizationDocumentDownload
+      tags: [management]
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: One-minute signed link returned only after a row-level access check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentDownload" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "404":
+          $ref: "#/components/responses/ApiError"
 components:
   parameters:
     OrganizationId:
@@ -670,6 +1075,11 @@ components:
       schema:
         type: string
         format: uuid
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   responses:
     ApiError:
       description: Request rejected or unavailable
@@ -893,8 +1303,8 @@ components:
         contactPhone: { type: ["string", "null"], maxLength: 24 }
         contactEmail: { type: ["string", "null"], format: email, maxLength: 320 }
         address: { type: string, maxLength: 500 }
-        reason: { type: ["string", "null"], minLength: 5, maxLength: 500 }
-      required: [expectedVersion, name, kind, code, legalName, contactName, contactPhone, contactEmail, address]
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [expectedVersion, name, kind, code, legalName, contactName, contactPhone, contactEmail, address, reason]
     ApprovalRequest:
       type: object
       properties:
@@ -1022,8 +1432,8 @@ components:
         hours: { $ref: "#/components/schemas/BranchHours" }
         contactName: { type: ["string", "null"], maxLength: 160 }
         contactPhone: { type: ["string", "null"], maxLength: 24 }
-        reason: { type: ["string", "null"], minLength: 5, maxLength: 500 }
-      required: [expectedVersion, organizationId, code, name, address, hours]
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [expectedVersion, organizationId, code, name, address, hours, reason]
     MembershipProfile:
       type: object
       properties:
@@ -1110,4 +1520,233 @@ components:
       properties:
         token: { type: string, minLength: 32, maxLength: 128 }
       required: [token]
+    ExpectedVersionRequest:
+      type: object
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+      required: [expectedVersion]
+    CreateOrganizationJoinRequest:
+      type: object
+      properties:
+        applicantUsername: { type: string, minLength: 3, maxLength: 64 }
+        organization: { $ref: "#/components/schemas/CreateOrganizationRequest" }
+        initialBranch: { $ref: "#/components/schemas/CreateBranchRequest" }
+      required: [organization, initialBranch]
+    UpdateOrganizationJoinRequest:
+      type: object
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        organization: { $ref: "#/components/schemas/CreateOrganizationRequest" }
+        initialBranch: { $ref: "#/components/schemas/CreateBranchRequest" }
+      required: [expectedVersion, organization, initialBranch]
+    OrganizationJoinRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        applicant_id: { type: string, format: uuid }
+        created_by: { type: string, format: uuid }
+        organization_data: { type: object, additionalProperties: true }
+        initial_branch_data: { type: object, additionalProperties: true }
+        status: { type: string, enum: [draft, submitted, needs_completion, rejected, approved, withdrawn] }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        submitted_at: { type: [string, "null"], format: date-time }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        decision_reason: { type: [string, "null"], maxLength: 500 }
+        approved_organization_id: { type: [string, "null"], format: uuid }
+        approved_branch_id: { type: [string, "null"], format: uuid }
+      required: [id, applicant_id, created_by, organization_data, initial_branch_data, status, version, created_at, updated_at]
+    OrganizationJoinRequestList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OrganizationJoinRequest" }
+      required: [items]
+    OrganizationReviewDecision:
+      type: object
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        action: { type: string, enum: [approve, reject, needs_completion] }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        linkOrganizationId: { type: string, format: uuid }
+        linkBranchId: { type: string, format: uuid }
+        membershipRole: { type: string, enum: [organization_owner, manager, finance, worker, viewer] }
+        expectedAccountVersion: { type: integer, minimum: 0 }
+      required: [expectedVersion, action, reason]
+    AdminOrganizationRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        requestType: { type: string, enum: [join, change, bank, document] }
+        status: { type: string, maxLength: 30 }
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        applicantId: { type: [string, "null"], format: uuid }
+        organizationId: { type: [string, "null"], format: uuid }
+        branchId: { type: [string, "null"], format: uuid }
+        title: { type: string, maxLength: 200 }
+        summary: { type: object, additionalProperties: true }
+      required: [id, requestType, status, version, createdAt, title, summary]
+    AdminOrganizationRequestList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminOrganizationRequest" }
+      required: [items]
+    CreateOrganizationChangeRequest:
+      type: object
+      properties:
+        organizationId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        expectedEntityVersion: { type: integer, minimum: 1 }
+        proposedData: { type: object, minProperties: 1, additionalProperties: true }
+      required: [organizationId, expectedEntityVersion, proposedData]
+    ResubmitOrganizationChangeRequest:
+      type: object
+      properties:
+        expectedRequestVersion: { type: integer, minimum: 1 }
+        proposedData: { type: object, minProperties: 1, additionalProperties: true }
+      required: [expectedRequestVersion, proposedData]
+    OrganizationChangeRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        branch_id: { type: [string, "null"], format: uuid }
+        target_type: { type: string, enum: [organization, branch] }
+        applicant_id: { type: string, format: uuid }
+        expected_entity_version: { type: integer, minimum: 1 }
+        current_snapshot: { type: object, additionalProperties: true }
+        proposed_data: { type: object, additionalProperties: true }
+        status: { type: string, enum: [submitted, needs_completion, approved, rejected, withdrawn, conflict] }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        decision_reason: { type: [string, "null"], maxLength: 500 }
+      required: [id, organization_id, target_type, applicant_id, expected_entity_version, current_snapshot, proposed_data, status, version, created_at, updated_at]
+    OrganizationChangeRequestList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OrganizationChangeRequest" }
+      required: [items]
+    ProposeBankAccountRequest:
+      type: object
+      properties:
+        bankAccountId: { type: string, format: uuid }
+        expectedAccountVersion: { type: integer, minimum: 0 }
+        bankName: { type: string, minLength: 2, maxLength: 120 }
+        beneficiaryName: { type: string, minLength: 2, maxLength: 160 }
+        accountIdentifier: { type: string, minLength: 5, maxLength: 64 }
+      required: [bankName, beneficiaryName, accountIdentifier]
+    BankAccountVersion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bank_account_id: { type: string, format: uuid }
+        account_version: { type: integer, minimum: 0 }
+        organization_id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        bank_name: { type: string }
+        beneficiary_name: { type: string }
+        account_last4: { type: string, minLength: 4, maxLength: 4 }
+        status: { type: string, enum: [pending, needs_completion, approved, superseded, rejected, withdrawn, conflict] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        decision_reason: { type: [string, "null"], maxLength: 500 }
+      required: [id, bank_account_id, account_version, organization_id, version, bank_name, beneficiary_name, account_last4, status, created_by, created_at]
+    BankAccountList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BankAccountVersion" }
+      required: [items]
+    BankProposalResult:
+      type: object
+      properties:
+        accountId: { type: string, format: uuid }
+        versionId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [pending] }
+        accountLast4: { type: string, minLength: 4, maxLength: 4 }
+        message: { type: string }
+      required: [accountId, versionId, version, status, accountLast4, message]
+    BankAccountVersionDetails:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bankAccountId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        bankName: { type: string }
+        beneficiaryName: { type: string }
+        accountIdentifier:
+          type: string
+          description: Returned only to a role authorized to manage or review this bank account; never included in list responses.
+        accountLast4: { type: string, minLength: 4, maxLength: 4 }
+        status: { type: string, enum: [pending, needs_completion, approved, superseded, rejected, withdrawn, conflict] }
+      required: [id, bankAccountId, organizationId, version, bankName, beneficiaryName, accountIdentifier, accountLast4, status]
+    CreateDocumentUploadIntent:
+      type: object
+      properties:
+        contextType: { type: string, enum: [join_request, organization, branch, change_request, bank_version] }
+        contextId: { type: string, format: uuid }
+        documentType: { type: string, minLength: 2, maxLength: 80 }
+        fileName: { type: string, minLength: 1, maxLength: 160 }
+        contentType: { type: string, enum: [application/pdf, image/png, image/jpeg] }
+        byteSize: { type: integer, minimum: 1, maximum: 10485760 }
+        expiresOn: { type: [string, "null"], format: date }
+      required: [contextType, contextId, documentType, fileName, contentType, byteSize]
+    DocumentUploadIntent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        message: { type: string }
+      required: [id, message]
+    Document:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        uploader_id: { type: string, format: uuid }
+        organization_id: { type: [string, "null"], format: uuid }
+        branch_id: { type: [string, "null"], format: uuid }
+        join_request_id: { type: [string, "null"], format: uuid }
+        change_request_id: { type: [string, "null"], format: uuid }
+        bank_account_version_id: { type: [string, "null"], format: uuid }
+        document_type: { type: string }
+        file_name: { type: string }
+        content_type: { type: string, enum: [application/pdf, image/png, image/jpeg] }
+        byte_size: { type: integer, minimum: 1 }
+        expires_on: { type: [string, "null"], format: date }
+        status: { type: string, enum: [pending_upload, attached, pending_review, approved, needs_completion, rejected, upload_failed] }
+        uploaded_at: { type: [string, "null"], format: date-time }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        review_reason: { type: [string, "null"], maxLength: 500 }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+      required: [id, uploader_id, document_type, file_name, content_type, byte_size, status, version, created_at]
+    DocumentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Document" }
+      required: [items]
+    DocumentDownload:
+      type: object
+      properties:
+        url: { type: string, format: uri }
+        expiresInSeconds: { type: integer, enum: [60] }
+      required: [url, expiresInSeconds]
 

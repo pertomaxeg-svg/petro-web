@@ -55,7 +55,6 @@ export interface UpdateBranchRequest {
   /**
      * @minLength 5
      * @maxLength 500
-     * @nullable
      */
-  reason?: string | null;
+  reason: string;
 }

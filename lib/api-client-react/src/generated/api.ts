@@ -21,11 +21,15 @@ import type {
 
 import type {
   AcceptInvitationRequest,
+  AdminOrganizationRequestList,
   ApiErrorResponse,
   ApprovalRequest,
   AuthActionResult,
   AuthCallbackParams,
   AuthMe,
+  BankAccountList,
+  BankAccountVersionDetails,
+  BankProposalResult,
   BootstrapOwnerRequest,
   BootstrapStatus,
   BranchApprovalRequest,
@@ -33,20 +37,37 @@ import type {
   BranchPage,
   BranchStatusRequest,
   CreateBranchRequest,
+  CreateDocumentUploadIntent,
   CreateInvitationRequest,
+  CreateOrganizationChangeRequest,
+  CreateOrganizationJoinRequest,
   CreateOrganizationRequest,
   CreatedResult,
+  DocumentDownload,
+  DocumentList,
+  DocumentUploadIntent,
+  ExpectedVersionRequest,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
+  ListAdminOrganizationRequestsParams,
   ListBranchesPaginatedParams,
+  ListOrganizationChangeRequestsParams,
+  ListOrganizationDocumentsParams,
+  ListOrganizationJoinRequestsParams,
   ListOrganizationsParams,
   MembershipList,
   MessageResult,
   Organization,
+  OrganizationChangeRequestList,
+  OrganizationJoinRequest,
+  OrganizationJoinRequestList,
   OrganizationPage,
+  OrganizationReviewDecision,
   PasswordUpdateRequest,
+  ProposeBankAccountRequest,
   RecoveryRequest,
+  ResubmitOrganizationChangeRequest,
   SetMembershipRequest,
   SignInRequest,
   SignUpRequest,
@@ -55,6 +76,7 @@ import type {
   StatusResult,
   SupabaseHealthStatus,
   UpdateBranchRequest,
+  UpdateOrganizationJoinRequest,
   UpdateOrganizationRequest
 } from './api.schemas';
 
@@ -156,13 +178,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getSupabaseHealthCheckUrl = () => {
 
 
@@ -234,12 +249,6 @@ export function useSupabaseHealthCheck<TData = Awaited<ReturnType<typeof supabas
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
 
 export const getSignUpUrl = () => {
 
@@ -738,12 +747,6 @@ export function useGetAuthMe<TData = Awaited<ReturnType<typeof getAuthMe>>, TErr
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-
-
-
-
-
-
 export const getGetOwnerBootstrapStatusUrl = () => {
 
 
@@ -814,13 +817,6 @@ export function useGetOwnerBootstrapStatus<TData = Awaited<ReturnType<typeof get
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getBootstrapOwnerUrl = () => {
 
 
@@ -2609,3 +2605,1682 @@ export const useSetUserStatus = <TError = ErrorType<ApiErrorResponse>,
       return useMutation(getSetUserStatusMutationOptions(options));
     }
 
+export const getListOrganizationJoinRequestsUrl = (params?: ListOrganizationJoinRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/organization-join-requests?${stringifiedParams}` : `/api/organization-join-requests`
+}
+
+/**
+ * @summary List join requests visible to the signed-in applicant or central reviewer
+ */
+export const listOrganizationJoinRequests = async (params?: ListOrganizationJoinRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<OrganizationJoinRequestList> => {
+
+  return customFetch<OrganizationJoinRequestList>(getListOrganizationJoinRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganizationJoinRequestsQueryKey = (params?: ListOrganizationJoinRequestsParams,) => {
+    return [
+    `/api/organization-join-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOrganizationJoinRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationJoinRequests>>, TError = ErrorType<ApiErrorResponse>>(params?: ListOrganizationJoinRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationJoinRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationJoinRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationJoinRequests>>> = ({ signal }) => listOrganizationJoinRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganizationJoinRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganizationJoinRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganizationJoinRequests>>>
+export type ListOrganizationJoinRequestsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary List join requests visible to the signed-in applicant or central reviewer
+ */
+
+export function useListOrganizationJoinRequests<TData = Awaited<ReturnType<typeof listOrganizationJoinRequests>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListOrganizationJoinRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationJoinRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganizationJoinRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOrganizationJoinRequestUrl = () => {
+
+
+
+
+  return `/api/organization-join-requests`
+}
+
+/**
+ * @summary Start a verified applicant's organization request or let central staff create it for a username
+ */
+export const createOrganizationJoinRequest = async (createOrganizationJoinRequestBody: CreateOrganizationJoinRequest, options?: Parameters<typeof customFetch>[1]): Promise<CreatedResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatedResult>(getCreateOrganizationJoinRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createOrganizationJoinRequestBody)
+  }
+);}
+
+
+
+
+
+export const getCreateOrganizationJoinRequestMutationKey = () => ['createOrganizationJoinRequest'] as const;
+
+export const getCreateOrganizationJoinRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganizationJoinRequest>>, TError,CreateOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrganizationJoinRequest>>, TError,CreateOrganizationJoinRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreateOrganizationJoinRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrganizationJoinRequest>>, CreateOrganizationJoinRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOrganizationJoinRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrganizationJoinRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createOrganizationJoinRequest>>>
+    export type CreateOrganizationJoinRequestMutationBody = BodyType<CreateOrganizationJoinRequest>
+    export type CreateOrganizationJoinRequestMutationError = ErrorType<ApiErrorResponse>
+    export type CreateOrganizationJoinRequestMutationVariables = {data: BodyType<CreateOrganizationJoinRequest>}
+
+    /**
+ * @summary Start a verified applicant's organization request or let central staff create it for a username
+ */
+export const useCreateOrganizationJoinRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganizationJoinRequest>>, TError,CreateOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOrganizationJoinRequest>>,
+        TError,
+        CreateOrganizationJoinRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOrganizationJoinRequestMutationOptions(options));
+    }
+
+export const getGetOrganizationJoinRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/organization-join-requests/${requestId}`
+}
+
+export const getOrganizationJoinRequest = async (requestId: string, options?: Parameters<typeof customFetch>[1]): Promise<OrganizationJoinRequest> => {
+
+  return customFetch<OrganizationJoinRequest>(getGetOrganizationJoinRequestUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrganizationJoinRequestQueryKey = (requestId: string,) => {
+    return [
+    `/api/organization-join-requests/${requestId}`
+    ] as const;
+    }
+
+
+export const getGetOrganizationJoinRequestQueryOptions = <TData = Awaited<ReturnType<typeof getOrganizationJoinRequest>>, TError = ErrorType<ApiErrorResponse>>(requestId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganizationJoinRequest>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrganizationJoinRequestQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrganizationJoinRequest>>> = ({ signal }) => getOrganizationJoinRequest(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrganizationJoinRequest>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrganizationJoinRequestQueryResult = NonNullable<Awaited<ReturnType<typeof getOrganizationJoinRequest>>>
+export type GetOrganizationJoinRequestQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useGetOrganizationJoinRequest<TData = Awaited<ReturnType<typeof getOrganizationJoinRequest>>, TError = ErrorType<ApiErrorResponse>>(
+ requestId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganizationJoinRequest>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrganizationJoinRequestQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateOrganizationJoinRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/organization-join-requests/${requestId}`
+}
+
+export const updateOrganizationJoinRequest = async (requestId: string,
+    updateOrganizationJoinRequestBody: UpdateOrganizationJoinRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResult>(getUpdateOrganizationJoinRequestUrl(requestId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateOrganizationJoinRequestBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateOrganizationJoinRequestMutationKey = () => ['updateOrganizationJoinRequest'] as const;
+
+export const getUpdateOrganizationJoinRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganizationJoinRequest>>, TError,UpdateOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOrganizationJoinRequest>>, TError,UpdateOrganizationJoinRequestMutationVariables, TContext> => {
+
+const mutationKey = getUpdateOrganizationJoinRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOrganizationJoinRequest>>, UpdateOrganizationJoinRequestMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  updateOrganizationJoinRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOrganizationJoinRequestMutationResult = NonNullable<Awaited<ReturnType<typeof updateOrganizationJoinRequest>>>
+    export type UpdateOrganizationJoinRequestMutationBody = BodyType<UpdateOrganizationJoinRequest>
+    export type UpdateOrganizationJoinRequestMutationError = ErrorType<ApiErrorResponse>
+    export type UpdateOrganizationJoinRequestMutationVariables = {requestId: string;data: BodyType<UpdateOrganizationJoinRequest>}
+
+    export const useUpdateOrganizationJoinRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganizationJoinRequest>>, TError,UpdateOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOrganizationJoinRequest>>,
+        TError,
+        UpdateOrganizationJoinRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateOrganizationJoinRequestMutationOptions(options));
+    }
+
+export const getListOrganizationJoinRequestDocumentsUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/organization-join-requests/${requestId}/documents`
+}
+
+export const listOrganizationJoinRequestDocuments = async (requestId: string, options?: Parameters<typeof customFetch>[1]): Promise<DocumentList> => {
+
+  return customFetch<DocumentList>(getListOrganizationJoinRequestDocumentsUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganizationJoinRequestDocumentsQueryKey = (requestId: string,) => {
+    return [
+    `/api/organization-join-requests/${requestId}/documents`
+    ] as const;
+    }
+
+
+export const getListOrganizationJoinRequestDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationJoinRequestDocuments>>, TError = ErrorType<ApiErrorResponse>>(requestId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationJoinRequestDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationJoinRequestDocumentsQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationJoinRequestDocuments>>> = ({ signal }) => listOrganizationJoinRequestDocuments(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganizationJoinRequestDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganizationJoinRequestDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganizationJoinRequestDocuments>>>
+export type ListOrganizationJoinRequestDocumentsQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useListOrganizationJoinRequestDocuments<TData = Awaited<ReturnType<typeof listOrganizationJoinRequestDocuments>>, TError = ErrorType<ApiErrorResponse>>(
+ requestId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationJoinRequestDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganizationJoinRequestDocumentsQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitOrganizationJoinRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/organization-join-requests/${requestId}/submit`
+}
+
+export const submitOrganizationJoinRequest = async (requestId: string,
+    expectedVersionRequest: ExpectedVersionRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResult>(getSubmitOrganizationJoinRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expectedVersionRequest)
+  }
+);}
+
+
+
+
+
+export const getSubmitOrganizationJoinRequestMutationKey = () => ['submitOrganizationJoinRequest'] as const;
+
+export const getSubmitOrganizationJoinRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrganizationJoinRequest>>, TError,SubmitOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitOrganizationJoinRequest>>, TError,SubmitOrganizationJoinRequestMutationVariables, TContext> => {
+
+const mutationKey = getSubmitOrganizationJoinRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitOrganizationJoinRequest>>, SubmitOrganizationJoinRequestMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  submitOrganizationJoinRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitOrganizationJoinRequestMutationResult = NonNullable<Awaited<ReturnType<typeof submitOrganizationJoinRequest>>>
+    export type SubmitOrganizationJoinRequestMutationBody = BodyType<ExpectedVersionRequest>
+    export type SubmitOrganizationJoinRequestMutationError = ErrorType<ApiErrorResponse>
+    export type SubmitOrganizationJoinRequestMutationVariables = {requestId: string;data: BodyType<ExpectedVersionRequest>}
+
+    export const useSubmitOrganizationJoinRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrganizationJoinRequest>>, TError,SubmitOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitOrganizationJoinRequest>>,
+        TError,
+        SubmitOrganizationJoinRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitOrganizationJoinRequestMutationOptions(options));
+    }
+
+export const getWithdrawOrganizationJoinRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/organization-join-requests/${requestId}/withdraw`
+}
+
+export const withdrawOrganizationJoinRequest = async (requestId: string,
+    expectedVersionRequest: ExpectedVersionRequest, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getWithdrawOrganizationJoinRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expectedVersionRequest)
+  }
+);}
+
+
+
+
+
+export const getWithdrawOrganizationJoinRequestMutationKey = () => ['withdrawOrganizationJoinRequest'] as const;
+
+export const getWithdrawOrganizationJoinRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationJoinRequest>>, TError,WithdrawOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationJoinRequest>>, TError,WithdrawOrganizationJoinRequestMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawOrganizationJoinRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawOrganizationJoinRequest>>, WithdrawOrganizationJoinRequestMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  withdrawOrganizationJoinRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawOrganizationJoinRequestMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawOrganizationJoinRequest>>>
+    export type WithdrawOrganizationJoinRequestMutationBody = BodyType<ExpectedVersionRequest>
+    export type WithdrawOrganizationJoinRequestMutationError = ErrorType<ApiErrorResponse>
+    export type WithdrawOrganizationJoinRequestMutationVariables = {requestId: string;data: BodyType<ExpectedVersionRequest>}
+
+    export const useWithdrawOrganizationJoinRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationJoinRequest>>, TError,WithdrawOrganizationJoinRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawOrganizationJoinRequest>>,
+        TError,
+        WithdrawOrganizationJoinRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawOrganizationJoinRequestMutationOptions(options));
+    }
+
+export const getListAdminOrganizationRequestsUrl = (params?: ListAdminOrganizationRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/organization-requests?${stringifiedParams}` : `/api/admin/organization-requests`
+}
+
+/**
+ * @summary Central request inbox for organization, branch, banking, and document reviews
+ */
+export const listAdminOrganizationRequests = async (params?: ListAdminOrganizationRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminOrganizationRequestList> => {
+
+  return customFetch<AdminOrganizationRequestList>(getListAdminOrganizationRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminOrganizationRequestsQueryKey = (params?: ListAdminOrganizationRequestsParams,) => {
+    return [
+    `/api/admin/organization-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminOrganizationRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminOrganizationRequests>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminOrganizationRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminOrganizationRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminOrganizationRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminOrganizationRequests>>> = ({ signal }) => listAdminOrganizationRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminOrganizationRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminOrganizationRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminOrganizationRequests>>>
+export type ListAdminOrganizationRequestsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Central request inbox for organization, branch, banking, and document reviews
+ */
+
+export function useListAdminOrganizationRequests<TData = Awaited<ReturnType<typeof listAdminOrganizationRequests>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminOrganizationRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminOrganizationRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminOrganizationRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDecideAdminOrganizationRequestUrl = (requestType: 'join' | 'change' | 'bank' | 'document',
+    requestId: string,) => {
+
+
+
+
+  return `/api/admin/organization-requests/${requestType}/${requestId}/decision`
+}
+
+export const decideAdminOrganizationRequest = async (requestType: 'join' | 'change' | 'bank' | 'document',
+    requestId: string,
+    organizationReviewDecision: OrganizationReviewDecision, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResult>(getDecideAdminOrganizationRequestUrl(requestType,requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organizationReviewDecision)
+  }
+);}
+
+
+
+
+
+export const getDecideAdminOrganizationRequestMutationKey = () => ['decideAdminOrganizationRequest'] as const;
+
+export const getDecideAdminOrganizationRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminOrganizationRequest>>, TError,DecideAdminOrganizationRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideAdminOrganizationRequest>>, TError,DecideAdminOrganizationRequestMutationVariables, TContext> => {
+
+const mutationKey = getDecideAdminOrganizationRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideAdminOrganizationRequest>>, DecideAdminOrganizationRequestMutationVariables> = (props) => {
+          const {requestType,requestId,data} = props ?? {};
+
+          return  decideAdminOrganizationRequest(requestType,requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideAdminOrganizationRequestMutationResult = NonNullable<Awaited<ReturnType<typeof decideAdminOrganizationRequest>>>
+    export type DecideAdminOrganizationRequestMutationBody = BodyType<OrganizationReviewDecision>
+    export type DecideAdminOrganizationRequestMutationError = ErrorType<ApiErrorResponse>
+    export type DecideAdminOrganizationRequestMutationVariables = {requestType: 'join' | 'change' | 'bank' | 'document';requestId: string;data: BodyType<OrganizationReviewDecision>}
+
+    export const useDecideAdminOrganizationRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminOrganizationRequest>>, TError,DecideAdminOrganizationRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideAdminOrganizationRequest>>,
+        TError,
+        DecideAdminOrganizationRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideAdminOrganizationRequestMutationOptions(options));
+    }
+
+export const getListOrganizationChangeRequestsUrl = (params?: ListOrganizationChangeRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/organization-change-requests?${stringifiedParams}` : `/api/organization-change-requests`
+}
+
+export const listOrganizationChangeRequests = async (params?: ListOrganizationChangeRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<OrganizationChangeRequestList> => {
+
+  return customFetch<OrganizationChangeRequestList>(getListOrganizationChangeRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganizationChangeRequestsQueryKey = (params?: ListOrganizationChangeRequestsParams,) => {
+    return [
+    `/api/organization-change-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOrganizationChangeRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationChangeRequests>>, TError = ErrorType<ApiErrorResponse>>(params?: ListOrganizationChangeRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationChangeRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationChangeRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationChangeRequests>>> = ({ signal }) => listOrganizationChangeRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganizationChangeRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganizationChangeRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganizationChangeRequests>>>
+export type ListOrganizationChangeRequestsQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useListOrganizationChangeRequests<TData = Awaited<ReturnType<typeof listOrganizationChangeRequests>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListOrganizationChangeRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationChangeRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganizationChangeRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOrganizationChangeRequestUrl = () => {
+
+
+
+
+  return `/api/organization-change-requests`
+}
+
+export const createOrganizationChangeRequest = async (createOrganizationChangeRequestBody: CreateOrganizationChangeRequest, options?: Parameters<typeof customFetch>[1]): Promise<CreatedResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatedResult>(getCreateOrganizationChangeRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createOrganizationChangeRequestBody)
+  }
+);}
+
+
+
+
+
+export const getCreateOrganizationChangeRequestMutationKey = () => ['createOrganizationChangeRequest'] as const;
+
+export const getCreateOrganizationChangeRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganizationChangeRequest>>, TError,CreateOrganizationChangeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrganizationChangeRequest>>, TError,CreateOrganizationChangeRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreateOrganizationChangeRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrganizationChangeRequest>>, CreateOrganizationChangeRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOrganizationChangeRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrganizationChangeRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createOrganizationChangeRequest>>>
+    export type CreateOrganizationChangeRequestMutationBody = BodyType<CreateOrganizationChangeRequest>
+    export type CreateOrganizationChangeRequestMutationError = ErrorType<ApiErrorResponse>
+    export type CreateOrganizationChangeRequestMutationVariables = {data: BodyType<CreateOrganizationChangeRequest>}
+
+    export const useCreateOrganizationChangeRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganizationChangeRequest>>, TError,CreateOrganizationChangeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOrganizationChangeRequest>>,
+        TError,
+        CreateOrganizationChangeRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOrganizationChangeRequestMutationOptions(options));
+    }
+
+export const getResubmitOrganizationChangeRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/organization-change-requests/${requestId}/resubmit`
+}
+
+export const resubmitOrganizationChangeRequest = async (requestId: string,
+    resubmitOrganizationChangeRequestBody: ResubmitOrganizationChangeRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResult>(getResubmitOrganizationChangeRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resubmitOrganizationChangeRequestBody)
+  }
+);}
+
+
+
+
+
+export const getResubmitOrganizationChangeRequestMutationKey = () => ['resubmitOrganizationChangeRequest'] as const;
+
+export const getResubmitOrganizationChangeRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resubmitOrganizationChangeRequest>>, TError,ResubmitOrganizationChangeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resubmitOrganizationChangeRequest>>, TError,ResubmitOrganizationChangeRequestMutationVariables, TContext> => {
+
+const mutationKey = getResubmitOrganizationChangeRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resubmitOrganizationChangeRequest>>, ResubmitOrganizationChangeRequestMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  resubmitOrganizationChangeRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResubmitOrganizationChangeRequestMutationResult = NonNullable<Awaited<ReturnType<typeof resubmitOrganizationChangeRequest>>>
+    export type ResubmitOrganizationChangeRequestMutationBody = BodyType<ResubmitOrganizationChangeRequest>
+    export type ResubmitOrganizationChangeRequestMutationError = ErrorType<ApiErrorResponse>
+    export type ResubmitOrganizationChangeRequestMutationVariables = {requestId: string;data: BodyType<ResubmitOrganizationChangeRequest>}
+
+    export const useResubmitOrganizationChangeRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resubmitOrganizationChangeRequest>>, TError,ResubmitOrganizationChangeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resubmitOrganizationChangeRequest>>,
+        TError,
+        ResubmitOrganizationChangeRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResubmitOrganizationChangeRequestMutationOptions(options));
+    }
+
+export const getWithdrawOrganizationChangeRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/organization-change-requests/${requestId}/withdraw`
+}
+
+export const withdrawOrganizationChangeRequest = async (requestId: string,
+    expectedVersionRequest: ExpectedVersionRequest, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getWithdrawOrganizationChangeRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expectedVersionRequest)
+  }
+);}
+
+
+
+
+
+export const getWithdrawOrganizationChangeRequestMutationKey = () => ['withdrawOrganizationChangeRequest'] as const;
+
+export const getWithdrawOrganizationChangeRequestMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationChangeRequest>>, TError,WithdrawOrganizationChangeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationChangeRequest>>, TError,WithdrawOrganizationChangeRequestMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawOrganizationChangeRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawOrganizationChangeRequest>>, WithdrawOrganizationChangeRequestMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  withdrawOrganizationChangeRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawOrganizationChangeRequestMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawOrganizationChangeRequest>>>
+    export type WithdrawOrganizationChangeRequestMutationBody = BodyType<ExpectedVersionRequest>
+    export type WithdrawOrganizationChangeRequestMutationError = ErrorType<ApiErrorResponse>
+    export type WithdrawOrganizationChangeRequestMutationVariables = {requestId: string;data: BodyType<ExpectedVersionRequest>}
+
+    export const useWithdrawOrganizationChangeRequest = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationChangeRequest>>, TError,WithdrawOrganizationChangeRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawOrganizationChangeRequest>>,
+        TError,
+        WithdrawOrganizationChangeRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawOrganizationChangeRequestMutationOptions(options));
+    }
+
+export const getListOrganizationBankAccountsUrl = (organizationId: string,) => {
+
+
+
+
+  return `/api/organizations/${organizationId}/bank-accounts`
+}
+
+export const listOrganizationBankAccounts = async (organizationId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankAccountList> => {
+
+  return customFetch<BankAccountList>(getListOrganizationBankAccountsUrl(organizationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganizationBankAccountsQueryKey = (organizationId: string,) => {
+    return [
+    `/api/organizations/${organizationId}/bank-accounts`
+    ] as const;
+    }
+
+
+export const getListOrganizationBankAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationBankAccounts>>, TError = ErrorType<ApiErrorResponse>>(organizationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationBankAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationBankAccountsQueryKey(organizationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationBankAccounts>>> = ({ signal }) => listOrganizationBankAccounts(organizationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganizationBankAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganizationBankAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganizationBankAccounts>>>
+export type ListOrganizationBankAccountsQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useListOrganizationBankAccounts<TData = Awaited<ReturnType<typeof listOrganizationBankAccounts>>, TError = ErrorType<ApiErrorResponse>>(
+ organizationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationBankAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganizationBankAccountsQueryOptions(organizationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getProposeOrganizationBankAccountUrl = (organizationId: string,) => {
+
+
+
+
+  return `/api/organizations/${organizationId}/bank-accounts`
+}
+
+export const proposeOrganizationBankAccount = async (organizationId: string,
+    proposeBankAccountRequest: ProposeBankAccountRequest, options?: Parameters<typeof customFetch>[1]): Promise<BankProposalResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankProposalResult>(getProposeOrganizationBankAccountUrl(organizationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(proposeBankAccountRequest)
+  }
+);}
+
+
+
+
+
+export const getProposeOrganizationBankAccountMutationKey = () => ['proposeOrganizationBankAccount'] as const;
+
+export const getProposeOrganizationBankAccountMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof proposeOrganizationBankAccount>>, TError,ProposeOrganizationBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof proposeOrganizationBankAccount>>, TError,ProposeOrganizationBankAccountMutationVariables, TContext> => {
+
+const mutationKey = getProposeOrganizationBankAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof proposeOrganizationBankAccount>>, ProposeOrganizationBankAccountMutationVariables> = (props) => {
+          const {organizationId,data} = props ?? {};
+
+          return  proposeOrganizationBankAccount(organizationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ProposeOrganizationBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof proposeOrganizationBankAccount>>>
+    export type ProposeOrganizationBankAccountMutationBody = BodyType<ProposeBankAccountRequest>
+    export type ProposeOrganizationBankAccountMutationError = ErrorType<ApiErrorResponse>
+    export type ProposeOrganizationBankAccountMutationVariables = {organizationId: string;data: BodyType<ProposeBankAccountRequest>}
+
+    export const useProposeOrganizationBankAccount = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof proposeOrganizationBankAccount>>, TError,ProposeOrganizationBankAccountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof proposeOrganizationBankAccount>>,
+        TError,
+        ProposeOrganizationBankAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getProposeOrganizationBankAccountMutationOptions(options));
+    }
+
+export const getGetOrganizationBankAccountVersionDetailsUrl = (versionId: string,) => {
+
+
+
+
+  return `/api/bank-account-versions/${versionId}`
+}
+
+/**
+ * @summary Get full bank details only for an authorized organization banking role or central finance reviewer
+ */
+export const getOrganizationBankAccountVersionDetails = async (versionId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankAccountVersionDetails> => {
+
+  return customFetch<BankAccountVersionDetails>(getGetOrganizationBankAccountVersionDetailsUrl(versionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrganizationBankAccountVersionDetailsQueryKey = (versionId: string,) => {
+    return [
+    `/api/bank-account-versions/${versionId}`
+    ] as const;
+    }
+
+
+export const getGetOrganizationBankAccountVersionDetailsQueryOptions = <TData = Awaited<ReturnType<typeof getOrganizationBankAccountVersionDetails>>, TError = ErrorType<ApiErrorResponse>>(versionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganizationBankAccountVersionDetails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrganizationBankAccountVersionDetailsQueryKey(versionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrganizationBankAccountVersionDetails>>> = ({ signal }) => getOrganizationBankAccountVersionDetails(versionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: versionId !== null && versionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrganizationBankAccountVersionDetails>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrganizationBankAccountVersionDetailsQueryResult = NonNullable<Awaited<ReturnType<typeof getOrganizationBankAccountVersionDetails>>>
+export type GetOrganizationBankAccountVersionDetailsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Get full bank details only for an authorized organization banking role or central finance reviewer
+ */
+
+export function useGetOrganizationBankAccountVersionDetails<TData = Awaited<ReturnType<typeof getOrganizationBankAccountVersionDetails>>, TError = ErrorType<ApiErrorResponse>>(
+ versionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrganizationBankAccountVersionDetails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrganizationBankAccountVersionDetailsQueryOptions(versionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getWithdrawOrganizationBankAccountVersionUrl = (versionId: string,) => {
+
+
+
+
+  return `/api/bank-account-versions/${versionId}/withdraw`
+}
+
+export const withdrawOrganizationBankAccountVersion = async (versionId: string,
+    expectedVersionRequest: ExpectedVersionRequest, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getWithdrawOrganizationBankAccountVersionUrl(versionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expectedVersionRequest)
+  }
+);}
+
+
+
+
+
+export const getWithdrawOrganizationBankAccountVersionMutationKey = () => ['withdrawOrganizationBankAccountVersion'] as const;
+
+export const getWithdrawOrganizationBankAccountVersionMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationBankAccountVersion>>, TError,WithdrawOrganizationBankAccountVersionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationBankAccountVersion>>, TError,WithdrawOrganizationBankAccountVersionMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawOrganizationBankAccountVersionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawOrganizationBankAccountVersion>>, WithdrawOrganizationBankAccountVersionMutationVariables> = (props) => {
+          const {versionId,data} = props ?? {};
+
+          return  withdrawOrganizationBankAccountVersion(versionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawOrganizationBankAccountVersionMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawOrganizationBankAccountVersion>>>
+    export type WithdrawOrganizationBankAccountVersionMutationBody = BodyType<ExpectedVersionRequest>
+    export type WithdrawOrganizationBankAccountVersionMutationError = ErrorType<ApiErrorResponse>
+    export type WithdrawOrganizationBankAccountVersionMutationVariables = {versionId: string;data: BodyType<ExpectedVersionRequest>}
+
+    export const useWithdrawOrganizationBankAccountVersion = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawOrganizationBankAccountVersion>>, TError,WithdrawOrganizationBankAccountVersionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawOrganizationBankAccountVersion>>,
+        TError,
+        WithdrawOrganizationBankAccountVersionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawOrganizationBankAccountVersionMutationOptions(options));
+    }
+
+export const getListOrganizationDocumentsUrl = (params?: ListOrganizationDocumentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/documents?${stringifiedParams}` : `/api/documents`
+}
+
+export const listOrganizationDocuments = async (params?: ListOrganizationDocumentsParams, options?: Parameters<typeof customFetch>[1]): Promise<DocumentList> => {
+
+  return customFetch<DocumentList>(getListOrganizationDocumentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganizationDocumentsQueryKey = (params?: ListOrganizationDocumentsParams,) => {
+    return [
+    `/api/documents`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOrganizationDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationDocuments>>, TError = ErrorType<ApiErrorResponse>>(params?: ListOrganizationDocumentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationDocumentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationDocuments>>> = ({ signal }) => listOrganizationDocuments(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganizationDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganizationDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganizationDocuments>>>
+export type ListOrganizationDocumentsQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useListOrganizationDocuments<TData = Awaited<ReturnType<typeof listOrganizationDocuments>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListOrganizationDocumentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganizationDocumentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDocumentUploadIntentUrl = () => {
+
+
+
+
+  return `/api/documents`
+}
+
+export const createDocumentUploadIntent = async (createDocumentUploadIntentBody: CreateDocumentUploadIntent, options?: Parameters<typeof customFetch>[1]): Promise<DocumentUploadIntent> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DocumentUploadIntent>(getCreateDocumentUploadIntentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createDocumentUploadIntentBody)
+  }
+);}
+
+
+
+
+
+export const getCreateDocumentUploadIntentMutationKey = () => ['createDocumentUploadIntent'] as const;
+
+export const getCreateDocumentUploadIntentMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentUploadIntent>>, TError,CreateDocumentUploadIntentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDocumentUploadIntent>>, TError,CreateDocumentUploadIntentMutationVariables, TContext> => {
+
+const mutationKey = getCreateDocumentUploadIntentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDocumentUploadIntent>>, CreateDocumentUploadIntentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDocumentUploadIntent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDocumentUploadIntentMutationResult = NonNullable<Awaited<ReturnType<typeof createDocumentUploadIntent>>>
+    export type CreateDocumentUploadIntentMutationBody = BodyType<CreateDocumentUploadIntent>
+    export type CreateDocumentUploadIntentMutationError = ErrorType<ApiErrorResponse>
+    export type CreateDocumentUploadIntentMutationVariables = {data: BodyType<CreateDocumentUploadIntent>}
+
+    export const useCreateDocumentUploadIntent = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentUploadIntent>>, TError,CreateDocumentUploadIntentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDocumentUploadIntent>>,
+        TError,
+        CreateDocumentUploadIntentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateDocumentUploadIntentMutationOptions(options));
+    }
+
+export const getUploadOrganizationDocumentContentUrl = (documentId: string,) => {
+
+
+
+
+  return `/api/documents/${documentId}/content`
+}
+
+export const uploadOrganizationDocumentContent = async (documentId: string,
+    uploadOrganizationDocumentContentBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<MessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessageResult>(getUploadOrganizationDocumentContentUrl(documentId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/octet-stream', ...getHeaders(options?.headers) },
+    body: uploadOrganizationDocumentContentBody
+  }
+);}
+
+
+
+
+
+export const getUploadOrganizationDocumentContentMutationKey = () => ['uploadOrganizationDocumentContent'] as const;
+
+export const getUploadOrganizationDocumentContentMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadOrganizationDocumentContent>>, TError,UploadOrganizationDocumentContentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadOrganizationDocumentContent>>, TError,UploadOrganizationDocumentContentMutationVariables, TContext> => {
+
+const mutationKey = getUploadOrganizationDocumentContentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadOrganizationDocumentContent>>, UploadOrganizationDocumentContentMutationVariables> = (props) => {
+          const {documentId,data} = props ?? {};
+
+          return  uploadOrganizationDocumentContent(documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadOrganizationDocumentContentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadOrganizationDocumentContent>>>
+    export type UploadOrganizationDocumentContentMutationBody = BodyType<Blob>
+    export type UploadOrganizationDocumentContentMutationError = ErrorType<ApiErrorResponse>
+    export type UploadOrganizationDocumentContentMutationVariables = {documentId: string;data: BodyType<Blob>}
+
+    export const useUploadOrganizationDocumentContent = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadOrganizationDocumentContent>>, TError,UploadOrganizationDocumentContentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadOrganizationDocumentContent>>,
+        TError,
+        UploadOrganizationDocumentContentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadOrganizationDocumentContentMutationOptions(options));
+    }
+
+export const getCreateOrganizationDocumentDownloadUrl = (documentId: string,) => {
+
+
+
+
+  return `/api/documents/${documentId}/download`
+}
+
+export const createOrganizationDocumentDownload = async (documentId: string, options?: Parameters<typeof customFetch>[1]): Promise<DocumentDownload> => {
+
+  return customFetch<DocumentDownload>(getCreateOrganizationDocumentDownloadUrl(documentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateOrganizationDocumentDownloadQueryKey = (documentId: string,) => {
+    return [
+    `/api/documents/${documentId}/download`
+    ] as const;
+    }
+
+
+export const getCreateOrganizationDocumentDownloadQueryOptions = <TData = Awaited<ReturnType<typeof createOrganizationDocumentDownload>>, TError = ErrorType<ApiErrorResponse>>(documentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof createOrganizationDocumentDownload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCreateOrganizationDocumentDownloadQueryKey(documentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof createOrganizationDocumentDownload>>> = ({ signal }) => createOrganizationDocumentDownload(documentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: documentId !== null && documentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof createOrganizationDocumentDownload>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CreateOrganizationDocumentDownloadQueryResult = NonNullable<Awaited<ReturnType<typeof createOrganizationDocumentDownload>>>
+export type CreateOrganizationDocumentDownloadQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useCreateOrganizationDocumentDownload<TData = Awaited<ReturnType<typeof createOrganizationDocumentDownload>>, TError = ErrorType<ApiErrorResponse>>(
+ documentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof createOrganizationDocumentDownload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCreateOrganizationDocumentDownloadQueryOptions(documentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

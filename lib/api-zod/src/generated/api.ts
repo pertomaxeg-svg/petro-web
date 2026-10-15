@@ -335,7 +335,7 @@ export const UpdateOrganizationBody = zod.object({
   "contactPhone": zod.string().max(updateOrganizationBodyContactPhoneMax).nullable(),
   "contactEmail": zod.string().email().max(updateOrganizationBodyContactEmailMax).nullable(),
   "address": zod.string().max(updateOrganizationBodyAddressMax),
-  "reason": zod.string().min(updateOrganizationBodyReasonMin).max(updateOrganizationBodyReasonMax).nullish()
+  "reason": zod.string().min(updateOrganizationBodyReasonMin).max(updateOrganizationBodyReasonMax)
 })
 
 export const UpdateOrganizationResponse = zod.object({
@@ -774,7 +774,7 @@ export const UpdateBranchBody = zod.object({
 }),
   "contactName": zod.string().max(updateBranchBodyContactNameMax).nullish(),
   "contactPhone": zod.string().max(updateBranchBodyContactPhoneMax).nullish(),
-  "reason": zod.string().min(updateBranchBodyReasonMin).max(updateBranchBodyReasonMax).nullish()
+  "reason": zod.string().min(updateBranchBodyReasonMin).max(updateBranchBodyReasonMax)
 })
 
 export const UpdateBranchResponse = zod.object({
@@ -973,6 +973,728 @@ export const SetUserStatusBody = zod.object({
 export const SetUserStatusResponse = zod.object({
   "status": zod.string(),
   "message": zod.string()
+})
+
+
+/**
+ * @summary List join requests visible to the signed-in applicant or central reviewer
+ */
+export const ListOrganizationJoinRequestsQueryParams = zod.object({
+  "status": zod.enum(['draft', 'submitted', 'needs_completion', 'rejected', 'approved', 'withdrawn']).optional()
+})
+
+
+export const listOrganizationJoinRequestsResponseItemsItemDecisionReasonMax = 500;
+
+
+
+export const ListOrganizationJoinRequestsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "applicant_id": zod.string().uuid(),
+  "created_by": zod.string().uuid(),
+  "organization_data": zod.record(zod.string(), zod.unknown()),
+  "initial_branch_data": zod.record(zod.string(), zod.unknown()),
+  "status": zod.enum(['draft', 'submitted', 'needs_completion', 'rejected', 'approved', 'withdrawn']),
+  "version": zod.number().int().min(1),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "submitted_at": zod.coerce.date().nullish(),
+  "reviewed_by": zod.string().uuid().nullish(),
+  "reviewed_at": zod.coerce.date().nullish(),
+  "decision_reason": zod.string().max(listOrganizationJoinRequestsResponseItemsItemDecisionReasonMax).nullish(),
+  "approved_organization_id": zod.string().uuid().nullish(),
+  "approved_branch_id": zod.string().uuid().nullish()
+}))
+})
+
+
+/**
+ * @summary Start a verified applicant's organization request or let central staff create it for a username
+ */
+export const createOrganizationJoinRequestBodyApplicantUsernameMin = 3;
+export const createOrganizationJoinRequestBodyApplicantUsernameMax = 64;
+
+export const createOrganizationJoinRequestBodyOrganizationNameMin = 2;
+export const createOrganizationJoinRequestBodyOrganizationNameMax = 160;
+
+export const createOrganizationJoinRequestBodyOrganizationCodeMin = 2;
+export const createOrganizationJoinRequestBodyOrganizationCodeMax = 40;
+
+
+export const createOrganizationJoinRequestBodyOrganizationCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+export const createOrganizationJoinRequestBodyOrganizationLegalNameMax = 200;
+
+export const createOrganizationJoinRequestBodyOrganizationContactNameMax = 160;
+
+export const createOrganizationJoinRequestBodyOrganizationContactPhoneMax = 24;
+
+export const createOrganizationJoinRequestBodyOrganizationContactEmailMax = 320;
+
+export const createOrganizationJoinRequestBodyOrganizationAddressMax = 500;
+
+export const createOrganizationJoinRequestBodyInitialBranchCodeMin = 2;
+export const createOrganizationJoinRequestBodyInitialBranchCodeMax = 40;
+
+
+export const createOrganizationJoinRequestBodyInitialBranchCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+export const createOrganizationJoinRequestBodyInitialBranchNameMin = 2;
+export const createOrganizationJoinRequestBodyInitialBranchNameMax = 160;
+
+export const createOrganizationJoinRequestBodyInitialBranchAddressMax = 500;
+
+export const createOrganizationJoinRequestBodyInitialBranchGovernorateMax = 100;
+
+export const createOrganizationJoinRequestBodyInitialBranchLatitudeMin = -90;
+export const createOrganizationJoinRequestBodyInitialBranchLatitudeMax = 90;
+
+export const createOrganizationJoinRequestBodyInitialBranchLongitudeMin = -180;
+export const createOrganizationJoinRequestBodyInitialBranchLongitudeMax = 180;
+
+export const createOrganizationJoinRequestBodyInitialBranchHoursSunOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursMonOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursTueOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursWedOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursThuOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursFriOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursSatOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createOrganizationJoinRequestBodyInitialBranchContactNameMax = 160;
+
+export const createOrganizationJoinRequestBodyInitialBranchContactPhoneMax = 24;
+
+
+
+export const CreateOrganizationJoinRequestBody = zod.object({
+  "applicantUsername": zod.string().min(createOrganizationJoinRequestBodyApplicantUsernameMin).max(createOrganizationJoinRequestBodyApplicantUsernameMax).optional(),
+  "organization": zod.object({
+  "name": zod.string().min(createOrganizationJoinRequestBodyOrganizationNameMin).max(createOrganizationJoinRequestBodyOrganizationNameMax),
+  "kind": zod.enum(['company', 'station', 'provider']),
+  "code": zod.string().min(createOrganizationJoinRequestBodyOrganizationCodeMin).max(createOrganizationJoinRequestBodyOrganizationCodeMax).regex(createOrganizationJoinRequestBodyOrganizationCodeRegExp),
+  "legalName": zod.string().max(createOrganizationJoinRequestBodyOrganizationLegalNameMax).nullish(),
+  "contactName": zod.string().max(createOrganizationJoinRequestBodyOrganizationContactNameMax).nullish(),
+  "contactPhone": zod.string().max(createOrganizationJoinRequestBodyOrganizationContactPhoneMax).nullish(),
+  "contactEmail": zod.string().email().max(createOrganizationJoinRequestBodyOrganizationContactEmailMax).nullish(),
+  "address": zod.string().max(createOrganizationJoinRequestBodyOrganizationAddressMax)
+}),
+  "initialBranch": zod.object({
+  "code": zod.string().min(createOrganizationJoinRequestBodyInitialBranchCodeMin).max(createOrganizationJoinRequestBodyInitialBranchCodeMax).regex(createOrganizationJoinRequestBodyInitialBranchCodeRegExp),
+  "name": zod.string().min(createOrganizationJoinRequestBodyInitialBranchNameMin).max(createOrganizationJoinRequestBodyInitialBranchNameMax),
+  "address": zod.string().max(createOrganizationJoinRequestBodyInitialBranchAddressMax),
+  "governorate": zod.string().max(createOrganizationJoinRequestBodyInitialBranchGovernorateMax).nullish(),
+  "latitude": zod.number().min(createOrganizationJoinRequestBodyInitialBranchLatitudeMin).max(createOrganizationJoinRequestBodyInitialBranchLatitudeMax).nullish(),
+  "longitude": zod.number().min(createOrganizationJoinRequestBodyInitialBranchLongitudeMin).max(createOrganizationJoinRequestBodyInitialBranchLongitudeMax).nullish(),
+  "hours": zod.object({
+  "sun": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSunOpenRegExp).optional(),
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp).optional()
+}).optional(),
+  "mon": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursMonOpenRegExp).optional(),
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp).optional()
+}).optional(),
+  "tue": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursTueOpenRegExp).optional(),
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp).optional()
+}).optional(),
+  "wed": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursWedOpenRegExp).optional(),
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp).optional()
+}).optional(),
+  "thu": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursThuOpenRegExp).optional(),
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp).optional()
+}).optional(),
+  "fri": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursFriOpenRegExp).optional(),
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp).optional()
+}).optional(),
+  "sat": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSatOpenRegExp).optional(),
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp).optional()
+}).optional()
+}),
+  "contactName": zod.string().max(createOrganizationJoinRequestBodyInitialBranchContactNameMax).nullish(),
+  "contactPhone": zod.string().max(createOrganizationJoinRequestBodyInitialBranchContactPhoneMax).nullish()
+})
+})
+
+export const CreateOrganizationJoinRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "message": zod.string()
+})
+
+
+export const GetOrganizationJoinRequestParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+export const getOrganizationJoinRequestResponseDecisionReasonMax = 500;
+
+
+
+export const GetOrganizationJoinRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "applicant_id": zod.string().uuid(),
+  "created_by": zod.string().uuid(),
+  "organization_data": zod.record(zod.string(), zod.unknown()),
+  "initial_branch_data": zod.record(zod.string(), zod.unknown()),
+  "status": zod.enum(['draft', 'submitted', 'needs_completion', 'rejected', 'approved', 'withdrawn']),
+  "version": zod.number().int().min(1),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "submitted_at": zod.coerce.date().nullish(),
+  "reviewed_by": zod.string().uuid().nullish(),
+  "reviewed_at": zod.coerce.date().nullish(),
+  "decision_reason": zod.string().max(getOrganizationJoinRequestResponseDecisionReasonMax).nullish(),
+  "approved_organization_id": zod.string().uuid().nullish(),
+  "approved_branch_id": zod.string().uuid().nullish()
+})
+
+
+export const UpdateOrganizationJoinRequestParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+export const updateOrganizationJoinRequestBodyOrganizationNameMin = 2;
+export const updateOrganizationJoinRequestBodyOrganizationNameMax = 160;
+
+export const updateOrganizationJoinRequestBodyOrganizationCodeMin = 2;
+export const updateOrganizationJoinRequestBodyOrganizationCodeMax = 40;
+
+
+export const updateOrganizationJoinRequestBodyOrganizationCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+export const updateOrganizationJoinRequestBodyOrganizationLegalNameMax = 200;
+
+export const updateOrganizationJoinRequestBodyOrganizationContactNameMax = 160;
+
+export const updateOrganizationJoinRequestBodyOrganizationContactPhoneMax = 24;
+
+export const updateOrganizationJoinRequestBodyOrganizationContactEmailMax = 320;
+
+export const updateOrganizationJoinRequestBodyOrganizationAddressMax = 500;
+
+export const updateOrganizationJoinRequestBodyInitialBranchCodeMin = 2;
+export const updateOrganizationJoinRequestBodyInitialBranchCodeMax = 40;
+
+
+export const updateOrganizationJoinRequestBodyInitialBranchCodeRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+export const updateOrganizationJoinRequestBodyInitialBranchNameMin = 2;
+export const updateOrganizationJoinRequestBodyInitialBranchNameMax = 160;
+
+export const updateOrganizationJoinRequestBodyInitialBranchAddressMax = 500;
+
+export const updateOrganizationJoinRequestBodyInitialBranchGovernorateMax = 100;
+
+export const updateOrganizationJoinRequestBodyInitialBranchLatitudeMin = -90;
+export const updateOrganizationJoinRequestBodyInitialBranchLatitudeMax = 90;
+
+export const updateOrganizationJoinRequestBodyInitialBranchLongitudeMin = -180;
+export const updateOrganizationJoinRequestBodyInitialBranchLongitudeMax = 180;
+
+export const updateOrganizationJoinRequestBodyInitialBranchHoursSunOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursMonOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursTueOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursWedOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursThuOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursFriOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursSatOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateOrganizationJoinRequestBodyInitialBranchContactNameMax = 160;
+
+export const updateOrganizationJoinRequestBodyInitialBranchContactPhoneMax = 24;
+
+
+
+export const UpdateOrganizationJoinRequestBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "organization": zod.object({
+  "name": zod.string().min(updateOrganizationJoinRequestBodyOrganizationNameMin).max(updateOrganizationJoinRequestBodyOrganizationNameMax),
+  "kind": zod.enum(['company', 'station', 'provider']),
+  "code": zod.string().min(updateOrganizationJoinRequestBodyOrganizationCodeMin).max(updateOrganizationJoinRequestBodyOrganizationCodeMax).regex(updateOrganizationJoinRequestBodyOrganizationCodeRegExp),
+  "legalName": zod.string().max(updateOrganizationJoinRequestBodyOrganizationLegalNameMax).nullish(),
+  "contactName": zod.string().max(updateOrganizationJoinRequestBodyOrganizationContactNameMax).nullish(),
+  "contactPhone": zod.string().max(updateOrganizationJoinRequestBodyOrganizationContactPhoneMax).nullish(),
+  "contactEmail": zod.string().email().max(updateOrganizationJoinRequestBodyOrganizationContactEmailMax).nullish(),
+  "address": zod.string().max(updateOrganizationJoinRequestBodyOrganizationAddressMax)
+}),
+  "initialBranch": zod.object({
+  "code": zod.string().min(updateOrganizationJoinRequestBodyInitialBranchCodeMin).max(updateOrganizationJoinRequestBodyInitialBranchCodeMax).regex(updateOrganizationJoinRequestBodyInitialBranchCodeRegExp),
+  "name": zod.string().min(updateOrganizationJoinRequestBodyInitialBranchNameMin).max(updateOrganizationJoinRequestBodyInitialBranchNameMax),
+  "address": zod.string().max(updateOrganizationJoinRequestBodyInitialBranchAddressMax),
+  "governorate": zod.string().max(updateOrganizationJoinRequestBodyInitialBranchGovernorateMax).nullish(),
+  "latitude": zod.number().min(updateOrganizationJoinRequestBodyInitialBranchLatitudeMin).max(updateOrganizationJoinRequestBodyInitialBranchLatitudeMax).nullish(),
+  "longitude": zod.number().min(updateOrganizationJoinRequestBodyInitialBranchLongitudeMin).max(updateOrganizationJoinRequestBodyInitialBranchLongitudeMax).nullish(),
+  "hours": zod.object({
+  "sun": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSunOpenRegExp).optional(),
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp).optional()
+}).optional(),
+  "mon": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursMonOpenRegExp).optional(),
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp).optional()
+}).optional(),
+  "tue": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursTueOpenRegExp).optional(),
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp).optional()
+}).optional(),
+  "wed": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursWedOpenRegExp).optional(),
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp).optional()
+}).optional(),
+  "thu": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursThuOpenRegExp).optional(),
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp).optional()
+}).optional(),
+  "fri": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursFriOpenRegExp).optional(),
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp).optional()
+}).optional(),
+  "sat": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSatOpenRegExp).optional(),
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp).optional()
+}).optional()
+}),
+  "contactName": zod.string().max(updateOrganizationJoinRequestBodyInitialBranchContactNameMax).nullish(),
+  "contactPhone": zod.string().max(updateOrganizationJoinRequestBodyInitialBranchContactPhoneMax).nullish()
+})
+})
+
+export const UpdateOrganizationJoinRequestResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const ListOrganizationJoinRequestDocumentsParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+export const listOrganizationJoinRequestDocumentsResponseItemsItemReviewReasonMax = 500;
+
+
+
+
+export const ListOrganizationJoinRequestDocumentsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "uploader_id": zod.string().uuid(),
+  "organization_id": zod.string().uuid().nullish(),
+  "branch_id": zod.string().uuid().nullish(),
+  "join_request_id": zod.string().uuid().nullish(),
+  "change_request_id": zod.string().uuid().nullish(),
+  "bank_account_version_id": zod.string().uuid().nullish(),
+  "document_type": zod.string(),
+  "file_name": zod.string(),
+  "content_type": zod.enum(['application/pdf', 'image/png', 'image/jpeg']),
+  "byte_size": zod.number().int().min(1),
+  "expires_on": zod.coerce.date().nullish(),
+  "status": zod.enum(['pending_upload', 'attached', 'pending_review', 'approved', 'needs_completion', 'rejected', 'upload_failed']),
+  "uploaded_at": zod.coerce.date().nullish(),
+  "reviewed_by": zod.string().uuid().nullish(),
+  "reviewed_at": zod.coerce.date().nullish(),
+  "review_reason": zod.string().max(listOrganizationJoinRequestDocumentsResponseItemsItemReviewReasonMax).nullish(),
+  "version": zod.number().int().min(1),
+  "created_at": zod.coerce.date()
+}))
+})
+
+
+export const SubmitOrganizationJoinRequestParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const SubmitOrganizationJoinRequestBody = zod.object({
+  "expectedVersion": zod.number().int().min(1)
+})
+
+export const SubmitOrganizationJoinRequestResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const WithdrawOrganizationJoinRequestParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const WithdrawOrganizationJoinRequestBody = zod.object({
+  "expectedVersion": zod.number().int().min(1)
+})
+
+export const WithdrawOrganizationJoinRequestResponse = zod.void()
+
+
+/**
+ * @summary Central request inbox for organization, branch, banking, and document reviews
+ */
+export const listAdminOrganizationRequestsQueryStatusMax = 30;
+
+
+
+export const ListAdminOrganizationRequestsQueryParams = zod.object({
+  "status": zod.coerce.string().max(listAdminOrganizationRequestsQueryStatusMax).optional(),
+  "requestType": zod.enum(['join', 'change', 'bank', 'document']).optional()
+})
+
+export const listAdminOrganizationRequestsResponseItemsItemStatusMax = 30;
+
+
+export const listAdminOrganizationRequestsResponseItemsItemTitleMax = 200;
+
+
+
+export const ListAdminOrganizationRequestsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "requestType": zod.enum(['join', 'change', 'bank', 'document']),
+  "status": zod.string().max(listAdminOrganizationRequestsResponseItemsItemStatusMax),
+  "version": zod.number().int().min(1),
+  "createdAt": zod.coerce.date(),
+  "applicantId": zod.string().uuid().nullish(),
+  "organizationId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
+  "title": zod.string().max(listAdminOrganizationRequestsResponseItemsItemTitleMax),
+  "summary": zod.record(zod.string(), zod.unknown())
+}))
+})
+
+
+export const DecideAdminOrganizationRequestParams = zod.object({
+  "requestType": zod.enum(['join', 'change', 'bank', 'document']),
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+export const decideAdminOrganizationRequestBodyReasonMin = 5;
+export const decideAdminOrganizationRequestBodyReasonMax = 500;
+
+export const decideAdminOrganizationRequestBodyExpectedAccountVersionMin = 0;
+
+
+
+export const DecideAdminOrganizationRequestBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "action": zod.enum(['approve', 'reject', 'needs_completion']),
+  "reason": zod.string().min(decideAdminOrganizationRequestBodyReasonMin).max(decideAdminOrganizationRequestBodyReasonMax),
+  "linkOrganizationId": zod.string().uuid().optional(),
+  "linkBranchId": zod.string().uuid().optional(),
+  "membershipRole": zod.enum(['organization_owner', 'manager', 'finance', 'worker', 'viewer']).optional(),
+  "expectedAccountVersion": zod.number().int().min(decideAdminOrganizationRequestBodyExpectedAccountVersionMin).optional()
+})
+
+export const DecideAdminOrganizationRequestResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const ListOrganizationChangeRequestsQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "branchId": zod.coerce.string().uuid().optional()
+})
+
+
+
+export const listOrganizationChangeRequestsResponseItemsItemDecisionReasonMax = 500;
+
+
+
+export const ListOrganizationChangeRequestsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organization_id": zod.string().uuid(),
+  "branch_id": zod.string().uuid().nullish(),
+  "target_type": zod.enum(['organization', 'branch']),
+  "applicant_id": zod.string().uuid(),
+  "expected_entity_version": zod.number().int().min(1),
+  "current_snapshot": zod.record(zod.string(), zod.unknown()),
+  "proposed_data": zod.record(zod.string(), zod.unknown()),
+  "status": zod.enum(['submitted', 'needs_completion', 'approved', 'rejected', 'withdrawn', 'conflict']),
+  "version": zod.number().int().min(1),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "reviewed_by": zod.string().uuid().nullish(),
+  "reviewed_at": zod.coerce.date().nullish(),
+  "decision_reason": zod.string().max(listOrganizationChangeRequestsResponseItemsItemDecisionReasonMax).nullish()
+}))
+})
+
+
+
+
+
+export const CreateOrganizationChangeRequestBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "branchId": zod.string().uuid().optional(),
+  "expectedEntityVersion": zod.number().int().min(1),
+  "proposedData": zod.record(zod.string(), zod.unknown())
+})
+
+export const CreateOrganizationChangeRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "message": zod.string()
+})
+
+
+export const ResubmitOrganizationChangeRequestParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const ResubmitOrganizationChangeRequestBody = zod.object({
+  "expectedRequestVersion": zod.number().int().min(1),
+  "proposedData": zod.record(zod.string(), zod.unknown())
+})
+
+export const ResubmitOrganizationChangeRequestResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const WithdrawOrganizationChangeRequestParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const WithdrawOrganizationChangeRequestBody = zod.object({
+  "expectedVersion": zod.number().int().min(1)
+})
+
+export const WithdrawOrganizationChangeRequestResponse = zod.void()
+
+
+export const ListOrganizationBankAccountsParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const listOrganizationBankAccountsResponseItemsItemAccountVersionMin = 0;
+
+
+export const listOrganizationBankAccountsResponseItemsItemAccountLast4Min = 4;
+export const listOrganizationBankAccountsResponseItemsItemAccountLast4Max = 4;
+
+export const listOrganizationBankAccountsResponseItemsItemDecisionReasonMax = 500;
+
+
+
+export const ListOrganizationBankAccountsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "bank_account_id": zod.string().uuid(),
+  "account_version": zod.number().int().min(listOrganizationBankAccountsResponseItemsItemAccountVersionMin),
+  "organization_id": zod.string().uuid(),
+  "version": zod.number().int().min(1),
+  "bank_name": zod.string(),
+  "beneficiary_name": zod.string(),
+  "account_last4": zod.string().min(listOrganizationBankAccountsResponseItemsItemAccountLast4Min).max(listOrganizationBankAccountsResponseItemsItemAccountLast4Max),
+  "status": zod.enum(['pending', 'needs_completion', 'approved', 'superseded', 'rejected', 'withdrawn', 'conflict']),
+  "created_by": zod.string().uuid(),
+  "created_at": zod.coerce.date(),
+  "reviewed_by": zod.string().uuid().nullish(),
+  "reviewed_at": zod.coerce.date().nullish(),
+  "decision_reason": zod.string().max(listOrganizationBankAccountsResponseItemsItemDecisionReasonMax).nullish()
+}))
+})
+
+
+export const ProposeOrganizationBankAccountParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const proposeOrganizationBankAccountBodyExpectedAccountVersionMin = 0;
+
+export const proposeOrganizationBankAccountBodyBankNameMin = 2;
+export const proposeOrganizationBankAccountBodyBankNameMax = 120;
+
+export const proposeOrganizationBankAccountBodyBeneficiaryNameMin = 2;
+export const proposeOrganizationBankAccountBodyBeneficiaryNameMax = 160;
+
+export const proposeOrganizationBankAccountBodyAccountIdentifierMin = 5;
+export const proposeOrganizationBankAccountBodyAccountIdentifierMax = 64;
+
+
+
+export const ProposeOrganizationBankAccountBody = zod.object({
+  "bankAccountId": zod.string().uuid().optional(),
+  "expectedAccountVersion": zod.number().int().min(proposeOrganizationBankAccountBodyExpectedAccountVersionMin).optional(),
+  "bankName": zod.string().min(proposeOrganizationBankAccountBodyBankNameMin).max(proposeOrganizationBankAccountBodyBankNameMax),
+  "beneficiaryName": zod.string().min(proposeOrganizationBankAccountBodyBeneficiaryNameMin).max(proposeOrganizationBankAccountBodyBeneficiaryNameMax),
+  "accountIdentifier": zod.string().min(proposeOrganizationBankAccountBodyAccountIdentifierMin).max(proposeOrganizationBankAccountBodyAccountIdentifierMax)
+})
+
+
+export const proposeOrganizationBankAccountResponseAccountLast4Min = 4;
+export const proposeOrganizationBankAccountResponseAccountLast4Max = 4;
+
+
+
+export const ProposeOrganizationBankAccountResponse = zod.object({
+  "accountId": zod.string().uuid(),
+  "versionId": zod.string().uuid(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending']),
+  "accountLast4": zod.string().min(proposeOrganizationBankAccountResponseAccountLast4Min).max(proposeOrganizationBankAccountResponseAccountLast4Max),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get full bank details only for an authorized organization banking role or central finance reviewer
+ */
+export const GetOrganizationBankAccountVersionDetailsParams = zod.object({
+  "versionId": zod.coerce.string().uuid()
+})
+
+
+export const getOrganizationBankAccountVersionDetailsResponseAccountLast4Min = 4;
+export const getOrganizationBankAccountVersionDetailsResponseAccountLast4Max = 4;
+
+
+
+export const GetOrganizationBankAccountVersionDetailsResponse = zod.object({
+  "id": zod.string().uuid(),
+  "bankAccountId": zod.string().uuid(),
+  "organizationId": zod.string().uuid(),
+  "version": zod.number().int().min(1),
+  "bankName": zod.string(),
+  "beneficiaryName": zod.string(),
+  "accountIdentifier": zod.string().describe('Returned only to a role authorized to manage or review this bank account; never included in list responses.'),
+  "accountLast4": zod.string().min(getOrganizationBankAccountVersionDetailsResponseAccountLast4Min).max(getOrganizationBankAccountVersionDetailsResponseAccountLast4Max),
+  "status": zod.enum(['pending', 'needs_completion', 'approved', 'superseded', 'rejected', 'withdrawn', 'conflict'])
+})
+
+
+export const WithdrawOrganizationBankAccountVersionParams = zod.object({
+  "versionId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const WithdrawOrganizationBankAccountVersionBody = zod.object({
+  "expectedVersion": zod.number().int().min(1)
+})
+
+export const WithdrawOrganizationBankAccountVersionResponse = zod.void()
+
+
+export const ListOrganizationDocumentsQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "branchId": zod.coerce.string().uuid().optional(),
+  "joinRequestId": zod.coerce.string().uuid().optional(),
+  "changeRequestId": zod.coerce.string().uuid().optional(),
+  "bankVersionId": zod.coerce.string().uuid().optional()
+})
+
+
+export const listOrganizationDocumentsResponseItemsItemReviewReasonMax = 500;
+
+
+
+
+export const ListOrganizationDocumentsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "uploader_id": zod.string().uuid(),
+  "organization_id": zod.string().uuid().nullish(),
+  "branch_id": zod.string().uuid().nullish(),
+  "join_request_id": zod.string().uuid().nullish(),
+  "change_request_id": zod.string().uuid().nullish(),
+  "bank_account_version_id": zod.string().uuid().nullish(),
+  "document_type": zod.string(),
+  "file_name": zod.string(),
+  "content_type": zod.enum(['application/pdf', 'image/png', 'image/jpeg']),
+  "byte_size": zod.number().int().min(1),
+  "expires_on": zod.coerce.date().nullish(),
+  "status": zod.enum(['pending_upload', 'attached', 'pending_review', 'approved', 'needs_completion', 'rejected', 'upload_failed']),
+  "uploaded_at": zod.coerce.date().nullish(),
+  "reviewed_by": zod.string().uuid().nullish(),
+  "reviewed_at": zod.coerce.date().nullish(),
+  "review_reason": zod.string().max(listOrganizationDocumentsResponseItemsItemReviewReasonMax).nullish(),
+  "version": zod.number().int().min(1),
+  "created_at": zod.coerce.date()
+}))
+})
+
+
+export const createDocumentUploadIntentBodyDocumentTypeMin = 2;
+export const createDocumentUploadIntentBodyDocumentTypeMax = 80;
+
+export const createDocumentUploadIntentBodyFileNameMax = 160;
+
+export const createDocumentUploadIntentBodyByteSizeMax = 10485760;
+
+
+
+export const CreateDocumentUploadIntentBody = zod.object({
+  "contextType": zod.enum(['join_request', 'organization', 'branch', 'change_request', 'bank_version']),
+  "contextId": zod.string().uuid(),
+  "documentType": zod.string().min(createDocumentUploadIntentBodyDocumentTypeMin).max(createDocumentUploadIntentBodyDocumentTypeMax),
+  "fileName": zod.string().min(1).max(createDocumentUploadIntentBodyFileNameMax),
+  "contentType": zod.enum(['application/pdf', 'image/png', 'image/jpeg']),
+  "byteSize": zod.number().int().min(1).max(createDocumentUploadIntentBodyByteSizeMax),
+  "expiresOn": zod.coerce.date().nullish()
+})
+
+export const CreateDocumentUploadIntentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "message": zod.string()
+})
+
+
+export const UploadOrganizationDocumentContentParams = zod.object({
+  "documentId": zod.coerce.string().uuid()
+})
+
+export const UploadOrganizationDocumentContentResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const CreateOrganizationDocumentDownloadParams = zod.object({
+  "documentId": zod.coerce.string().uuid()
+})
+
+export const CreateOrganizationDocumentDownloadResponse = zod.object({
+  "url": zod.string().url(),
+  "expiresInSeconds": zod.literal(60)
 })
 
 
