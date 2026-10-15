@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, CircleAlert, Clock3, FileSearch, LockKeyhole, RefreshCw, Search, ShieldCheck, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, RefreshCw, Search, ShieldCheck, UserRound, Users, X } from "lucide-react";
 import {
   getGetAuthMeQueryKey, getGetPlatformUserQueryKey, getListAdminOrganizationRequestsQueryKey,
   getListOrganizationsQueryKey, getListPlatformUsersQueryKey, useGetAuthMe, useGetPlatformUser,
@@ -54,8 +54,8 @@ function AdminShell({ children, name }: { children: ReactNode; name: string }) {
       setSignOutError("تعذر تسجيل الخروج. حاول مرة أخرى.");
     }
   }
-  const active = path === "/admin" ? "overview" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : "organizations";
-  const pageTitle = active === "overview" ? "نظرة عامة" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const active = path === "/admin" ? "overview" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
+  const pageTitle = active === "overview" ? "نظرة عامة" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   return <div className="ac-app" dir="rtl">
     <header className="ac-topbar">
       <Link href="/admin" className="ac-brand" aria-label="Pertomax EG — لوحة الإدارة"><img src={`${import.meta.env.BASE_URL}petro-max-lockup.png`} alt="Pertomax EG"/></Link>
@@ -68,6 +68,8 @@ function AdminShell({ children, name }: { children: ReactNode; name: string }) {
       <Link href="/admin/organizations" className={active === "organizations" ? "selected" : ""}><span className="ac-nav-icon"><Building2 size={16}/></span>الجهات والفروع</Link>
       <Link href="/admin/organization-requests" className={active === "requests" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={16}/></span>مراجعة الطلبات</Link>
       <Link href="/admin/platform-users" className={active === "users" ? "selected" : ""}><span className="ac-nav-icon"><Users size={16}/></span>مستخدمو المنصة</Link>
+      <Link href="/admin/plans" className={active === "plans" ? "selected" : ""}><span className="ac-nav-icon"><CreditCard size={16}/></span>الخطط والأسعار</Link>
+      <Link href="/admin/subscriptions" className={active === "subscriptions" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={16}/></span>الاشتراكات</Link>
       <span className="ac-nav-boundary">نطاق المنصة فقط</span>
     </nav>
     <div className="ac-breadcrumb"><Link href="/admin">الإدارة المركزية</Link><ChevronLeft size={13}/><span>{pageTitle}</span></div>

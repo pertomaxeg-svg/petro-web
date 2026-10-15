@@ -1146,6 +1146,189 @@ paths:
           $ref: "#/components/responses/ApiError"
         "404":
           $ref: "#/components/responses/ApiError"
+  /admin/billing/catalog:
+    get:
+      operationId: getAdminBillingCatalog
+      tags: [management]
+      summary: Read the owner-only plan, subscription request and subscription catalog
+      responses:
+        "200":
+          description: Current saved plan versions and administrative subscription records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingCatalog" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "503":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/plans:
+    post:
+      operationId: createAdminBillingPlan
+      tags: [management]
+      summary: Create a draft plan with no preapproved rights
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminPlanInput" }
+      responses:
+        "201":
+          description: Draft plan and first draft version created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/plans/{planId}/versions:
+    post:
+      operationId: createAdminBillingPlanVersion
+      tags: [management]
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminPlanVersionInput" }
+      responses:
+        "201":
+          description: Immutable-on-publication draft version created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/plans/{planId}/versions/{versionId}/publish:
+    post:
+      operationId: publishAdminBillingPlanVersion
+      tags: [management]
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminReasonInput" }
+      responses:
+        "200":
+          description: Published or scheduled only after explicit approval of all rights
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/plans/{planId}/stop:
+    post:
+      operationId: scheduleAdminBillingPlanStop
+      tags: [management]
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminPlanStopInput" }
+      responses:
+        "200":
+          description: Future plan availability stop scheduled; existing subscriptions are unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/subscription-requests:
+    post:
+      operationId: createAdminSubscriptionRequest
+      tags: [management]
+      summary: Save a subscription, renewal, plan-change or custom-price request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminSubscriptionRequestInput" }
+      responses:
+        "201":
+          description: Request saved; submitted requests require approved plan rights and verified scope
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "400":
+          $ref: "#/components/responses/ApiError"
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/subscription-requests/{requestId}/review:
+    post:
+      operationId: reviewAdminSubscriptionRequest
+      tags: [management]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminSubscriptionReviewInput" }
+      responses:
+        "200":
+          description: Reviewed with audit reason; paid approval creates a pending-payment record only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
+  /admin/billing/subscriptions/{subscriptionId}/cancel:
+    post:
+      operationId: cancelAdminSubscription
+      tags: [management]
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminSubscriptionCancelInput" }
+      responses:
+        "200":
+          description: Cancellation date scheduled without changing price or rights snapshots
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBillingActionResult" }
+        "403":
+          $ref: "#/components/responses/ApiError"
+        "409":
+          $ref: "#/components/responses/ApiError"
 components:
   parameters:
     OrganizationId:
@@ -1208,6 +1391,173 @@ components:
         message:
           type: string
       required: [message]
+    AdminBillingActionResult:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: [string, "null"] }
+        message: { type: string }
+      required: [id, message]
+    AdminReasonInput:
+      type: object
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [reason]
+    AdminPlanInput:
+      type: object
+      properties:
+        code: { type: string, pattern: "^[a-z][a-z0-9_-]{2,47}$" }
+        audience: { type: string, enum: [company, provider, station] }
+        name: { type: string, minLength: 2, maxLength: 100 }
+        annualPriceMinor: { type: integer, format: int64, minimum: 0 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [code, audience, name, annualPriceMinor, reason]
+    AdminPlanStopInput:
+      type: object
+      properties:
+        stopNewAt: { type: [string, "null"], format: date-time }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [stopNewAt, reason]
+    AdminPlanEntitlement:
+      type: object
+      properties:
+        key: { type: string, minLength: 1, maxLength: 64 }
+        label: { type: string, minLength: 1, maxLength: 120 }
+        value: {}
+        approved: { type: boolean }
+      required: [key, label, value, approved]
+    AdminPlanVersionInput:
+      type: object
+      properties:
+        annualPriceMinor: { type: integer, format: int64, minimum: 0 }
+        effectiveAt: { type: string, format: date-time }
+        entitlements:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
+        settings:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [annualPriceMinor, effectiveAt, entitlements, settings, reason]
+    AdminPlanVersion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        annualPriceMinor: { type: integer, format: int64 }
+        nfcIssuePriceMinor: { type: integer, format: int64 }
+        billingUnit: { type: string, enum: [vehicle, branch] }
+        billingCycle: { type: string, enum: [annual] }
+        currency: { type: string, enum: [EGP] }
+        legacyFeatures:
+          type: array
+          items: { type: string }
+        entitlements:
+          type: [array, "null"]
+          items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
+        settings:
+          type: [array, "null"]
+          items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
+        effectiveAt: { type: string, format: date-time }
+        publicationStatus: { type: string, enum: [draft, scheduled, published, retired] }
+      required: [id, version, annualPriceMinor, nfcIssuePriceMinor, billingUnit, billingCycle, currency, legacyFeatures, entitlements, settings, effectiveAt, publicationStatus]
+    AdminPlan:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        audience: { type: string, enum: [company, provider, station] }
+        name: { type: string }
+        active: { type: boolean }
+        stopNewAt: { type: [string, "null"], format: date-time }
+        versions:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPlanVersion" }
+      required: [id, code, audience, name, active, stopNewAt, versions]
+    AdminSubscriptionRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        organizationName: { type: string }
+        branchId: { type: [string, "null"], format: uuid }
+        branchName: { type: [string, "null"] }
+        requestType: { type: string, enum: [new, renewal, plan_change, custom_price] }
+        currentSubscriptionId: { type: [string, "null"], format: uuid }
+        planId: { type: string, format: uuid }
+        planVersionId: { type: string, format: uuid }
+        requestedPriceMinor: { type: ["integer", "null"], format: int64 }
+        requestedUnits: { type: ["integer", "null"] }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        coverageState: { type: string, enum: [verified, fleet_registry_missing, branch_unverified] }
+        coverageNote: { type: string }
+        status: { type: string, enum: [draft, submitted, needs_changes, approved, rejected, cancelled] }
+        reason: { type: string }
+        decisionReason: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, organizationId, organizationName, branchId, branchName, requestType, currentSubscriptionId, planId, planVersionId, requestedPriceMinor, requestedUnits, startsAt, endsAt, coverageState, coverageNote, status, reason, decisionReason, createdAt]
+    AdminSubscription:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        organizationName: { type: string }
+        branchId: { type: [string, "null"], format: uuid }
+        branchName: { type: [string, "null"] }
+        planId: { type: string, format: uuid }
+        planVersionId: { type: string, format: uuid }
+        planSnapshot: { type: object }
+        priceSnapshotMinor: { type: integer, format: int64 }
+        billingUnit: { type: string, enum: [vehicle, branch] }
+        units: { type: integer, minimum: 1 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        status: { type: string, enum: [pending_payment, scheduled, active, expired, suspended, cancelled] }
+        cancellationEffectiveAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+      required: [id, organizationId, organizationName, branchId, branchName, planId, planVersionId, planSnapshot, priceSnapshotMinor, billingUnit, units, startsAt, endsAt, status, cancellationEffectiveAt, createdAt]
+    AdminBillingCatalog:
+      type: object
+      properties:
+        plans:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPlan" }
+        requests:
+          type: array
+          items: { $ref: "#/components/schemas/AdminSubscriptionRequest" }
+        subscriptions:
+          type: array
+          items: { $ref: "#/components/schemas/AdminSubscription" }
+      required: [plans, requests, subscriptions]
+    AdminSubscriptionRequestInput:
+      type: object
+      properties:
+        organizationId: { type: string, format: uuid }
+        branchId: { type: [string, "null"], format: uuid }
+        requestType: { type: string, enum: [new, renewal, plan_change, custom_price] }
+        currentSubscriptionId: { type: [string, "null"], format: uuid }
+        planId: { type: string, format: uuid }
+        planVersionId: { type: string, format: uuid }
+        requestedPriceMinor: { type: ["integer", "null"], format: int64, minimum: 0 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        coverageNote: { type: string, maxLength: 1000 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        submit: { type: boolean }
+      required: [organizationId, branchId, requestType, currentSubscriptionId, planId, planVersionId, requestedPriceMinor, startsAt, endsAt, coverageNote, reason, submit]
+    AdminSubscriptionReviewInput:
+      type: object
+      properties:
+        decision: { type: string, enum: [approve, needs_changes, reject, cancel] }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [decision, reason]
+    AdminSubscriptionCancelInput:
+      type: object
+      properties:
+        effectiveAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+      required: [effectiveAt, reason]
     SignUpRequest:
       type: object
       properties:

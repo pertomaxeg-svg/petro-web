@@ -1812,3 +1812,286 @@ export const CreateOrganizationDocumentDownloadResponse = zod.object({
 })
 
 
+/**
+ * @summary Read the owner-only plan, subscription request and subscription catalog
+ */
+
+export const getAdminBillingCatalogResponsePlansItemVersionsItemEntitlementsItemKeyMax = 64;
+
+export const getAdminBillingCatalogResponsePlansItemVersionsItemEntitlementsItemLabelMax = 120;
+
+export const getAdminBillingCatalogResponsePlansItemVersionsItemSettingsItemKeyMax = 64;
+
+export const getAdminBillingCatalogResponsePlansItemVersionsItemSettingsItemLabelMax = 120;
+
+
+
+
+export const GetAdminBillingCatalogResponse = zod.object({
+  "plans": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.string(),
+  "audience": zod.enum(['company', 'provider', 'station']),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "stopNewAt": zod.coerce.date().nullable(),
+  "versions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "version": zod.number().int().min(1),
+  "annualPriceMinor": zod.number().int(),
+  "nfcIssuePriceMinor": zod.number().int(),
+  "billingUnit": zod.enum(['vehicle', 'branch']),
+  "billingCycle": zod.enum(['annual']),
+  "currency": zod.enum(['EGP']),
+  "legacyFeatures": zod.array(zod.string()),
+  "entitlements": zod.array(zod.object({
+  "key": zod.string().min(1).max(getAdminBillingCatalogResponsePlansItemVersionsItemEntitlementsItemKeyMax),
+  "label": zod.string().min(1).max(getAdminBillingCatalogResponsePlansItemVersionsItemEntitlementsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})).nullable(),
+  "settings": zod.array(zod.object({
+  "key": zod.string().min(1).max(getAdminBillingCatalogResponsePlansItemVersionsItemSettingsItemKeyMax),
+  "label": zod.string().min(1).max(getAdminBillingCatalogResponsePlansItemVersionsItemSettingsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})).nullable(),
+  "effectiveAt": zod.coerce.date(),
+  "publicationStatus": zod.enum(['draft', 'scheduled', 'published', 'retired'])
+}))
+})),
+  "requests": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organizationId": zod.string().uuid(),
+  "organizationName": zod.string(),
+  "branchId": zod.string().uuid().nullable(),
+  "branchName": zod.string().nullable(),
+  "requestType": zod.enum(['new', 'renewal', 'plan_change', 'custom_price']),
+  "currentSubscriptionId": zod.string().uuid().nullable(),
+  "planId": zod.string().uuid(),
+  "planVersionId": zod.string().uuid(),
+  "requestedPriceMinor": zod.number().int().nullable(),
+  "requestedUnits": zod.number().int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "coverageState": zod.enum(['verified', 'fleet_registry_missing', 'branch_unverified']),
+  "coverageNote": zod.string(),
+  "status": zod.enum(['draft', 'submitted', 'needs_changes', 'approved', 'rejected', 'cancelled']),
+  "reason": zod.string(),
+  "decisionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "subscriptions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organizationId": zod.string().uuid(),
+  "organizationName": zod.string(),
+  "branchId": zod.string().uuid().nullable(),
+  "branchName": zod.string().nullable(),
+  "planId": zod.string().uuid(),
+  "planVersionId": zod.string().uuid(),
+  "planSnapshot": zod.object({
+
+}).passthrough(),
+  "priceSnapshotMinor": zod.number().int(),
+  "billingUnit": zod.enum(['vehicle', 'branch']),
+  "units": zod.number().int().min(1),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "status": zod.enum(['pending_payment', 'scheduled', 'active', 'expired', 'suspended', 'cancelled']),
+  "cancellationEffectiveAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a draft plan with no preapproved rights
+ */
+export const createAdminBillingPlanBodyCodeRegExp = new RegExp('^[a-z][a-z0-9_-]{2,47}$');
+export const createAdminBillingPlanBodyNameMin = 2;
+export const createAdminBillingPlanBodyNameMax = 100;
+
+export const createAdminBillingPlanBodyAnnualPriceMinorMin = 0;
+
+export const createAdminBillingPlanBodyReasonMin = 5;
+export const createAdminBillingPlanBodyReasonMax = 500;
+
+
+
+export const CreateAdminBillingPlanBody = zod.object({
+  "code": zod.string().regex(createAdminBillingPlanBodyCodeRegExp),
+  "audience": zod.enum(['company', 'provider', 'station']),
+  "name": zod.string().min(createAdminBillingPlanBodyNameMin).max(createAdminBillingPlanBodyNameMax),
+  "annualPriceMinor": zod.number().int().min(createAdminBillingPlanBodyAnnualPriceMinorMin),
+  "reason": zod.string().min(createAdminBillingPlanBodyReasonMin).max(createAdminBillingPlanBodyReasonMax)
+})
+
+export const CreateAdminBillingPlanResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const CreateAdminBillingPlanVersionParams = zod.object({
+  "planId": zod.coerce.string().uuid()
+})
+
+export const createAdminBillingPlanVersionBodyAnnualPriceMinorMin = 0;
+
+export const createAdminBillingPlanVersionBodyEntitlementsItemKeyMax = 64;
+
+export const createAdminBillingPlanVersionBodyEntitlementsItemLabelMax = 120;
+
+export const createAdminBillingPlanVersionBodySettingsItemKeyMax = 64;
+
+export const createAdminBillingPlanVersionBodySettingsItemLabelMax = 120;
+
+export const createAdminBillingPlanVersionBodyReasonMin = 5;
+export const createAdminBillingPlanVersionBodyReasonMax = 500;
+
+
+
+export const CreateAdminBillingPlanVersionBody = zod.object({
+  "annualPriceMinor": zod.number().int().min(createAdminBillingPlanVersionBodyAnnualPriceMinorMin),
+  "effectiveAt": zod.coerce.date(),
+  "entitlements": zod.array(zod.object({
+  "key": zod.string().min(1).max(createAdminBillingPlanVersionBodyEntitlementsItemKeyMax),
+  "label": zod.string().min(1).max(createAdminBillingPlanVersionBodyEntitlementsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})),
+  "settings": zod.array(zod.object({
+  "key": zod.string().min(1).max(createAdminBillingPlanVersionBodySettingsItemKeyMax),
+  "label": zod.string().min(1).max(createAdminBillingPlanVersionBodySettingsItemLabelMax),
+  "value": zod.unknown(),
+  "approved": zod.boolean()
+})),
+  "reason": zod.string().min(createAdminBillingPlanVersionBodyReasonMin).max(createAdminBillingPlanVersionBodyReasonMax)
+})
+
+export const CreateAdminBillingPlanVersionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const PublishAdminBillingPlanVersionParams = zod.object({
+  "planId": zod.coerce.string().uuid(),
+  "versionId": zod.coerce.string().uuid()
+})
+
+export const publishAdminBillingPlanVersionBodyReasonMin = 5;
+export const publishAdminBillingPlanVersionBodyReasonMax = 500;
+
+
+
+export const PublishAdminBillingPlanVersionBody = zod.object({
+  "reason": zod.string().min(publishAdminBillingPlanVersionBodyReasonMin).max(publishAdminBillingPlanVersionBodyReasonMax)
+})
+
+export const PublishAdminBillingPlanVersionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const ScheduleAdminBillingPlanStopParams = zod.object({
+  "planId": zod.coerce.string().uuid()
+})
+
+export const scheduleAdminBillingPlanStopBodyReasonMin = 5;
+export const scheduleAdminBillingPlanStopBodyReasonMax = 500;
+
+
+
+export const ScheduleAdminBillingPlanStopBody = zod.object({
+  "stopNewAt": zod.coerce.date().nullable(),
+  "reason": zod.string().min(scheduleAdminBillingPlanStopBodyReasonMin).max(scheduleAdminBillingPlanStopBodyReasonMax)
+})
+
+export const ScheduleAdminBillingPlanStopResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Save a subscription, renewal, plan-change or custom-price request
+ */
+export const createAdminSubscriptionRequestBodyRequestedPriceMinorMin = 0;
+
+export const createAdminSubscriptionRequestBodyCoverageNoteMax = 1000;
+
+export const createAdminSubscriptionRequestBodyReasonMin = 5;
+export const createAdminSubscriptionRequestBodyReasonMax = 500;
+
+
+
+export const CreateAdminSubscriptionRequestBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "branchId": zod.string().uuid().nullable(),
+  "requestType": zod.enum(['new', 'renewal', 'plan_change', 'custom_price']),
+  "currentSubscriptionId": zod.string().uuid().nullable(),
+  "planId": zod.string().uuid(),
+  "planVersionId": zod.string().uuid(),
+  "requestedPriceMinor": zod.number().int().min(createAdminSubscriptionRequestBodyRequestedPriceMinorMin).nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "coverageNote": zod.string().max(createAdminSubscriptionRequestBodyCoverageNoteMax),
+  "reason": zod.string().min(createAdminSubscriptionRequestBodyReasonMin).max(createAdminSubscriptionRequestBodyReasonMax),
+  "submit": zod.boolean()
+})
+
+export const CreateAdminSubscriptionRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const ReviewAdminSubscriptionRequestParams = zod.object({
+  "requestId": zod.coerce.string().uuid()
+})
+
+export const reviewAdminSubscriptionRequestBodyReasonMin = 5;
+export const reviewAdminSubscriptionRequestBodyReasonMax = 500;
+
+
+
+export const ReviewAdminSubscriptionRequestBody = zod.object({
+  "decision": zod.enum(['approve', 'needs_changes', 'reject', 'cancel']),
+  "reason": zod.string().min(reviewAdminSubscriptionRequestBodyReasonMin).max(reviewAdminSubscriptionRequestBodyReasonMax)
+})
+
+export const ReviewAdminSubscriptionRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+export const CancelAdminSubscriptionParams = zod.object({
+  "subscriptionId": zod.coerce.string().uuid()
+})
+
+export const cancelAdminSubscriptionBodyReasonMin = 5;
+export const cancelAdminSubscriptionBodyReasonMax = 500;
+
+
+
+export const CancelAdminSubscriptionBody = zod.object({
+  "effectiveAt": zod.coerce.date(),
+  "reason": zod.string().min(cancelAdminSubscriptionBodyReasonMin).max(cancelAdminSubscriptionBodyReasonMax)
+})
+
+export const CancelAdminSubscriptionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().nullish(),
+  "message": zod.string()
+})
+
+

@@ -237,6 +237,17 @@ fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/legacy-status-rpc-revocation-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0010.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0010_plan_subscription_admin.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0010.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0010.txt" "$tmp_dir/default-acl-after-0010.txt"; then
+  echo "0010 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0010.txt" "$tmp_dir/default-acl-after-0010.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/plan-subscription-admin-smoke-test.sql" >/dev/null
 if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0009:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0009")"
   pg_dump --no-owner --no-privileges --schema-only \
@@ -254,5 +265,6 @@ echo "0007 confirmed pending self-service, beneficiary immutability, private att
 echo "0008 platform-user directory, role/status audit, owner-only authorization, self-change denial, inactive-account guard, and legacy-RPC compatibility checks passed."
 echo "0009 client-role revocation of the legacy status RPC passed; service_role access remained unchanged."
 echo "The API router and 0008/0009 functions passed an isolated HTTP/PostgreSQL integration test using synthetic users and a local fake Supabase transport."
-echo "0004/0005/0006/0007/0008/0009 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
+echo "0010 plan versions, approved-price schedule, owner-only controls, duplicate/overlap rejection, organization scope, snapshot immutability, paid pending state, free station branch gate, custom-price rejection for stations, company fleet block, plan change, renewal, future cancellation, and branch expiry isolation passed with synthetic fixtures."
+echo "0004/0005/0006/0007/0008/0009/0010 local migrations changed no default ACL in any schema. Storage behavior was simulated in local PostgreSQL; no upload to a live Storage service occurred."
 echo "Only a temporary local PostgreSQL cluster and local HTTP test server were used; no project Secrets or external network connections were used."

@@ -45,6 +45,330 @@ export interface MessageResult {
   message: string;
 }
 
+export interface AdminBillingActionResult {
+  id: string;
+  /** @nullable */
+  status?: string | null;
+  message: string;
+}
+
+export interface AdminReasonInput {
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type AdminPlanInputAudience = typeof AdminPlanInputAudience[keyof typeof AdminPlanInputAudience];
+
+
+export const AdminPlanInputAudience = {
+  company: 'company',
+  provider: 'provider',
+  station: 'station',
+} as const;
+
+export interface AdminPlanInput {
+  /** @pattern ^[a-z][a-z0-9_-]{2,47}$ */
+  code: string;
+  audience: AdminPlanInputAudience;
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  name: string;
+  /** @minimum 0 */
+  annualPriceMinor: number;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface AdminPlanStopInput {
+  /** @nullable */
+  stopNewAt: string | null;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface AdminPlanEntitlement {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  key: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+  value: unknown;
+  approved: boolean;
+}
+
+export interface AdminPlanVersionInput {
+  /** @minimum 0 */
+  annualPriceMinor: number;
+  effectiveAt: string;
+  entitlements: AdminPlanEntitlement[];
+  settings: AdminPlanEntitlement[];
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type AdminPlanVersionBillingUnit = typeof AdminPlanVersionBillingUnit[keyof typeof AdminPlanVersionBillingUnit];
+
+
+export const AdminPlanVersionBillingUnit = {
+  vehicle: 'vehicle',
+  branch: 'branch',
+} as const;
+
+export type AdminPlanVersionBillingCycle = typeof AdminPlanVersionBillingCycle[keyof typeof AdminPlanVersionBillingCycle];
+
+
+export const AdminPlanVersionBillingCycle = {
+  annual: 'annual',
+} as const;
+
+export type AdminPlanVersionCurrency = typeof AdminPlanVersionCurrency[keyof typeof AdminPlanVersionCurrency];
+
+
+export const AdminPlanVersionCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export type AdminPlanVersionPublicationStatus = typeof AdminPlanVersionPublicationStatus[keyof typeof AdminPlanVersionPublicationStatus];
+
+
+export const AdminPlanVersionPublicationStatus = {
+  draft: 'draft',
+  scheduled: 'scheduled',
+  published: 'published',
+  retired: 'retired',
+} as const;
+
+export interface AdminPlanVersion {
+  id: string;
+  /** @minimum 1 */
+  version: number;
+  annualPriceMinor: number;
+  nfcIssuePriceMinor: number;
+  billingUnit: AdminPlanVersionBillingUnit;
+  billingCycle: AdminPlanVersionBillingCycle;
+  currency: AdminPlanVersionCurrency;
+  legacyFeatures: string[];
+  /** @nullable */
+  entitlements: AdminPlanEntitlement[] | null;
+  /** @nullable */
+  settings: AdminPlanEntitlement[] | null;
+  effectiveAt: string;
+  publicationStatus: AdminPlanVersionPublicationStatus;
+}
+
+export type AdminPlanAudience = typeof AdminPlanAudience[keyof typeof AdminPlanAudience];
+
+
+export const AdminPlanAudience = {
+  company: 'company',
+  provider: 'provider',
+  station: 'station',
+} as const;
+
+export interface AdminPlan {
+  id: string;
+  code: string;
+  audience: AdminPlanAudience;
+  name: string;
+  active: boolean;
+  /** @nullable */
+  stopNewAt: string | null;
+  versions: AdminPlanVersion[];
+}
+
+export type AdminSubscriptionRequestRequestType = typeof AdminSubscriptionRequestRequestType[keyof typeof AdminSubscriptionRequestRequestType];
+
+
+export const AdminSubscriptionRequestRequestType = {
+  new: 'new',
+  renewal: 'renewal',
+  plan_change: 'plan_change',
+  custom_price: 'custom_price',
+} as const;
+
+export type AdminSubscriptionRequestCoverageState = typeof AdminSubscriptionRequestCoverageState[keyof typeof AdminSubscriptionRequestCoverageState];
+
+
+export const AdminSubscriptionRequestCoverageState = {
+  verified: 'verified',
+  fleet_registry_missing: 'fleet_registry_missing',
+  branch_unverified: 'branch_unverified',
+} as const;
+
+export type AdminSubscriptionRequestStatus = typeof AdminSubscriptionRequestStatus[keyof typeof AdminSubscriptionRequestStatus];
+
+
+export const AdminSubscriptionRequestStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  needs_changes: 'needs_changes',
+  approved: 'approved',
+  rejected: 'rejected',
+  cancelled: 'cancelled',
+} as const;
+
+export interface AdminSubscriptionRequest {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  /** @nullable */
+  branchId: string | null;
+  /** @nullable */
+  branchName: string | null;
+  requestType: AdminSubscriptionRequestRequestType;
+  /** @nullable */
+  currentSubscriptionId: string | null;
+  planId: string;
+  planVersionId: string;
+  /** @nullable */
+  requestedPriceMinor: number | null;
+  /** @nullable */
+  requestedUnits: number | null;
+  startsAt: string;
+  endsAt: string;
+  coverageState: AdminSubscriptionRequestCoverageState;
+  coverageNote: string;
+  status: AdminSubscriptionRequestStatus;
+  reason: string;
+  /** @nullable */
+  decisionReason: string | null;
+  createdAt: string;
+}
+
+export type AdminSubscriptionPlanSnapshot = { [key: string]: unknown };
+
+export type AdminSubscriptionBillingUnit = typeof AdminSubscriptionBillingUnit[keyof typeof AdminSubscriptionBillingUnit];
+
+
+export const AdminSubscriptionBillingUnit = {
+  vehicle: 'vehicle',
+  branch: 'branch',
+} as const;
+
+export type AdminSubscriptionStatus = typeof AdminSubscriptionStatus[keyof typeof AdminSubscriptionStatus];
+
+
+export const AdminSubscriptionStatus = {
+  pending_payment: 'pending_payment',
+  scheduled: 'scheduled',
+  active: 'active',
+  expired: 'expired',
+  suspended: 'suspended',
+  cancelled: 'cancelled',
+} as const;
+
+export interface AdminSubscription {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  /** @nullable */
+  branchId: string | null;
+  /** @nullable */
+  branchName: string | null;
+  planId: string;
+  planVersionId: string;
+  planSnapshot: AdminSubscriptionPlanSnapshot;
+  priceSnapshotMinor: number;
+  billingUnit: AdminSubscriptionBillingUnit;
+  /** @minimum 1 */
+  units: number;
+  startsAt: string;
+  endsAt: string;
+  status: AdminSubscriptionStatus;
+  /** @nullable */
+  cancellationEffectiveAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminBillingCatalog {
+  plans: AdminPlan[];
+  requests: AdminSubscriptionRequest[];
+  subscriptions: AdminSubscription[];
+}
+
+export type AdminSubscriptionRequestInputRequestType = typeof AdminSubscriptionRequestInputRequestType[keyof typeof AdminSubscriptionRequestInputRequestType];
+
+
+export const AdminSubscriptionRequestInputRequestType = {
+  new: 'new',
+  renewal: 'renewal',
+  plan_change: 'plan_change',
+  custom_price: 'custom_price',
+} as const;
+
+export interface AdminSubscriptionRequestInput {
+  organizationId: string;
+  /** @nullable */
+  branchId: string | null;
+  requestType: AdminSubscriptionRequestInputRequestType;
+  /** @nullable */
+  currentSubscriptionId: string | null;
+  planId: string;
+  planVersionId: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  requestedPriceMinor: number | null;
+  startsAt: string;
+  endsAt: string;
+  /** @maxLength 1000 */
+  coverageNote: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  submit: boolean;
+}
+
+export type AdminSubscriptionReviewInputDecision = typeof AdminSubscriptionReviewInputDecision[keyof typeof AdminSubscriptionReviewInputDecision];
+
+
+export const AdminSubscriptionReviewInputDecision = {
+  approve: 'approve',
+  needs_changes: 'needs_changes',
+  reject: 'reject',
+  cancel: 'cancel',
+} as const;
+
+export interface AdminSubscriptionReviewInput {
+  decision: AdminSubscriptionReviewInputDecision;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface AdminSubscriptionCancelInput {
+  effectiveAt: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
 export interface SignUpRequest {
   /**
      * @minLength 3
