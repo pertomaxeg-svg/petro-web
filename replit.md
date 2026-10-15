@@ -28,6 +28,14 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - `artifacts/api-server/` — shared Express API and Supabase readiness check.
 - `lib/api-spec/openapi.yaml` — source of truth for API contracts.
 - `lib/db/` — Drizzle connection configured only for the approved Supabase PostgreSQL secret.
+- `docs/PERTOMAX-EG-ENGINEERING-REFERENCE-v3.md` — user-provided engineering and product reference.
+
+## Engineering reference — review before every task
+
+- Before scoping or changing anything in Pertomax EG, review `docs/PERTOMAX-EG-ENGINEERING-REFERENCE-v3.md` and the sections relevant to the task.
+- Treat the reference as requirements/design guidance, not proof that a feature or schema is implemented. Verify current implementation against the code and tests; use `PERTOMAX_STATUS.md`, `AUTH-02-DECISION.md`, and `DB-01-PLAN.md` for the latest recorded status. `PERTOMAX-CENTRAL-ADMIN-GAPS.md` is an agent-created gap matrix, not an original product specification.
+- The reference’s status snapshot is dated October 14, 2026 and its GitHub merge/commit details are historical; verify the current local and remote HEAD before any repository action. It reports Brevo SMTP setup and a prior confirmation-link receipt, while the current status documents do not independently verify current SMTP configuration or delivery; recheck before claiming email delivery works.
+- Its data dictionary, API additions, and future-phase designs are not evidence of built functionality. Keep the approved phase order and do not infer unresolved product rules from proposals.
 
 ## Architecture decisions
 
@@ -61,6 +69,13 @@ Backend foundation for the Pertomax EG project, prepared to connect securely to 
 - Tenant and branch data must be limited to the authenticated user's explicit memberships and permissions.
 - Phase one covers authentication, access assignment, organizations, branches, invitations, account status, and administrative audit history. Do not present wallets, payments, or settlements as implemented.
 - Keep this phase order: (1) runtime and connections, (2) identity and account permissions, (3) dashboards for the platform owner and organizations/branches, (4) vehicles, drivers, and chips, (5) catalog, services, and inventory, (6) finance, wallets, and settlements, (7) reports, support, and integration tests, (8) worker apps as the final build phase. Do not start later phases before their turn.
+
+## DB-01 schema rebuild safety
+
+- Review `docs/PERTOMAX-EG-ENGINEERING-REFERENCE-v3.md`, `DB-01-PLAN.md`, `PERTOMAX_STATUS.md`, and `PERTOMAX-CENTRAL-ADMIN-GAPS.md` before database work.
+- `lib/db/rebuild/current-schema.sql` is a schema-only snapshot of the current final application schema for a fresh, isolated local test database. It contains no user rows; object ownership is normalized, while grants and RLS are retained. The local `auth` bootstrap is only a test stub.
+- Never apply the rebuild snapshot to the approved Supabase database or any existing database. It is not a production migration. The files in `lib/db/migrations/0001`–`0003` are not a complete fresh-database chain; do not replay them blindly or reconcile the Supabase migration ledger without a separate reviewed task.
+- Use `bash lib/db/rebuild/run-local-test.sh` only with local PostgreSQL 17 tools. The script disables network listening, uses temporary test roles/data and removes its local cluster. It must not read Secrets or connect to Supabase.
 - Current user-provided commercial rules: annual company plans are EGP 500, 750, and 1,000 per vehicle; chip issuance is EGP 100; service-provider default subscription is EGP 5,000 per branch/year; stations join free with no commission. Price changes must create a new version and preserve prior prices.
 
 ## Product
