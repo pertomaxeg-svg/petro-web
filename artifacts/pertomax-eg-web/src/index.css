@@ -843,7 +843,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 @media(max-width:400px){.topbar{padding-inline:13px}.brand-wordmark{font-size:18px}.hero-art{margin-inline:-25px;transform:scale(.72);width:130%;}.org-tab{min-width:210px}.status-pill{font-size:8px}.button{font-size:11px;padding:12px}.workspace-shell{padding-inline:12px}}
 
 /* Central administration · restrained document-room / porcelain, ink and logo cobalt */
-.central-admin {
+.central-admin,.co-loading,.co-guard {
   --co-ink: #202b39; --co-muted: #78818b; --co-line: #e2e4e7; --co-paper: #fbfaf7;
   --co-blue: #3734df; --co-blue-soft: #efefff; --co-green: #176b55; --co-green-soft: #e7f3ed;
   --co-amber: #a86718; --co-amber-soft: #fff2dc; --co-red: #a9463d; --co-red-soft: #f9e9e5;
