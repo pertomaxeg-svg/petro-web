@@ -28,6 +28,14 @@ import type {
   AdminFinancePage,
   AdminFinanceResult,
   AdminFinanceSummary,
+  AdminFleetCatalog,
+  AdminFleetCommandRequest,
+  AdminFleetCommandResult,
+  AdminFleetDocumentUploadIntent,
+  AdminFleetDocumentUploadIntentRequest,
+  AdminFleetImportApplyRequest,
+  AdminFleetVerifyPairRequest,
+  AdminFleetVerifyPairResult,
   AdminOrganizationRequestList,
   AdminPlanInput,
   AdminPlanStopInput,
@@ -69,6 +77,7 @@ import type {
   ExpectedVersionRequest,
   FinanceReasonAction,
   FinanceVersionedReasonAction,
+  GetAdminFleetCatalogParams,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
@@ -256,7 +265,7 @@ export const getSupabaseHealthCheckQueryKey = () => {
     }
 
 
-export const getSupabaseHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof supabaseHealthCheck>>, TError = ErrorType<SupabaseHealthStatus>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof supabaseHealthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getSupabaseHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof supabaseHealthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof supabaseHealthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -275,14 +284,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type SupabaseHealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof supabaseHealthCheck>>>
-export type SupabaseHealthCheckQueryError = ErrorType<SupabaseHealthStatus>
+export type SupabaseHealthCheckQueryError = ErrorType<unknown>
 
 
 /**
  * @summary Supabase connection check
  */
 
-export function useSupabaseHealthCheck<TData = Awaited<ReturnType<typeof supabaseHealthCheck>>, TError = ErrorType<SupabaseHealthStatus>>(
+export function useSupabaseHealthCheck<TData = Awaited<ReturnType<typeof supabaseHealthCheck>>, TError = ErrorType<unknown>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof supabaseHealthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -299,6 +308,602 @@ export function useSupabaseHealthCheck<TData = Awaited<ReturnType<typeof supabas
 
 
 
+
+export const getGetAdminFleetCatalogUrl = (params: GetAdminFleetCatalogParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/fleet/catalog?${stringifiedParams}` : `/api/admin/fleet/catalog`
+}
+
+/**
+ * @summary Read a central fleet view
+ */
+export const getAdminFleetCatalog = async (params: GetAdminFleetCatalogParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetCatalog> => {
+
+  return customFetch<AdminFleetCatalog>(getGetAdminFleetCatalogUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetCatalogQueryKey = (params?: GetAdminFleetCatalogParams,) => {
+    return [
+    `/api/admin/fleet/catalog`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminFleetCatalogQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetCatalog>>, TError = ErrorType<void>>(params: GetAdminFleetCatalogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetCatalogQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetCatalog>>> = ({ signal }) => getAdminFleetCatalog(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetCatalog>>>
+export type GetAdminFleetCatalogQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read a central fleet view
+ */
+
+export function useGetAdminFleetCatalog<TData = Awaited<ReturnType<typeof getAdminFleetCatalog>>, TError = ErrorType<void>>(
+ params: GetAdminFleetCatalogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetCatalogQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExecuteAdminFleetCommandUrl = () => {
+
+
+
+
+  return `/api/admin/fleet/commands`
+}
+
+/**
+ * @summary Run an audited, idempotent central fleet command
+ */
+export const executeAdminFleetCommand = async (adminFleetCommandRequest: AdminFleetCommandRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetCommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFleetCommandResult>(getExecuteAdminFleetCommandUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminFleetCommandRequest)
+  }
+);}
+
+
+
+
+
+export const getExecuteAdminFleetCommandMutationKey = () => ['executeAdminFleetCommand'] as const;
+
+export const getExecuteAdminFleetCommandMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAdminFleetCommand>>, TError,ExecuteAdminFleetCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof executeAdminFleetCommand>>, TError,ExecuteAdminFleetCommandMutationVariables, TContext> => {
+
+const mutationKey = getExecuteAdminFleetCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeAdminFleetCommand>>, ExecuteAdminFleetCommandMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  executeAdminFleetCommand(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteAdminFleetCommandMutationResult = NonNullable<Awaited<ReturnType<typeof executeAdminFleetCommand>>>
+    export type ExecuteAdminFleetCommandMutationBody = BodyType<AdminFleetCommandRequest>
+    export type ExecuteAdminFleetCommandMutationError = ErrorType<void>
+    export type ExecuteAdminFleetCommandMutationVariables = {data: BodyType<AdminFleetCommandRequest>}
+
+    /**
+ * @summary Run an audited, idempotent central fleet command
+ */
+export const useExecuteAdminFleetCommand = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAdminFleetCommand>>, TError,ExecuteAdminFleetCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof executeAdminFleetCommand>>,
+        TError,
+        ExecuteAdminFleetCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExecuteAdminFleetCommandMutationOptions(options));
+    }
+
+export const getVerifyAdminFleetDriverPairUrl = () => {
+
+
+
+
+  return `/api/admin/fleet/driver-pairs/verify`
+}
+
+/**
+ * @summary Verify a driver-vehicle pair code without returning or logging the code
+ */
+export const verifyAdminFleetDriverPair = async (adminFleetVerifyPairRequest: AdminFleetVerifyPairRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetVerifyPairResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFleetVerifyPairResult>(getVerifyAdminFleetDriverPairUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminFleetVerifyPairRequest)
+  }
+);}
+
+
+
+
+
+export const getVerifyAdminFleetDriverPairMutationKey = () => ['verifyAdminFleetDriverPair'] as const;
+
+export const getVerifyAdminFleetDriverPairMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminFleetDriverPair>>, TError,VerifyAdminFleetDriverPairMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyAdminFleetDriverPair>>, TError,VerifyAdminFleetDriverPairMutationVariables, TContext> => {
+
+const mutationKey = getVerifyAdminFleetDriverPairMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyAdminFleetDriverPair>>, VerifyAdminFleetDriverPairMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyAdminFleetDriverPair(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyAdminFleetDriverPairMutationResult = NonNullable<Awaited<ReturnType<typeof verifyAdminFleetDriverPair>>>
+    export type VerifyAdminFleetDriverPairMutationBody = BodyType<AdminFleetVerifyPairRequest>
+    export type VerifyAdminFleetDriverPairMutationError = ErrorType<void>
+    export type VerifyAdminFleetDriverPairMutationVariables = {data: BodyType<AdminFleetVerifyPairRequest>}
+
+    /**
+ * @summary Verify a driver-vehicle pair code without returning or logging the code
+ */
+export const useVerifyAdminFleetDriverPair = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminFleetDriverPair>>, TError,VerifyAdminFleetDriverPairMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyAdminFleetDriverPair>>,
+        TError,
+        VerifyAdminFleetDriverPairMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyAdminFleetDriverPairMutationOptions(options));
+    }
+
+export const getCreateAdminFleetDocumentUploadIntentUrl = () => {
+
+
+
+
+  return `/api/admin/fleet/documents/upload-intent`
+}
+
+/**
+ * @summary Create a private storage upload intent for a vehicle document
+ */
+export const createAdminFleetDocumentUploadIntent = async (adminFleetDocumentUploadIntentRequest: AdminFleetDocumentUploadIntentRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetDocumentUploadIntent> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFleetDocumentUploadIntent>(getCreateAdminFleetDocumentUploadIntentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminFleetDocumentUploadIntentRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminFleetDocumentUploadIntentMutationKey = () => ['createAdminFleetDocumentUploadIntent'] as const;
+
+export const getCreateAdminFleetDocumentUploadIntentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFleetDocumentUploadIntent>>, TError,CreateAdminFleetDocumentUploadIntentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminFleetDocumentUploadIntent>>, TError,CreateAdminFleetDocumentUploadIntentMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminFleetDocumentUploadIntentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminFleetDocumentUploadIntent>>, CreateAdminFleetDocumentUploadIntentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminFleetDocumentUploadIntent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminFleetDocumentUploadIntentMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminFleetDocumentUploadIntent>>>
+    export type CreateAdminFleetDocumentUploadIntentMutationBody = BodyType<AdminFleetDocumentUploadIntentRequest>
+    export type CreateAdminFleetDocumentUploadIntentMutationError = ErrorType<void>
+    export type CreateAdminFleetDocumentUploadIntentMutationVariables = {data: BodyType<AdminFleetDocumentUploadIntentRequest>}
+
+    /**
+ * @summary Create a private storage upload intent for a vehicle document
+ */
+export const useCreateAdminFleetDocumentUploadIntent = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminFleetDocumentUploadIntent>>, TError,CreateAdminFleetDocumentUploadIntentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminFleetDocumentUploadIntent>>,
+        TError,
+        CreateAdminFleetDocumentUploadIntentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminFleetDocumentUploadIntentMutationOptions(options));
+    }
+
+export const getDownloadAdminFleetImportTemplateUrl = () => {
+
+
+
+
+  return `/api/admin/fleet/imports/template`
+}
+
+/**
+ * @summary Download the fleet Excel workbook template
+ */
+export const downloadAdminFleetImportTemplate = async ( options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAdminFleetImportTemplateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAdminFleetImportTemplateQueryKey = () => {
+    return [
+    `/api/admin/fleet/imports/template`
+    ] as const;
+    }
+
+
+export const getDownloadAdminFleetImportTemplateQueryOptions = <TData = Awaited<ReturnType<typeof downloadAdminFleetImportTemplate>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAdminFleetImportTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAdminFleetImportTemplateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAdminFleetImportTemplate>>> = ({ signal }) => downloadAdminFleetImportTemplate({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAdminFleetImportTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadAdminFleetImportTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof downloadAdminFleetImportTemplate>>>
+export type DownloadAdminFleetImportTemplateQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download the fleet Excel workbook template
+ */
+
+export function useDownloadAdminFleetImportTemplate<TData = Awaited<ReturnType<typeof downloadAdminFleetImportTemplate>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAdminFleetImportTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadAdminFleetImportTemplateQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewAdminFleetImportUrl = () => {
+
+
+
+
+  return `/api/admin/fleet/imports/preview`
+}
+
+/**
+ * @summary Parse and validate a fleet workbook without applying records
+ */
+export const previewAdminFleetImport = async (previewAdminFleetImportBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetCommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFleetCommandResult>(getPreviewAdminFleetImportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ...getHeaders(options?.headers) },
+    body: previewAdminFleetImportBody
+  }
+);}
+
+
+
+
+
+export const getPreviewAdminFleetImportMutationKey = () => ['previewAdminFleetImport'] as const;
+
+export const getPreviewAdminFleetImportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewAdminFleetImport>>, TError,PreviewAdminFleetImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewAdminFleetImport>>, TError,PreviewAdminFleetImportMutationVariables, TContext> => {
+
+const mutationKey = getPreviewAdminFleetImportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewAdminFleetImport>>, PreviewAdminFleetImportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewAdminFleetImport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewAdminFleetImportMutationResult = NonNullable<Awaited<ReturnType<typeof previewAdminFleetImport>>>
+    export type PreviewAdminFleetImportMutationBody = BodyType<Blob>
+    export type PreviewAdminFleetImportMutationError = ErrorType<void>
+    export type PreviewAdminFleetImportMutationVariables = {data: BodyType<Blob>}
+
+    /**
+ * @summary Parse and validate a fleet workbook without applying records
+ */
+export const usePreviewAdminFleetImport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewAdminFleetImport>>, TError,PreviewAdminFleetImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewAdminFleetImport>>,
+        TError,
+        PreviewAdminFleetImportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewAdminFleetImportMutationOptions(options));
+    }
+
+export const getApplyAdminFleetImportUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/admin/fleet/imports/${jobId}/apply`
+}
+
+export const applyAdminFleetImport = async (jobId: string,
+    adminFleetImportApplyRequest: AdminFleetImportApplyRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetCommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFleetCommandResult>(getApplyAdminFleetImportUrl(jobId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminFleetImportApplyRequest)
+  }
+);}
+
+
+
+
+
+export const getApplyAdminFleetImportMutationKey = () => ['applyAdminFleetImport'] as const;
+
+export const getApplyAdminFleetImportMutationOptions = <TError = ErrorType<void | SupabaseHealthStatus>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyAdminFleetImport>>, TError,ApplyAdminFleetImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyAdminFleetImport>>, TError,ApplyAdminFleetImportMutationVariables, TContext> => {
+
+const mutationKey = getApplyAdminFleetImportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyAdminFleetImport>>, ApplyAdminFleetImportMutationVariables> = (props) => {
+          const {jobId,data} = props ?? {};
+
+          return  applyAdminFleetImport(jobId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyAdminFleetImportMutationResult = NonNullable<Awaited<ReturnType<typeof applyAdminFleetImport>>>
+    export type ApplyAdminFleetImportMutationBody = BodyType<AdminFleetImportApplyRequest>
+    export type ApplyAdminFleetImportMutationError = ErrorType<void | SupabaseHealthStatus>
+    export type ApplyAdminFleetImportMutationVariables = {jobId: string;data: BodyType<AdminFleetImportApplyRequest>}
+
+    export const useApplyAdminFleetImport = <TError = ErrorType<void | SupabaseHealthStatus>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyAdminFleetImport>>, TError,ApplyAdminFleetImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyAdminFleetImport>>,
+        TError,
+        ApplyAdminFleetImportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyAdminFleetImportMutationOptions(options));
+    }
 
 export const getSignUpUrl = () => {
 

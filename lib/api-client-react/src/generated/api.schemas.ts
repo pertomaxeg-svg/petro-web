@@ -5,6 +5,137 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface AdminFleetCatalog { [key: string]: unknown }
+
+export type AdminFleetCommandRequestAction = typeof AdminFleetCommandRequestAction[keyof typeof AdminFleetCommandRequestAction];
+
+
+export const AdminFleetCommandRequestAction = {
+  vehiclecreate: 'vehicle.create',
+  vehicleupdate: 'vehicle.update',
+  vehiclemove: 'vehicle.move',
+  vehiclestatus: 'vehicle.status',
+  drivercreate: 'driver.create',
+  driverupdate: 'driver.update',
+  driverstatus: 'driver.status',
+  driverlinkcreate: 'driver.link.create',
+  driverlinkend: 'driver.link.end',
+  driverpinrotate: 'driver.pin.rotate',
+  policycreate: 'policy.create',
+  policyupdate: 'policy.update',
+  policypublish: 'policy.publish',
+  coverageassign: 'coverage.assign',
+  coverageend: 'coverage.end',
+  credentialrequest: 'credential.request',
+  credentialapprove: 'credential.approve',
+  credentialassign: 'credential.assign',
+  credentialinstall: 'credential.install',
+  credentialactivate_qr: 'credential.activate_qr',
+  credentialactivate_nfc: 'credential.activate_nfc',
+  credentialstop: 'credential.stop',
+  odometerrecord: 'odometer.record',
+  odometerreview: 'odometer.review',
+  maintenancecreate: 'maintenance.create',
+  maintenancecancel: 'maintenance.cancel',
+  tag_stockreceive: 'tag_stock.receive',
+  tag_stockreserve: 'tag_stock.reserve',
+  tag_stockdamage: 'tag_stock.damage',
+  importpreview: 'import.preview',
+  importapply: 'import.apply',
+} as const;
+
+export type AdminFleetCommandRequestPayload = { [key: string]: unknown };
+
+export interface AdminFleetCommandRequest {
+  action: AdminFleetCommandRequestAction;
+  payload: AdminFleetCommandRequestPayload;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
+export interface AdminFleetCommandResult { [key: string]: unknown }
+
+export interface AdminFleetVerifyPairRequest {
+  linkId: string;
+  vehicleId: string;
+  /** @pattern ^[0-9]{4}$ */
+  pinCode: string;
+}
+
+export interface AdminFleetVerifyPairResult {
+  valid: boolean;
+  locked: boolean;
+  /** @nullable */
+  retryAt?: string | null;
+  verificationId?: string;
+  [key: string]: unknown;
+ }
+
+export type AdminFleetDocumentUploadIntentRequestContentType = typeof AdminFleetDocumentUploadIntentRequestContentType[keyof typeof AdminFleetDocumentUploadIntentRequestContentType];
+
+
+export const AdminFleetDocumentUploadIntentRequestContentType = {
+  'application/pdf': 'application/pdf',
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export interface AdminFleetDocumentUploadIntentRequest {
+  vehicleId: string;
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  documentType: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  fileName: string;
+  contentType: AdminFleetDocumentUploadIntentRequestContentType;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  byteSize: number;
+  /** @nullable */
+  expiresOn?: string | null;
+}
+
+export type AdminFleetDocumentUploadIntentBucket = typeof AdminFleetDocumentUploadIntentBucket[keyof typeof AdminFleetDocumentUploadIntentBucket];
+
+
+export const AdminFleetDocumentUploadIntentBucket = {
+  'petro-private-documents': 'petro-private-documents',
+} as const;
+
+export interface AdminFleetDocumentUploadIntent {
+  id: string;
+  objectPath: string;
+  bucket: AdminFleetDocumentUploadIntentBucket;
+}
+
+export interface AdminFleetImportApplyRequest {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -2121,6 +2252,76 @@ export interface DocumentDownload {
  * Request rejected or unavailable
  */
 export type ApiErrorResponse = ApiError;
+
+export type GetAdminFleetCatalogParams = {
+view: GetAdminFleetCatalogView;
+id?: string;
+organizationId?: string;
+branchId?: string;
+vehicleId?: string;
+driverId?: string;
+/**
+ * @maxLength 40
+ */
+status?: string;
+coverage?: GetAdminFleetCatalogCoverage;
+/**
+ * @maxLength 80
+ */
+fuelType?: string;
+/**
+ * @maxLength 120
+ */
+query?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+sort?: GetAdminFleetCatalogSort;
+};
+
+export type GetAdminFleetCatalogView = typeof GetAdminFleetCatalogView[keyof typeof GetAdminFleetCatalogView];
+
+
+export const GetAdminFleetCatalogView = {
+  overview: 'overview',
+  vehicles: 'vehicles',
+  vehicle: 'vehicle',
+  drivers: 'drivers',
+  policies: 'policies',
+  coverage: 'coverage',
+  credentials: 'credentials',
+  documents: 'documents',
+  odometer: 'odometer',
+  maintenance: 'maintenance',
+  events: 'events',
+  imports: 'imports',
+} as const;
+
+export type GetAdminFleetCatalogCoverage = typeof GetAdminFleetCatalogCoverage[keyof typeof GetAdminFleetCatalogCoverage];
+
+
+export const GetAdminFleetCatalogCoverage = {
+  covered: 'covered',
+  uncovered: 'uncovered',
+} as const;
+
+export type GetAdminFleetCatalogSort = typeof GetAdminFleetCatalogSort[keyof typeof GetAdminFleetCatalogSort];
+
+
+export const GetAdminFleetCatalogSort = {
+  newest: 'newest',
+  oldest: 'oldest',
+  name: 'name',
+  plate: 'plate',
+  updatedAt: 'updatedAt',
+} as const;
 
 export type AuthCallbackParams = {
 code?: string;

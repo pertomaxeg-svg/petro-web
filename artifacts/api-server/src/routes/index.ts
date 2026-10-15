@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import authRouter from "./auth";
 import billingRouter from "./billing";
 import financeRouter from "./finance";
+import fleetRouter from "./fleet";
 import healthRouter from "./health";
 import managementRouter from "./management";
 import organizationWorkflowsRouter from "./organization-workflows";
@@ -15,6 +16,7 @@ router.use(authRouter);
 router.use(managementRouter);
 router.use(billingRouter);
 router.use(financeRouter);
+router.use(fleetRouter);
 router.use(organizationWorkflowsRouter);
 
 export default router;

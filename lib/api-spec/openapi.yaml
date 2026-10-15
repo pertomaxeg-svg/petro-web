@@ -14,6 +14,8 @@ tags:
     description: Supabase Auth flows handled by the API; sessions use HTTP-only cookies
   - name: management
     description: Company, branch and staff operations protected by Supabase RLS
+  - name: fleet
+    description: Central fleet, driver, policy, coverage, credential and maintenance operations
 paths:
   /healthz:
     get:
@@ -41,6 +43,174 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SupabaseHealthStatus"
+  /admin/fleet/catalog:
+    get:
+      operationId: getAdminFleetCatalog
+      tags: [fleet]
+      summary: Read a central fleet view
+      parameters:
+        - name: view
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [overview, vehicles, vehicle, drivers, policies, coverage, credentials, documents, odometer, maintenance, events, imports]
+        - name: id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: organizationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: vehicleId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: driverId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string, maxLength: 40 }
+        - name: coverage
+          in: query
+          schema: { type: string, enum: [covered, uncovered] }
+        - name: fuelType
+          in: query
+          schema: { type: string, maxLength: 80 }
+        - name: query
+          in: query
+          schema: { type: string, maxLength: 120 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [newest, oldest, name, plate, updatedAt] }
+      responses:
+        "200":
+          description: Fleet view data; credential hashes, PINs and storage paths are never returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetCatalog" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet read permission required }
+  /admin/fleet/commands:
+    post:
+      operationId: executeAdminFleetCommand
+      tags: [fleet]
+      summary: Run an audited, idempotent central fleet command
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminFleetCommandRequest" }
+      responses:
+        "200":
+          description: Command applied or original idempotent result returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetCommandResult" }
+        "400": { description: Invalid command or validation conflict }
+        "401": { description: Authentication required }
+        "403": { description: Fleet mutation permission required }
+        "409": { description: Version or idempotency conflict }
+  /admin/fleet/driver-pairs/verify:
+    post:
+      operationId: verifyAdminFleetDriverPair
+      tags: [fleet]
+      summary: Verify a driver-vehicle pair code without returning or logging the code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminFleetVerifyPairRequest" }
+      responses:
+        "200":
+          description: Generic verification result and short-lived verification reference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetVerifyPairResult" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet permission or rate limit denied }
+  /admin/fleet/documents/upload-intent:
+    post:
+      operationId: createAdminFleetDocumentUploadIntent
+      tags: [fleet]
+      summary: Create a private storage upload intent for a vehicle document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminFleetDocumentUploadIntentRequest" }
+      responses:
+        "201":
+          description: Private Supabase Storage upload intent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetDocumentUploadIntent" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet mutation permission required }
+  /admin/fleet/imports/template:
+    get:
+      operationId: downloadAdminFleetImportTemplate
+      tags: [fleet]
+      summary: Download the fleet Excel workbook template
+      responses:
+        "200":
+          description: XLSX workbook template
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        "401": { description: Authentication required }
+        "403": { description: Fleet mutation permission required }
+  /admin/fleet/imports/preview:
+    post:
+      operationId: previewAdminFleetImport
+      tags: [fleet]
+      summary: Parse and validate a fleet workbook without applying records
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Validated preview with row-level errors and no applied records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetCommandResult" }
+        "400": { description: Invalid workbook }
+        "401": { description: Authentication required }
+        "403": { description: Fleet mutation permission required }
+  /admin/fleet/imports/{jobId}/apply:
+    post:
+      operationId: applyAdminFleetImport
+      tags: [fleet]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminFleetImportApplyRequest" }
+      responses:
+        "200":
+          description: Entire valid import committed atomically
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetCommandResult" }
+        "400": { description: Preview has errors or import payload is invalid }
+        "401": { description: Authentication required }
+        "403": { description: Fleet mutation permission required }
+        "409": { description: Import already applied or conflicting request }
         "503":
           description: Supabase credentials are missing or the API is unavailable
           content:
@@ -1841,6 +2011,73 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
   schemas:
+    AdminFleetCatalog:
+      type: object
+      additionalProperties: true
+    AdminFleetCommandRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum:
+            [vehicle.create, vehicle.update, vehicle.move, vehicle.status, driver.create, driver.update, driver.status,
+             driver.link.create, driver.link.end, driver.pin.rotate, policy.create, policy.update, policy.publish,
+             coverage.assign, coverage.end, credential.request, credential.approve, credential.assign, credential.install,
+             credential.activate_qr, credential.activate_nfc, credential.stop, odometer.record, odometer.review,
+             maintenance.create, maintenance.cancel, tag_stock.receive, tag_stock.reserve, tag_stock.damage,
+             import.preview, import.apply]
+        payload:
+          type: object
+          additionalProperties: true
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120 }
+      required: [action, payload, reason, idempotencyKey]
+    AdminFleetCommandResult:
+      type: object
+      additionalProperties: true
+    AdminFleetVerifyPairRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        linkId: { type: string, format: uuid }
+        vehicleId: { type: string, format: uuid }
+        pinCode: { type: string, pattern: "^[0-9]{4}$" }
+      required: [linkId, vehicleId, pinCode]
+    AdminFleetVerifyPairResult:
+      type: object
+      additionalProperties: true
+      properties:
+        valid: { type: boolean }
+        locked: { type: boolean }
+        retryAt: { type: [string, "null"], format: date-time }
+        verificationId: { type: string, format: uuid }
+      required: [valid, locked]
+    AdminFleetDocumentUploadIntentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicleId: { type: string, format: uuid }
+        documentType: { type: string, minLength: 2, maxLength: 80 }
+        fileName: { type: string, minLength: 1, maxLength: 160 }
+        contentType: { type: string, enum: [application/pdf, image/png, image/jpeg] }
+        byteSize: { type: integer, minimum: 1, maximum: 10485760 }
+        expiresOn: { type: [string, "null"], format: date }
+      required: [vehicleId, documentType, fileName, contentType, byteSize]
+    AdminFleetDocumentUploadIntent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        objectPath: { type: string }
+        bucket: { type: string, enum: [petro-private-documents] }
+      required: [id, objectPath, bucket]
+    AdminFleetImportApplyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120 }
+      required: [reason, idempotencyKey]
     HealthStatus:
       type: object
       properties:

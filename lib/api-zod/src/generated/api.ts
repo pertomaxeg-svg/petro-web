@@ -31,6 +31,143 @@ export const SupabaseHealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Read a central fleet view
+ */
+export const getAdminFleetCatalogQueryStatusMax = 40;
+
+export const getAdminFleetCatalogQueryFuelTypeMax = 80;
+
+export const getAdminFleetCatalogQueryQueryMax = 120;
+
+export const getAdminFleetCatalogQueryPageDefault = 1;
+export const getAdminFleetCatalogQueryPageMax = 100000;
+
+export const getAdminFleetCatalogQueryPageSizeDefault = 25;
+export const getAdminFleetCatalogQueryPageSizeMax = 100;
+
+
+
+export const GetAdminFleetCatalogQueryParams = zod.object({
+  "view": zod.enum(['overview', 'vehicles', 'vehicle', 'drivers', 'policies', 'coverage', 'credentials', 'documents', 'odometer', 'maintenance', 'events', 'imports']),
+  "id": zod.coerce.string().uuid().optional(),
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "branchId": zod.coerce.string().uuid().optional(),
+  "vehicleId": zod.coerce.string().uuid().optional(),
+  "driverId": zod.coerce.string().uuid().optional(),
+  "status": zod.coerce.string().max(getAdminFleetCatalogQueryStatusMax).optional(),
+  "coverage": zod.enum(['covered', 'uncovered']).optional(),
+  "fuelType": zod.coerce.string().max(getAdminFleetCatalogQueryFuelTypeMax).optional(),
+  "query": zod.coerce.string().max(getAdminFleetCatalogQueryQueryMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getAdminFleetCatalogQueryPageMax).default(getAdminFleetCatalogQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminFleetCatalogQueryPageSizeMax).default(getAdminFleetCatalogQueryPageSizeDefault),
+  "sort": zod.enum(['newest', 'oldest', 'name', 'plate', 'updatedAt']).optional()
+})
+
+export const GetAdminFleetCatalogResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Run an audited, idempotent central fleet command
+ */
+export const executeAdminFleetCommandBodyReasonMin = 3;
+export const executeAdminFleetCommandBodyReasonMax = 500;
+
+export const executeAdminFleetCommandBodyIdempotencyKeyMin = 16;
+export const executeAdminFleetCommandBodyIdempotencyKeyMax = 120;
+
+
+
+export const ExecuteAdminFleetCommandBody = zod.object({
+  "action": zod.enum(['vehicle.create', 'vehicle.update', 'vehicle.move', 'vehicle.status', 'driver.create', 'driver.update', 'driver.status', 'driver.link.create', 'driver.link.end', 'driver.pin.rotate', 'policy.create', 'policy.update', 'policy.publish', 'coverage.assign', 'coverage.end', 'credential.request', 'credential.approve', 'credential.assign', 'credential.install', 'credential.activate_qr', 'credential.activate_nfc', 'credential.stop', 'odometer.record', 'odometer.review', 'maintenance.create', 'maintenance.cancel', 'tag_stock.receive', 'tag_stock.reserve', 'tag_stock.damage', 'import.preview', 'import.apply']),
+  "payload": zod.record(zod.string(), zod.unknown()),
+  "reason": zod.string().min(executeAdminFleetCommandBodyReasonMin).max(executeAdminFleetCommandBodyReasonMax),
+  "idempotencyKey": zod.string().min(executeAdminFleetCommandBodyIdempotencyKeyMin).max(executeAdminFleetCommandBodyIdempotencyKeyMax)
+})
+
+export const ExecuteAdminFleetCommandResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Verify a driver-vehicle pair code without returning or logging the code
+ */
+export const verifyAdminFleetDriverPairBodyPinCodeRegExp = new RegExp('^[0-9]{4}$');
+
+
+export const VerifyAdminFleetDriverPairBody = zod.object({
+  "linkId": zod.string().uuid(),
+  "vehicleId": zod.string().uuid(),
+  "pinCode": zod.string().regex(verifyAdminFleetDriverPairBodyPinCodeRegExp)
+})
+
+export const VerifyAdminFleetDriverPairResponse = zod.object({
+  "valid": zod.boolean(),
+  "locked": zod.boolean(),
+  "retryAt": zod.coerce.date().nullish(),
+  "verificationId": zod.string().uuid().optional()
+})
+
+
+/**
+ * @summary Create a private storage upload intent for a vehicle document
+ */
+export const createAdminFleetDocumentUploadIntentBodyDocumentTypeMin = 2;
+export const createAdminFleetDocumentUploadIntentBodyDocumentTypeMax = 80;
+
+export const createAdminFleetDocumentUploadIntentBodyFileNameMax = 160;
+
+export const createAdminFleetDocumentUploadIntentBodyByteSizeMax = 10485760;
+
+
+
+export const CreateAdminFleetDocumentUploadIntentBody = zod.object({
+  "vehicleId": zod.string().uuid(),
+  "documentType": zod.string().min(createAdminFleetDocumentUploadIntentBodyDocumentTypeMin).max(createAdminFleetDocumentUploadIntentBodyDocumentTypeMax),
+  "fileName": zod.string().min(1).max(createAdminFleetDocumentUploadIntentBodyFileNameMax),
+  "contentType": zod.enum(['application/pdf', 'image/png', 'image/jpeg']),
+  "byteSize": zod.number().int().min(1).max(createAdminFleetDocumentUploadIntentBodyByteSizeMax),
+  "expiresOn": zod.coerce.date().nullish()
+})
+
+export const CreateAdminFleetDocumentUploadIntentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "objectPath": zod.string(),
+  "bucket": zod.enum(['petro-private-documents'])
+})
+
+
+/**
+ * @summary Download the fleet Excel workbook template
+ */
+export const DownloadAdminFleetImportTemplateResponse = zod.unknown()
+
+
+/**
+ * @summary Parse and validate a fleet workbook without applying records
+ */
+export const PreviewAdminFleetImportResponse = zod.record(zod.string(), zod.unknown())
+
+
+export const ApplyAdminFleetImportParams = zod.object({
+  "jobId": zod.coerce.string().uuid()
+})
+
+export const applyAdminFleetImportBodyReasonMin = 3;
+export const applyAdminFleetImportBodyReasonMax = 500;
+
+export const applyAdminFleetImportBodyIdempotencyKeyMin = 16;
+export const applyAdminFleetImportBodyIdempotencyKeyMax = 120;
+
+
+
+export const ApplyAdminFleetImportBody = zod.object({
+  "reason": zod.string().min(applyAdminFleetImportBodyReasonMin).max(applyAdminFleetImportBodyReasonMax),
+  "idempotencyKey": zod.string().min(applyAdminFleetImportBodyIdempotencyKeyMin).max(applyAdminFleetImportBodyIdempotencyKeyMax)
+})
+
+export const ApplyAdminFleetImportResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
  * @summary Create a username account with an email reserved for confirmation and recovery
  */
 export const signUpBodyUsernameMin = 3;
