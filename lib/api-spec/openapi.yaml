@@ -99,6 +99,91 @@ paths:
               schema: { $ref: "#/components/schemas/AdminFleetCatalog" }
         "401": { description: Authentication required }
         "403": { description: Fleet read permission required }
+  /admin/fleet/company-summaries:
+    get:
+      operationId: getAdminFleetCompanySummaries
+      tags: [fleet]
+      summary: Read paginated company and branch fleet summaries
+      parameters:
+        - name: organizationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: query
+          in: query
+          schema: { type: string, maxLength: 120 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Paginated company directory or one company with branch-level fleet counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetCompanySummaries" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet read permission required }
+  /admin/fleet/drivers/{driverId}:
+    get:
+      operationId: getAdminFleetDriverDetail
+      tags: [fleet]
+      summary: Read one driver profile and dated vehicle links
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Driver record with dated links; PIN secrets are never returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetDriverDetail" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet read permission required }
+        "404": { description: Driver not found }
+  /admin/fleet/consumption-rates:
+    get:
+      operationId: getAdminFleetConsumptionRates
+      tags: [fleet]
+      summary: Read the effective expected fuel consumption and immutable history
+      parameters:
+        - name: organizationId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Effective company or branch rate and version history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetConsumptionRates" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet read permission required }
+    post:
+      operationId: setAdminFleetConsumptionRate
+      tags: [fleet]
+      summary: Append a reasoned company or branch consumption-rate version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FleetConsumptionRateInput" }
+      responses:
+        "201":
+          description: New immutable rate version or original result on idempotent retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetCommandResult" }
+        "400": { description: Invalid rate or reason }
+        "401": { description: Authentication required }
+        "403": { description: Fleet management permission required }
+        "409": { description: Scope or idempotency conflict }
   /admin/fleet/subscription-options:
     get:
       operationId: getAdminFleetSubscriptionOptions
@@ -146,6 +231,29 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdminFleetReferenceOptions" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet management permission required }
+  /admin/fleet/stock-reservations:
+    get:
+      operationId: getAdminFleetStockReservations
+      tags: [fleet]
+      summary: Resume installation from NFC units reserved for a credential request
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 160 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Reserved stock and its exact request, vehicle, company, and branch association
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetStockReservations" }
         "401": { description: Authentication required }
         "403": { description: Fleet management permission required }
   /admin/fleet/commands:
@@ -2063,6 +2171,62 @@ components:
     AdminFleetCatalog:
       type: object
       additionalProperties: true
+    AdminFleetCompanySummaries:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        company:
+          type: object
+          additionalProperties: true
+        branches:
+          type: array
+          items: { type: object, additionalProperties: true }
+        total: { type: integer, minimum: 0 }
+        branchTotal: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        nfcIssuePriceMinor: { type: integer, minimum: 0 }
+    AdminFleetDriverDetail:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        organizationName: { type: string }
+        organizationCode: { type: string }
+        driverCode: { type: string }
+        fullName: { type: string }
+        phone: { type: [string, "null"] }
+        status: { type: string }
+        version: { type: integer, minimum: 1 }
+        links:
+          type: array
+          items: { type: object, additionalProperties: true }
+    AdminFleetConsumptionRates:
+      type: object
+      additionalProperties: true
+      properties:
+        current:
+          type: [object, "null"]
+          additionalProperties: true
+        history:
+          type: array
+          items: { type: object, additionalProperties: true }
+        organizationId: { type: string, format: uuid }
+        branchId: { type: [string, "null"], format: uuid }
+    FleetConsumptionRateInput:
+      type: object
+      additionalProperties: false
+      properties:
+        organizationId: { type: string, format: uuid }
+        branchId: { type: [string, "null"], format: uuid }
+        litersPer100Km: { type: number, exclusiveMinimum: 0 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120 }
+      required: [organizationId, branchId, litersPer100Km, reason, idempotencyKey]
     AdminFleetReferenceOptions:
       type: object
       additionalProperties: false
@@ -2072,6 +2236,33 @@ components:
           items:
             type: object
             additionalProperties: true
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+      required: [items, page, pageSize, total, totalPages]
+    AdminFleetStockReservations:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              id: { type: string, format: uuid }
+              stockUnitId: { type: string, format: uuid }
+              unitCode: { type: string }
+              requestId: { type: string, format: uuid }
+              requestStatus: { type: string }
+              vehicleId: { type: string, format: uuid }
+              vehiclePlate: { type: string }
+              organizationId: { type: string, format: uuid }
+              organizationName: { type: string }
+              branchId: { type: string, format: uuid }
+              branchName: { type: string }
+              reservedAt: { type: string, format: date-time }
         page: { type: integer, minimum: 1 }
         pageSize: { type: integer, minimum: 1, maximum: 100 }
         total: { type: integer, minimum: 0 }

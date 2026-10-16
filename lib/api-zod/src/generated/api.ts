@@ -67,6 +67,113 @@ export const GetAdminFleetCatalogResponse = zod.record(zod.string(), zod.unknown
 
 
 /**
+ * @summary Read paginated company and branch fleet summaries
+ */
+export const getAdminFleetCompanySummariesQueryQueryMax = 120;
+
+export const getAdminFleetCompanySummariesQueryPageDefault = 1;
+export const getAdminFleetCompanySummariesQueryPageMax = 100000;
+
+export const getAdminFleetCompanySummariesQueryPageSizeDefault = 20;
+export const getAdminFleetCompanySummariesQueryPageSizeMax = 100;
+
+
+
+export const GetAdminFleetCompanySummariesQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "query": zod.coerce.string().max(getAdminFleetCompanySummariesQueryQueryMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getAdminFleetCompanySummariesQueryPageMax).default(getAdminFleetCompanySummariesQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminFleetCompanySummariesQueryPageSizeMax).default(getAdminFleetCompanySummariesQueryPageSizeDefault)
+})
+
+export const getAdminFleetCompanySummariesResponseTotalMin = 0;
+
+export const getAdminFleetCompanySummariesResponseBranchTotalMin = 0;
+
+
+export const getAdminFleetCompanySummariesResponsePageSizeMax = 100;
+
+export const getAdminFleetCompanySummariesResponseNfcIssuePriceMinorMin = 0;
+
+
+
+export const GetAdminFleetCompanySummariesResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "company": zod.record(zod.string(), zod.unknown()).optional(),
+  "branches": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "total": zod.number().int().min(getAdminFleetCompanySummariesResponseTotalMin).optional(),
+  "branchTotal": zod.number().int().min(getAdminFleetCompanySummariesResponseBranchTotalMin).optional(),
+  "page": zod.number().int().min(1).optional(),
+  "pageSize": zod.number().int().min(1).max(getAdminFleetCompanySummariesResponsePageSizeMax).optional(),
+  "nfcIssuePriceMinor": zod.number().int().min(getAdminFleetCompanySummariesResponseNfcIssuePriceMinorMin).optional()
+})
+
+
+/**
+ * @summary Read one driver profile and dated vehicle links
+ */
+export const GetAdminFleetDriverDetailParams = zod.object({
+  "driverId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const GetAdminFleetDriverDetailResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "organizationId": zod.string().uuid().optional(),
+  "organizationName": zod.string().optional(),
+  "organizationCode": zod.string().optional(),
+  "driverCode": zod.string().optional(),
+  "fullName": zod.string().optional(),
+  "phone": zod.string().nullish(),
+  "status": zod.string().optional(),
+  "version": zod.number().int().min(1).optional(),
+  "links": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary Read the effective expected fuel consumption and immutable history
+ */
+export const GetAdminFleetConsumptionRatesQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid(),
+  "branchId": zod.coerce.string().uuid().optional()
+})
+
+export const GetAdminFleetConsumptionRatesResponse = zod.object({
+  "current": zod.record(zod.string(), zod.unknown()).nullish(),
+  "history": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "organizationId": zod.string().uuid().optional(),
+  "branchId": zod.string().uuid().nullish()
+})
+
+
+/**
+ * @summary Append a reasoned company or branch consumption-rate version
+ */
+export const setAdminFleetConsumptionRateBodyLitersPer100KmExclusiveMin = 0;
+
+export const setAdminFleetConsumptionRateBodyReasonMin = 3;
+export const setAdminFleetConsumptionRateBodyReasonMax = 500;
+
+export const setAdminFleetConsumptionRateBodyIdempotencyKeyMin = 16;
+export const setAdminFleetConsumptionRateBodyIdempotencyKeyMax = 120;
+
+
+
+export const SetAdminFleetConsumptionRateBody = zod.object({
+  "organizationId": zod.string().uuid(),
+  "branchId": zod.string().uuid().nullable(),
+  "litersPer100Km": zod.number().gt(setAdminFleetConsumptionRateBodyLitersPer100KmExclusiveMin),
+  "reason": zod.string().min(setAdminFleetConsumptionRateBodyReasonMin).max(setAdminFleetConsumptionRateBodyReasonMax),
+  "idempotencyKey": zod.string().min(setAdminFleetConsumptionRateBodyIdempotencyKeyMin).max(setAdminFleetConsumptionRateBodyIdempotencyKeyMax)
+})
+
+export const SetAdminFleetConsumptionRateResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
  * @summary Search company vehicle-subscription options for fleet coverage
  */
 export const getAdminFleetSubscriptionOptionsQuerySearchMax = 160;
@@ -138,6 +245,56 @@ export const GetAdminFleetStockOptionsResponse = zod.object({
   "pageSize": zod.number().int().min(1).max(getAdminFleetStockOptionsResponsePageSizeMax),
   "total": zod.number().int().min(getAdminFleetStockOptionsResponseTotalMin),
   "totalPages": zod.number().int().min(getAdminFleetStockOptionsResponseTotalPagesMin)
+})
+
+
+/**
+ * @summary Resume installation from NFC units reserved for a credential request
+ */
+export const getAdminFleetStockReservationsQuerySearchMax = 160;
+
+export const getAdminFleetStockReservationsQueryPageDefault = 1;
+export const getAdminFleetStockReservationsQueryPageMax = 100000;
+
+export const getAdminFleetStockReservationsQueryPageSizeDefault = 20;
+export const getAdminFleetStockReservationsQueryPageSizeMax = 100;
+
+
+
+export const GetAdminFleetStockReservationsQueryParams = zod.object({
+  "search": zod.coerce.string().max(getAdminFleetStockReservationsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getAdminFleetStockReservationsQueryPageMax).default(getAdminFleetStockReservationsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminFleetStockReservationsQueryPageSizeMax).default(getAdminFleetStockReservationsQueryPageSizeDefault)
+})
+
+
+export const getAdminFleetStockReservationsResponsePageSizeMax = 100;
+
+export const getAdminFleetStockReservationsResponseTotalMin = 0;
+
+export const getAdminFleetStockReservationsResponseTotalPagesMin = 0;
+
+
+
+export const GetAdminFleetStockReservationsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "stockUnitId": zod.string().uuid().optional(),
+  "unitCode": zod.string().optional(),
+  "requestId": zod.string().uuid().optional(),
+  "requestStatus": zod.string().optional(),
+  "vehicleId": zod.string().uuid().optional(),
+  "vehiclePlate": zod.string().optional(),
+  "organizationId": zod.string().uuid().optional(),
+  "organizationName": zod.string().optional(),
+  "branchId": zod.string().uuid().optional(),
+  "branchName": zod.string().optional(),
+  "reservedAt": zod.coerce.date().optional()
+})),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(getAdminFleetStockReservationsResponsePageSizeMax),
+  "total": zod.number().int().min(getAdminFleetStockReservationsResponseTotalMin),
+  "totalPages": zod.number().int().min(getAdminFleetStockReservationsResponseTotalPagesMin)
 })
 
 

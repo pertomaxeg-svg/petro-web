@@ -7,10 +7,120 @@
  */
 export interface AdminFleetCatalog { [key: string]: unknown }
 
+export type AdminFleetCompanySummariesItemsItem = { [key: string]: unknown };
+
+export type AdminFleetCompanySummariesCompany = { [key: string]: unknown };
+
+export type AdminFleetCompanySummariesBranchesItem = { [key: string]: unknown };
+
+export interface AdminFleetCompanySummaries {
+  items?: AdminFleetCompanySummariesItemsItem[];
+  company?: AdminFleetCompanySummariesCompany;
+  branches?: AdminFleetCompanySummariesBranchesItem[];
+  /** @minimum 0 */
+  total?: number;
+  /** @minimum 0 */
+  branchTotal?: number;
+  /** @minimum 1 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize?: number;
+  /** @minimum 0 */
+  nfcIssuePriceMinor?: number;
+  [key: string]: unknown;
+ }
+
+export type AdminFleetDriverDetailLinksItem = { [key: string]: unknown };
+
+export interface AdminFleetDriverDetail {
+  id?: string;
+  organizationId?: string;
+  organizationName?: string;
+  organizationCode?: string;
+  driverCode?: string;
+  fullName?: string;
+  /** @nullable */
+  phone?: string | null;
+  status?: string;
+  /** @minimum 1 */
+  version?: number;
+  links?: AdminFleetDriverDetailLinksItem[];
+  [key: string]: unknown;
+ }
+
+/**
+ * @nullable
+ */
+export type AdminFleetConsumptionRatesCurrent = { [key: string]: unknown } | null;
+
+export type AdminFleetConsumptionRatesHistoryItem = { [key: string]: unknown };
+
+export interface AdminFleetConsumptionRates {
+  /** @nullable */
+  current?: AdminFleetConsumptionRatesCurrent;
+  history?: AdminFleetConsumptionRatesHistoryItem[];
+  organizationId?: string;
+  /** @nullable */
+  branchId?: string | null;
+  [key: string]: unknown;
+ }
+
+export interface FleetConsumptionRateInput {
+  organizationId: string;
+  /** @nullable */
+  branchId: string | null;
+  /** @exclusiveMinimum 0 */
+  litersPer100Km: number;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
 export type AdminFleetReferenceOptionsItemsItem = { [key: string]: unknown };
 
 export interface AdminFleetReferenceOptions {
   items: AdminFleetReferenceOptionsItemsItem[];
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 0 */
+  totalPages: number;
+}
+
+export type AdminFleetStockReservationsItemsItem = {
+  id?: string;
+  stockUnitId?: string;
+  unitCode?: string;
+  requestId?: string;
+  requestStatus?: string;
+  vehicleId?: string;
+  vehiclePlate?: string;
+  organizationId?: string;
+  organizationName?: string;
+  branchId?: string;
+  branchName?: string;
+  reservedAt?: string;
+  [key: string]: unknown;
+ };
+
+export interface AdminFleetStockReservations {
+  items: AdminFleetStockReservationsItemsItem[];
   /** @minimum 1 */
   page: number;
   /**
@@ -2340,6 +2450,29 @@ export const GetAdminFleetCatalogSort = {
   updatedAt: 'updatedAt',
 } as const;
 
+export type GetAdminFleetCompanySummariesParams = {
+organizationId?: string;
+/**
+ * @maxLength 120
+ */
+query?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminFleetConsumptionRatesParams = {
+organizationId: string;
+branchId?: string;
+};
+
 export type GetAdminFleetSubscriptionOptionsParams = {
 organizationId?: string;
 /**
@@ -2359,6 +2492,23 @@ pageSize?: number;
 };
 
 export type GetAdminFleetStockOptionsParams = {
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminFleetStockReservationsParams = {
 /**
  * @maxLength 160
  */

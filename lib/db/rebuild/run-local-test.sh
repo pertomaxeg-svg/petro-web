@@ -293,6 +293,15 @@ fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/fleet-subscription-options-smoke-test.sql" >/dev/null
 echo "0015 fleet subscription selector smoke passed: active/scheduled vehicle plans, search, pagination, and role gate on synthetic subscriptions."
+default_acl_snapshot >"$tmp_dir/default-acl-before-0016.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0016_fleet_history_and_admin_directory.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0016.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0016.txt" "$tmp_dir/default-acl-after-0016.txt"; then
+  echo "0016 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0016.txt" "$tmp_dir/default-acl-after-0016.txt" >&2 || true
+  exit 1
+fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/finance-core-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
@@ -326,6 +335,6 @@ echo "0010/0011 plan authoring, editable defaults, draft/version immutability, p
 echo "0008 platform-user directory, role/status audit, owner-only authorization, mandatory reasons, self-change denial, inactive-account guard, and legacy-RPC compatibility passed."
 echo "0012/0013 finance ledger, receipt detail, reservation capture, unallocated receipts, top-up approvals, same-organization transfers, subscription collection holds, exact-piaster balances, idempotency, reversal, and read-only reconciliation passed with local synthetic fixtures."
 echo "0014/0015 fleet integration used real disposable PostgreSQL policy, coverage, reservation and finance-ledger contracts; no fake Supabase transport was used for this integration."
-echo "The 0008, billing, finance, and fleet API routers passed isolated HTTP/PostgreSQL integration tests with synthetic users and a local fake Supabase transport; the fleet route passed 4 anonymous/owner/finance/catalog assertions; finance concurrency checks passed; 0009 was not run and remains deferred."
+echo "The 0008, billing, finance, and fleet API routers passed isolated HTTP/PostgreSQL integration tests with synthetic users and a local fake Supabase transport; fleet routes passed 36 authentication, company/branch/driver detail, no-secret, configured-price, rate-version, replay, and role-gate assertions; finance concurrency checks passed; 0009 was not run and remains deferred."
 echo "0004/0005/0006/0007/0008/0010/0011 local migrations changed no default ACL in any schema; the test fixture modeled the approved 24 ACL scopes. Storage behavior was simulated locally; no live Storage service was used."
 echo "Only a temporary local PostgreSQL cluster and local HTTP test server were used; no project Secrets or external network connections were used."

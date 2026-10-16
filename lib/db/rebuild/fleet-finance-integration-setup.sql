@@ -27,11 +27,13 @@ RESET ROLE;
 DO $setup$
 DECLARE
   actor uuid := '00000000-0000-4000-8000-000000001601';
-  org_a uuid; org_b uuid; branch_a uuid; branch_b uuid;
+  org_a uuid; org_b uuid; branch_a uuid; branch_a2 uuid; branch_b uuid;
   plan_id uuid := '00000000-0000-4000-8000-000000001611';
   version_id uuid := '00000000-0000-4000-8000-000000001612';
   request_id uuid := '00000000-0000-4000-8000-000000001613';
   subscription_id uuid := '00000000-0000-4000-8000-000000001614';
+  third_request_id uuid := '00000000-0000-4000-8000-000000001625';
+  third_subscription_id uuid := '00000000-0000-4000-8000-000000001626';
   merchant_org uuid;
   merchant_branch uuid;
   branch_policy_id uuid := '00000000-0000-4000-8000-000000001621';
@@ -57,6 +59,11 @@ BEGIN
     NULL,NULL,'{}'::jsonb,'مسؤول الفرع','+201000001611');
   PERFORM public.petro_approve_branch(org_a,branch_a,1,'اعتماد فرع تكامل أسطول');
   PERFORM public.petro_set_branch_operational_status(org_a,branch_a,2,'active','تفعيل فرع تكامل أسطول');
+  branch_a2 := public.petro_create_branch_details(
+    org_a,'FLEET-IT-A2','فرع ثان لتكامل الأسطول','عنوان اختبار','القاهرة',
+    NULL,NULL,'{}'::jsonb,'مسؤول الفرع','+201000001613');
+  PERFORM public.petro_approve_branch(org_a,branch_a2,1,'اعتماد الفرع الثاني لتكامل الأسطول');
+  PERFORM public.petro_set_branch_operational_status(org_a,branch_a2,2,'active','تفعيل الفرع الثاني لتكامل الأسطول');
   branch_b := public.petro_create_branch_details(
     org_b,'FLEET-IT-B1','فرع عزل أسطول','عنوان اختبار','القاهرة',
     NULL,NULL,'{}'::jsonb,'مسؤول الفرع','+201000001612');
@@ -84,14 +91,14 @@ BEGIN
     id,organization_id,branch_id,request_type,plan_id,plan_version_id,requested_units,
     starts_at,ends_at,coverage_state,request_status,reason,submitted_by,reviewed_by,reviewed_at
   ) VALUES(request_id,org_a,branch_a,'new',plan_id,version_id,2,
-    now()-interval '1 day',now()+interval '1 year','verified','approved',
+    now()-interval '2 years',now()+interval '1 year','verified','approved',
     'اشتراك نشط اصطناعي لاختبار عقد التغطية',actor,actor,now());
   INSERT INTO public.petro_subscriptions(
     id,request_id,organization_id,branch_id,plan_id,plan_version_id,plan_snapshot,
     price_snapshot_minor,billing_unit,units,starts_at,ends_at,status,created_by
   ) VALUES(subscription_id,request_id,org_a,branch_a,plan_id,version_id,
     '{"fixture":"isolated","accountingApproved":false}',50000,'vehicle',2,
-    now()-interval '1 day',now()+interval '1 year','active',actor);
+    now()-interval '2 years',now()+interval '1 year','active',actor);
   INSERT INTO public.petro_subscription_requests(
     id,organization_id,branch_id,request_type,plan_id,plan_version_id,requested_units,
     starts_at,ends_at,coverage_state,request_status,reason,submitted_by,reviewed_by,reviewed_at
@@ -104,6 +111,18 @@ BEGIN
   ) VALUES('00000000-0000-4000-8000-000000001624','00000000-0000-4000-8000-000000001623',
     org_a,branch_a,plan_id,version_id,'{"fixture":"expired","accountingApproved":false}',
     50000,'vehicle',1,now()-interval '3 days',now()-interval '1 day','active',actor);
+  INSERT INTO public.petro_subscription_requests(
+    id,organization_id,branch_id,request_type,plan_id,plan_version_id,requested_units,
+    starts_at,ends_at,coverage_state,request_status,reason,submitted_by,reviewed_by,reviewed_at
+  ) VALUES(third_request_id,org_a,branch_a,'new',plan_id,version_id,1,
+    now()-interval '2 years',now()+interval '1 year','verified','approved',
+    'اشتراك اصطناعي مستقل للمركبة الثالثة في قاعدة الاختبار',actor,actor,now());
+  INSERT INTO public.petro_subscriptions(
+    id,request_id,organization_id,branch_id,plan_id,plan_version_id,plan_snapshot,
+    price_snapshot_minor,billing_unit,units,starts_at,ends_at,status,created_by
+  ) VALUES(third_subscription_id,third_request_id,org_a,branch_a,plan_id,version_id,
+    '{"fixture":"isolated-third-vehicle","accountingApproved":false}',50000,'vehicle',1,
+    now()-interval '2 years',now()+interval '1 year','active',actor);
 
   SELECT public.petro_admin_fleet_command('vehicle.create',jsonb_build_object(
     'organizationId',org_a,'branchId',branch_a,'plateOriginal','FLEET IT 1','plateStandard','FLEETIT1',
@@ -136,7 +155,7 @@ BEGIN
     'organizationId',org_b,'driverCode','FLEET-IT-DB','fullName','سائق عزل'),
     'إنشاء سائق اصطناعي لشركة أخرى','fleet-it-b-driver-1') INTO db;
   SELECT public.petro_admin_fleet_command('driver.link.create',jsonb_build_object(
-    'vehicleId',v1->>'id','driverId',d1->>'id','pinHmac',repeat('a',64)),
+    'vehicleId',v1->>'id','driverId',d1->>'id','startsAt','2024-07-01T12:00:00Z','pinHmac',repeat('a',64)),
     'ربط سائق اصطناعي','fleet-it-a-link-1') INTO l1;
   SELECT public.petro_admin_fleet_command('driver.link.create',jsonb_build_object(
     'vehicleId',v2->>'id','driverId',d2->>'id','pinHmac',repeat('b',64)),
@@ -199,6 +218,9 @@ BEGIN
     GET STACKED DIAGNOSTICS action_error=MESSAGE_TEXT;
     IF action_error<>'VEHICLE_SUBSCRIPTION_NOT_ELIGIBLE' THEN RAISE; END IF;
   END;
+  PERFORM public.petro_admin_fleet_assign_coverage(jsonb_build_object(
+    'vehicleId',v3->>'id','subscriptionId',third_subscription_id,'startsAt',now()),
+    'تغطية اصطناعية للمركبة الثالثة','fleet-it-coverage-3');
 
   INSERT INTO public.petro_fleet_policy_versions(
     id,organization_id,branch_id,vehicle_id,scope_kind,version_no,status,effective_from,
@@ -206,7 +228,7 @@ BEGIN
     allowed_merchant_branch_ids,max_operation_minor,max_operation_quantity,
     daily_amount_limit_minor,weekly_amount_limit_minor,monthly_amount_limit_minor,
     daily_quantity_limit,weekly_quantity_limit,monthly_quantity_limit,reason,created_by,published_by,published_at
-  ) VALUES(branch_policy_id,org_a,branch_a,NULL,'branch',1,'published',now()-interval '1 day',
+  ) VALUES(branch_policy_id,org_a,branch_a,NULL,'branch',1,'published',now()-interval '2 years',
     ARRAY[1,2,3,4,5,6,7]::smallint[],'00:00','23:59:59.999999',
     ARRAY[merchant_org],ARRAY[merchant_branch],1000000,100,10000000,20000000,40000000,
     1000,2000,4000,'سياسة فرع اصطناعية',actor,actor,now());
@@ -226,7 +248,7 @@ BEGIN
       allowed_merchant_branch_ids,max_operation_minor,max_operation_quantity,
       daily_amount_limit_minor,weekly_amount_limit_minor,monthly_amount_limit_minor,
       daily_quantity_limit,weekly_quantity_limit,monthly_quantity_limit,reason,created_by,published_by,published_at
-    ) VALUES(policy_id,org_a,branch_a,vehicle_id,'vehicle',1,'published',now()-interval '1 day',
+     ) VALUES(policy_id,org_a,branch_a,vehicle_id,'vehicle',1,'published',now()-interval '2 years',
       ARRAY[1,2,3,4,5,6,7]::smallint[],'00:00','23:59:59.999999',
       ARRAY[merchant_org],ARRAY[merchant_branch],1000000,100,
       1000000,2000000,4000000,100,200,400,'سياسة مركبة اصطناعية',actor,actor,now());

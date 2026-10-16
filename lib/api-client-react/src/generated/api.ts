@@ -31,10 +31,14 @@ import type {
   AdminFleetCatalog,
   AdminFleetCommandRequest,
   AdminFleetCommandResult,
+  AdminFleetCompanySummaries,
+  AdminFleetConsumptionRates,
   AdminFleetDocumentUploadIntent,
   AdminFleetDocumentUploadIntentRequest,
+  AdminFleetDriverDetail,
   AdminFleetImportApplyRequest,
   AdminFleetReferenceOptions,
+  AdminFleetStockReservations,
   AdminFleetVerifyPairRequest,
   AdminFleetVerifyPairResult,
   AdminOrganizationRequestList,
@@ -78,8 +82,12 @@ import type {
   ExpectedVersionRequest,
   FinanceReasonAction,
   FinanceVersionedReasonAction,
+  FleetConsumptionRateInput,
   GetAdminFleetCatalogParams,
+  GetAdminFleetCompanySummariesParams,
+  GetAdminFleetConsumptionRatesParams,
   GetAdminFleetStockOptionsParams,
+  GetAdminFleetStockReservationsParams,
   GetAdminFleetSubscriptionOptionsParams,
   HealthStatus,
   InvitationCreatedResult,
@@ -396,6 +404,339 @@ export function useGetAdminFleetCatalog<TData = Awaited<ReturnType<typeof getAdm
 
 
 
+export const getGetAdminFleetCompanySummariesUrl = (params?: GetAdminFleetCompanySummariesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/fleet/company-summaries?${stringifiedParams}` : `/api/admin/fleet/company-summaries`
+}
+
+/**
+ * @summary Read paginated company and branch fleet summaries
+ */
+export const getAdminFleetCompanySummaries = async (params?: GetAdminFleetCompanySummariesParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetCompanySummaries> => {
+
+  return customFetch<AdminFleetCompanySummaries>(getGetAdminFleetCompanySummariesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetCompanySummariesQueryKey = (params?: GetAdminFleetCompanySummariesParams,) => {
+    return [
+    `/api/admin/fleet/company-summaries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminFleetCompanySummariesQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetCompanySummaries>>, TError = ErrorType<void>>(params?: GetAdminFleetCompanySummariesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCompanySummaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetCompanySummariesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetCompanySummaries>>> = ({ signal }) => getAdminFleetCompanySummaries(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCompanySummaries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetCompanySummariesQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetCompanySummaries>>>
+export type GetAdminFleetCompanySummariesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read paginated company and branch fleet summaries
+ */
+
+export function useGetAdminFleetCompanySummaries<TData = Awaited<ReturnType<typeof getAdminFleetCompanySummaries>>, TError = ErrorType<void>>(
+ params?: GetAdminFleetCompanySummariesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCompanySummaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetCompanySummariesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminFleetDriverDetailUrl = (driverId: string,) => {
+
+
+
+
+  return `/api/admin/fleet/drivers/${driverId}`
+}
+
+/**
+ * @summary Read one driver profile and dated vehicle links
+ */
+export const getAdminFleetDriverDetail = async (driverId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetDriverDetail> => {
+
+  return customFetch<AdminFleetDriverDetail>(getGetAdminFleetDriverDetailUrl(driverId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetDriverDetailQueryKey = (driverId: string,) => {
+    return [
+    `/api/admin/fleet/drivers/${driverId}`
+    ] as const;
+    }
+
+
+export const getGetAdminFleetDriverDetailQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetDriverDetail>>, TError = ErrorType<void>>(driverId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetDriverDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetDriverDetailQueryKey(driverId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetDriverDetail>>> = ({ signal }) => getAdminFleetDriverDetail(driverId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: driverId !== null && driverId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetDriverDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetDriverDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetDriverDetail>>>
+export type GetAdminFleetDriverDetailQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read one driver profile and dated vehicle links
+ */
+
+export function useGetAdminFleetDriverDetail<TData = Awaited<ReturnType<typeof getAdminFleetDriverDetail>>, TError = ErrorType<void>>(
+ driverId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetDriverDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetDriverDetailQueryOptions(driverId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminFleetConsumptionRatesUrl = (params: GetAdminFleetConsumptionRatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/fleet/consumption-rates?${stringifiedParams}` : `/api/admin/fleet/consumption-rates`
+}
+
+/**
+ * @summary Read the effective expected fuel consumption and immutable history
+ */
+export const getAdminFleetConsumptionRates = async (params: GetAdminFleetConsumptionRatesParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetConsumptionRates> => {
+
+  return customFetch<AdminFleetConsumptionRates>(getGetAdminFleetConsumptionRatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetConsumptionRatesQueryKey = (params?: GetAdminFleetConsumptionRatesParams,) => {
+    return [
+    `/api/admin/fleet/consumption-rates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminFleetConsumptionRatesQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetConsumptionRates>>, TError = ErrorType<void>>(params: GetAdminFleetConsumptionRatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetConsumptionRates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetConsumptionRatesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetConsumptionRates>>> = ({ signal }) => getAdminFleetConsumptionRates(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetConsumptionRates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetConsumptionRatesQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetConsumptionRates>>>
+export type GetAdminFleetConsumptionRatesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the effective expected fuel consumption and immutable history
+ */
+
+export function useGetAdminFleetConsumptionRates<TData = Awaited<ReturnType<typeof getAdminFleetConsumptionRates>>, TError = ErrorType<void>>(
+ params: GetAdminFleetConsumptionRatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetConsumptionRates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetConsumptionRatesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetAdminFleetConsumptionRateUrl = () => {
+
+
+
+
+  return `/api/admin/fleet/consumption-rates`
+}
+
+/**
+ * @summary Append a reasoned company or branch consumption-rate version
+ */
+export const setAdminFleetConsumptionRate = async (fleetConsumptionRateInput: FleetConsumptionRateInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetCommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFleetCommandResult>(getSetAdminFleetConsumptionRateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fleetConsumptionRateInput)
+  }
+);}
+
+
+
+
+
+export const getSetAdminFleetConsumptionRateMutationKey = () => ['setAdminFleetConsumptionRate'] as const;
+
+export const getSetAdminFleetConsumptionRateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminFleetConsumptionRate>>, TError,SetAdminFleetConsumptionRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAdminFleetConsumptionRate>>, TError,SetAdminFleetConsumptionRateMutationVariables, TContext> => {
+
+const mutationKey = getSetAdminFleetConsumptionRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAdminFleetConsumptionRate>>, SetAdminFleetConsumptionRateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setAdminFleetConsumptionRate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAdminFleetConsumptionRateMutationResult = NonNullable<Awaited<ReturnType<typeof setAdminFleetConsumptionRate>>>
+    export type SetAdminFleetConsumptionRateMutationBody = BodyType<FleetConsumptionRateInput>
+    export type SetAdminFleetConsumptionRateMutationError = ErrorType<void>
+    export type SetAdminFleetConsumptionRateMutationVariables = {data: BodyType<FleetConsumptionRateInput>}
+
+    /**
+ * @summary Append a reasoned company or branch consumption-rate version
+ */
+export const useSetAdminFleetConsumptionRate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminFleetConsumptionRate>>, TError,SetAdminFleetConsumptionRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAdminFleetConsumptionRate>>,
+        TError,
+        SetAdminFleetConsumptionRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetAdminFleetConsumptionRateMutationOptions(options));
+    }
+
 export const getGetAdminFleetSubscriptionOptionsUrl = (params?: GetAdminFleetSubscriptionOptionsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -552,6 +893,90 @@ export function useGetAdminFleetStockOptions<TData = Awaited<ReturnType<typeof g
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAdminFleetStockOptionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminFleetStockReservationsUrl = (params?: GetAdminFleetStockReservationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/fleet/stock-reservations?${stringifiedParams}` : `/api/admin/fleet/stock-reservations`
+}
+
+/**
+ * @summary Resume installation from NFC units reserved for a credential request
+ */
+export const getAdminFleetStockReservations = async (params?: GetAdminFleetStockReservationsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetStockReservations> => {
+
+  return customFetch<AdminFleetStockReservations>(getGetAdminFleetStockReservationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetStockReservationsQueryKey = (params?: GetAdminFleetStockReservationsParams,) => {
+    return [
+    `/api/admin/fleet/stock-reservations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminFleetStockReservationsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetStockReservations>>, TError = ErrorType<void>>(params?: GetAdminFleetStockReservationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetStockReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetStockReservationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetStockReservations>>> = ({ signal }) => getAdminFleetStockReservations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetStockReservations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetStockReservationsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetStockReservations>>>
+export type GetAdminFleetStockReservationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Resume installation from NFC units reserved for a credential request
+ */
+
+export function useGetAdminFleetStockReservations<TData = Awaited<ReturnType<typeof getAdminFleetStockReservations>>, TError = ErrorType<void>>(
+ params?: GetAdminFleetStockReservationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetStockReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetStockReservationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

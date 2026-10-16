@@ -5,7 +5,9 @@ import {
   ApplyAdminFleetImportBody,
   CreateAdminFleetDocumentUploadIntentBody,
   ExecuteAdminFleetCommandBody,
+  GetAdminFleetCompanySummariesQueryParams,
   GetAdminFleetCatalogQueryParams,
+  SetAdminFleetConsumptionRateBody,
   VerifyAdminFleetDriverPairBody,
 } from "@workspace/api-zod";
 import { requireSession } from "./management";
@@ -35,7 +37,9 @@ function mapError(res: Response, error: { message?: string; code?: string }): vo
       : status === 400
         ? "راجع الحقول المطلوبة ثم أعد المحاولة."
         : status === 409
-          ? "تعذر تنفيذ الإجراء بسبب تعارض أو شرط غير مستوفى."
+          ? message.includes("FLEET_MOVE_HAS_OPEN_RESERVATIONS")
+            ? "لا يمكن نقل المركبة مع حجز خدمة قائم؛ أكمل الحجز أو أفرجه أولًا."
+            : "تعذر تنفيذ الإجراء بسبب تعارض أو شرط غير مستوفى."
           : "تعذر إكمال الطلب الآن.";
   fail(res, status, safeMessage, message.split(":")[0]?.slice(0, 80));
 }
@@ -105,7 +109,11 @@ function validateCommandPayload(action: string, payload: JsonRecord): string | n
   if (action === "vehicle.move" && (!uuid("vehicleId") || !uuid("targetBranchId") || !safeString(payload.expectedVersion))) {
     return "حدد المركبة والفرع الجديد.";
   }
-  if (action === "vehicle.status" && (!uuid("vehicleId") || !["active", "suspended", "inactive"].includes(String(payload.status)))) {
+  if (action === "vehicle.status" && (
+    !uuid("vehicleId")
+    || !safeString(payload.expectedVersion)
+    || !["active", "suspended", "inactive"].includes(String(payload.status))
+  )) {
     return "حالة المركبة غير صالحة.";
   }
   if (action === "driver.create" || action === "driver.update") {
@@ -114,15 +122,25 @@ function validateCommandPayload(action: string, payload: JsonRecord): string | n
     if (action === "driver.update" && (!uuid("driverId") || !safeString(payload.expectedVersion))) return "تعذر التحقق من نسخة السائق.";
   }
   if (action === "driver.link.create") {
-    if (!uuid("vehicleId") || !uuid("driverId") || !/^\d{4}$/.test(String(payload.pinCode ?? ""))) {
-      return "حدد المركبة والسائق وأدخل كودًا من أربعة أرقام.";
+    const startsAt = safeString(payload.startsAt);
+    const startTime = startsAt ? new Date(startsAt).getTime() : Number.NaN;
+    if (!uuid("vehicleId") || !uuid("driverId")) return "اختر المركبة والسائق من القوائم.";
+    if (!startsAt || !Number.isFinite(startTime) || startTime > Date.now()) {
+      return "أدخل تاريخ بداية ربط صحيحًا لا يتجاوز الوقت الحالي.";
+    }
+    if (safeString(payload.pinCode) && !/^\d{4}$/.test(String(payload.pinCode))) {
+      return "رمز PIN اختياري، لكن عند إدخاله يجب أن يتكون من أربعة أرقام.";
     }
   }
   if (action === "driver.pin.rotate" && (!uuid("linkId") || !uuid("vehicleId") || !/^\d{4}$/.test(String(payload.pinCode ?? "")))) {
     return "أدخل كودًا جديدًا من أربعة أرقام.";
   }
   if ((action === "driver.link.end" && !uuid("linkId")) ||
-      (action === "driver.status" && (!uuid("driverId") || !["active", "suspended", "inactive"].includes(String(payload.status))))) {
+      (action === "driver.status" && (
+        !uuid("driverId")
+        || !safeString(payload.expectedVersion)
+        || !["active", "suspended", "inactive"].includes(String(payload.status))
+      ))) {
     return "تعذر تحديد سجل السائق أو حالته.";
   }
   if (action === "credential.activate_qr" || action === "credential.activate_nfc") {
@@ -143,7 +161,8 @@ function hmacPayload(action: string, payload: JsonRecord): JsonRecord {
     const pinCode = String(result["pinCode"] ?? "");
     const vehicleId = String(result["vehicleId"] ?? "");
     delete result["pinCode"];
-    result["pinHmac"] = pairPinDigest(vehicleId, pinCode);
+    if (pinCode) result["pinHmac"] = pairPinDigest(vehicleId, pinCode);
+    else delete result["pinHmac"];
   }
   return result;
 }
@@ -161,6 +180,69 @@ router.get("/admin/fleet/catalog", async (req: Request, res: Response) => {
   });
   if (error) return mapError(res, error);
   res.json(data ?? {});
+});
+
+router.get("/admin/fleet/company-summaries", async (req: Request, res: Response) => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const parsed = GetAdminFleetCompanySummariesQueryParams.safeParse(req.query);
+  if (!parsed.success) return fail(res, 400, "معايير عرض الشركات والفروع غير صالحة.");
+  const { data, error } = await callRpc(session, "petro_admin_fleet_company_summaries", {
+    p_organization_id: parsed.data.organizationId ?? null,
+    p_query: parsed.data.query ?? null,
+    p_page: parsed.data.page,
+    p_page_size: parsed.data.pageSize,
+  });
+  if (error) return mapError(res, error);
+  res.json(data ?? {});
+});
+
+router.get("/admin/fleet/drivers/:driverId", async (req: Request, res: Response) => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const driverId = safeString(req.params["driverId"]);
+  if (!driverId || !UUID_RE.test(driverId)) return fail(res, 400, "حدد سجل السائق من القائمة.");
+  const { data, error } = await callRpc(session, "petro_admin_fleet_driver_detail", {
+    p_driver_id: driverId,
+  });
+  if (error) return mapError(res, error);
+  res.json(data ?? {});
+});
+
+router.get("/admin/fleet/consumption-rates", async (req: Request, res: Response) => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const organizationId = safeString(req.query["organizationId"]);
+  const branchId = safeString(req.query["branchId"]);
+  if (!organizationId || !UUID_RE.test(organizationId) || (branchId && !UUID_RE.test(branchId))) {
+    return fail(res, 400, "اختر الشركة والفرع من السجل.");
+  }
+  const { data, error } = await callRpc(session, "petro_admin_fleet_consumption_rates", {
+    p_organization_id: organizationId,
+    p_branch_id: branchId ?? null,
+  });
+  if (error) return mapError(res, error);
+  res.json(data ?? {});
+});
+
+router.post("/admin/fleet/consumption-rates", async (req: Request, res: Response) => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const parsed = SetAdminFleetConsumptionRateBody.safeParse(req.body);
+  if (!parsed.success) return fail(res, 400, "بيانات معدل الاستهلاك غير صالحة.");
+  const { data, error } = await callRpc(session, "petro_admin_fleet_set_consumption_rate", {
+    p_organization_id: parsed.data.organizationId,
+    p_branch_id: parsed.data.branchId,
+    p_liters_per_100km: parsed.data.litersPer100Km,
+    p_reason: parsed.data.reason,
+    p_idempotency_key: parsed.data.idempotencyKey,
+  });
+  if (error) return mapError(res, error);
+  res.status(201).json(data ?? {});
 });
 
 router.get("/admin/fleet/subscription-options", async (req: Request, res: Response) => {
@@ -204,6 +286,31 @@ router.get("/admin/fleet/stock-options", async (req: Request, res: Response) => 
     return fail(res, 400, "معايير اختيار وحدة الشريحة غير صالحة.");
   }
   const { data, error } = await callRpc(session, "petro_admin_fleet_stock_options", {
+    p_search: search,
+    p_page: page,
+    p_page_size: pageSize,
+  });
+  if (error) return mapError(res, error);
+  res.json(data ?? {});
+});
+
+router.get("/admin/fleet/stock-reservations", async (req: Request, res: Response) => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const search = safeString(req.query["search"]) ?? null;
+  const pageValue = safeString(req.query["page"]);
+  const pageSizeValue = safeString(req.query["pageSize"]);
+  const page = pageValue === undefined ? 1 : Number(pageValue);
+  const pageSize = pageSizeValue === undefined ? 20 : Number(pageSizeValue);
+  if (
+    (search !== null && search.length > 160)
+    || !Number.isInteger(page) || page < 1 || page > 100000
+    || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100
+  ) {
+    return fail(res, 400, "معايير البحث عن وحدات التعريف المحجوزة غير صالحة.");
+  }
+  const { data, error } = await callRpc(session, "petro_admin_fleet_stock_reservations", {
     p_search: search,
     p_page: page,
     p_page_size: pageSize,
