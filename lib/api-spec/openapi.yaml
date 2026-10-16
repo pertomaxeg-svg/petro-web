@@ -2266,6 +2266,170 @@ paths:
           $ref: "#/components/responses/ApiError"
         "409":
           $ref: "#/components/responses/ApiError"
+  /catalog/reference-data:
+    get:
+      operationId: getCatalogReferenceData
+      tags: [management]
+      summary: Read active catalog categories and units for an authenticated catalog manager
+      responses:
+        "200":
+          description: Active catalog taxonomy and measurement units
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogReferenceData" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/categories:
+    get:
+      operationId: getAdminCatalogCategories
+      tags: [management]
+      summary: Read all catalog categories and units for authorized central roles
+      responses:
+        "200":
+          description: Central catalog configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogReferenceData" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/organizations:
+    get:
+      operationId: listAdminCatalogOrganizations
+      tags: [management]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: kind, in: query, schema: { type: string, enum: [station, provider] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated station and service-provider directory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCatalogDirectoryResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/fuel:
+    get:
+      operationId: listAdminCatalogFuel
+      tags: [management]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Fuel types, reference prices and bounded history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCatalogFuelResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/fuel/preview:
+    post:
+      operationId: previewAdminCatalogFuel
+      tags: [management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FuelPreviewRequest" }
+      responses:
+        "200":
+          description: Non-financial quantity or amount estimate using the current reference price
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FuelPreviewResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "409": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/items:
+    get:
+      operationId: getMerchantCatalogItems
+      tags: [management]
+      parameters:
+        - { name: organizationId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: branchId, in: query, schema: { type: string, format: uuid } }
+        - { name: categoryCode, in: query, schema: { type: string, maxLength: 40 } }
+        - { name: kind, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Paginated catalog filtered by organization and optional authorized branch
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItemsResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
+  /catalog/items/{itemId}:
+    get:
+      operationId: getCatalogItem
+      tags: [management]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Catalog item, visible branch availability, scoped prices and private image metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItemResult" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
+  /catalog/commands:
+    post:
+      operationId: executeCatalogCommand
+      tags: [management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogCommandRequest" }
+      responses:
+        "200":
+          description: Idempotent catalog command result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogCommandResult" }
+        "201":
+          description: New catalog row created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogCommandResult" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "409": { $ref: "#/components/responses/ApiError" }
+  /catalog/images/{imageId}/content:
+    put:
+      operationId: uploadCatalogImageContent
+      tags: [management]
+      parameters:
+        - { name: imageId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          image/png: { schema: { type: string, format: binary } }
+          image/jpeg: { schema: { type: string, format: binary } }
+      responses:
+        "200":
+          description: Private image uploaded and metadata marked ready
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImageResult" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "409": { $ref: "#/components/responses/ApiError" }
+  /catalog/images/{imageId}/download:
+    get:
+      operationId: downloadCatalogImage
+      tags: [management]
+      parameters:
+        - { name: imageId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Short-lived signed URL for an authorized private catalog image
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImageDownload" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
 components:
   parameters:
     OrganizationId:
@@ -2288,6 +2452,114 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
   schemas:
+    CatalogReferenceData:
+      type: object
+      additionalProperties: true
+      properties:
+        categories:
+          type: array
+          items: { type: object, additionalProperties: true }
+        units:
+          type: array
+          items: { type: object, additionalProperties: true }
+    AdminCatalogDirectoryResult:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminCatalogFuelResult:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        totalPages: { type: integer, minimum: 0 }
+        canManage: { type: boolean }
+    CatalogItemsResult:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        totalPages: { type: integer, minimum: 0 }
+        canManage: { type: boolean }
+        canManageOrganization: { type: boolean }
+        canReview: { type: boolean }
+    CatalogItemResult:
+      type: object
+      additionalProperties: true
+      properties:
+        item: { type: object, additionalProperties: true }
+        centralSuspended: { type: boolean }
+        manageableBranches:
+          type: array
+          items: { type: object, additionalProperties: true }
+        availability:
+          type: array
+          items: { type: object, additionalProperties: true }
+        prices:
+          type: array
+          items: { type: object, additionalProperties: true }
+        images:
+          type: array
+          items: { type: object, additionalProperties: true }
+    FuelPreviewRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        fuelTypeId: { type: string, format: uuid }
+        quantity: { type: number, exclusiveMinimum: 0 }
+        amountMinor: { type: string, pattern: "^[1-9][0-9]{0,14}$" }
+      required: [fuelTypeId]
+    FuelPreviewResult:
+      type: object
+      additionalProperties: true
+    CatalogCommandRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum:
+            [unit.create, unit.status, category.create, category.update, category.status,
+             fuel.type.create, fuel.type.update, fuel.type.status, fuel.price.create_draft,
+             fuel.price.publish, fuel.price.cancel, item.create, item.update, item.status,
+             item.review, item.branch_availability, item.price.create_draft, item.price.publish,
+             item.price.cancel, item.image.intent, item.image.remove]
+        payload:
+          type: object
+          additionalProperties: true
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120 }
+      required: [action, payload, reason, idempotencyKey]
+    CatalogCommandResult:
+      type: object
+      additionalProperties: true
+    CatalogImageResult:
+      type: object
+      additionalProperties: true
+    CatalogImageDownload:
+      type: object
+      additionalProperties: false
+      properties:
+        signedUrl: { type: string, format: uri }
+        expiresInSeconds: { type: integer, minimum: 1 }
+        fileName: { type: string }
+      required: [signedUrl, expiresInSeconds, fileName]
     AdminFleetCatalog:
       type: object
       additionalProperties: true

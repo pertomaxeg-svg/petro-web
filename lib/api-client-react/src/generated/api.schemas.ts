@@ -5,6 +5,159 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type CatalogReferenceDataCategoriesItem = { [key: string]: unknown };
+
+export type CatalogReferenceDataUnitsItem = { [key: string]: unknown };
+
+export interface CatalogReferenceData {
+  categories?: CatalogReferenceDataCategoriesItem[];
+  units?: CatalogReferenceDataUnitsItem[];
+  [key: string]: unknown;
+ }
+
+export type AdminCatalogDirectoryResultItemsItem = { [key: string]: unknown };
+
+export interface AdminCatalogDirectoryResult {
+  items?: AdminCatalogDirectoryResultItemsItem[];
+  /** @minimum 0 */
+  total?: number;
+  /** @minimum 1 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize?: number;
+  /** @minimum 0 */
+  totalPages?: number;
+  [key: string]: unknown;
+ }
+
+export type AdminCatalogFuelResultItemsItem = { [key: string]: unknown };
+
+export interface AdminCatalogFuelResult {
+  items?: AdminCatalogFuelResultItemsItem[];
+  /** @minimum 0 */
+  total?: number;
+  /** @minimum 1 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize?: number;
+  /** @minimum 0 */
+  totalPages?: number;
+  canManage?: boolean;
+  [key: string]: unknown;
+ }
+
+export type CatalogItemsResultItemsItem = { [key: string]: unknown };
+
+export interface CatalogItemsResult {
+  items?: CatalogItemsResultItemsItem[];
+  /** @minimum 0 */
+  total?: number;
+  /** @minimum 1 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize?: number;
+  /** @minimum 0 */
+  totalPages?: number;
+  canManage?: boolean;
+  canManageOrganization?: boolean;
+  canReview?: boolean;
+  [key: string]: unknown;
+ }
+
+export type CatalogItemResultItem = { [key: string]: unknown };
+
+export type CatalogItemResultManageableBranchesItem = { [key: string]: unknown };
+
+export type CatalogItemResultAvailabilityItem = { [key: string]: unknown };
+
+export type CatalogItemResultPricesItem = { [key: string]: unknown };
+
+export type CatalogItemResultImagesItem = { [key: string]: unknown };
+
+export interface CatalogItemResult {
+  item?: CatalogItemResultItem;
+  centralSuspended?: boolean;
+  manageableBranches?: CatalogItemResultManageableBranchesItem[];
+  availability?: CatalogItemResultAvailabilityItem[];
+  prices?: CatalogItemResultPricesItem[];
+  images?: CatalogItemResultImagesItem[];
+  [key: string]: unknown;
+ }
+
+export interface FuelPreviewRequest {
+  fuelTypeId: string;
+  /** @exclusiveMinimum 0 */
+  quantity?: number;
+  /** @pattern ^[1-9][0-9]{0,14}$ */
+  amountMinor?: string;
+}
+
+export interface FuelPreviewResult { [key: string]: unknown }
+
+export type CatalogCommandRequestAction = typeof CatalogCommandRequestAction[keyof typeof CatalogCommandRequestAction];
+
+
+export const CatalogCommandRequestAction = {
+  unitcreate: 'unit.create',
+  unitstatus: 'unit.status',
+  categorycreate: 'category.create',
+  categoryupdate: 'category.update',
+  categorystatus: 'category.status',
+  fueltypecreate: 'fuel.type.create',
+  fueltypeupdate: 'fuel.type.update',
+  fueltypestatus: 'fuel.type.status',
+  fuelpricecreate_draft: 'fuel.price.create_draft',
+  fuelpricepublish: 'fuel.price.publish',
+  fuelpricecancel: 'fuel.price.cancel',
+  itemcreate: 'item.create',
+  itemupdate: 'item.update',
+  itemstatus: 'item.status',
+  itemreview: 'item.review',
+  itembranch_availability: 'item.branch_availability',
+  itempricecreate_draft: 'item.price.create_draft',
+  itempricepublish: 'item.price.publish',
+  itempricecancel: 'item.price.cancel',
+  itemimageintent: 'item.image.intent',
+  itemimageremove: 'item.image.remove',
+} as const;
+
+export type CatalogCommandRequestPayload = { [key: string]: unknown };
+
+export interface CatalogCommandRequest {
+  action: CatalogCommandRequestAction;
+  payload: CatalogCommandRequestPayload;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
+export interface CatalogCommandResult { [key: string]: unknown }
+
+export interface CatalogImageResult { [key: string]: unknown }
+
+export interface CatalogImageDownload {
+  signedUrl: string;
+  /** @minimum 1 */
+  expiresInSeconds: number;
+  fileName: string;
+}
+
 export interface AdminFleetCatalog { [key: string]: unknown }
 
 export type AdminFleetCompanySummariesItemsItem = { [key: string]: unknown };
@@ -2995,4 +3148,69 @@ export const GetAdminOrganizationBillingSection = {
   subscriptions: 'subscriptions',
   priceOverrides: 'priceOverrides',
 } as const;
+
+export type ListAdminCatalogOrganizationsParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+kind?: ListAdminCatalogOrganizationsKind;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminCatalogOrganizationsKind = typeof ListAdminCatalogOrganizationsKind[keyof typeof ListAdminCatalogOrganizationsKind];
+
+
+export const ListAdminCatalogOrganizationsKind = {
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export type ListAdminCatalogFuelParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetMerchantCatalogItemsParams = {
+organizationId: string;
+branchId?: string;
+/**
+ * @maxLength 40
+ */
+categoryCode?: string;
+kind?: string;
+status?: string;
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
 

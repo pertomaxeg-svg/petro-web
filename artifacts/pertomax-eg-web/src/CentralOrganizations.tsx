@@ -23,6 +23,7 @@ import {
   OrganizationSummaryPanel,
 } from "./OrganizationAdminProfilePanels";
 import "./CentralOrganizationsAdmin.css";
+import { OrganizationCatalogPanel } from "./CatalogAdmin";
 
 const kindLabels: Record<string,string> = { company: "شركة", station: "محطة وقود", provider: "مقدّم خدمة" };
 const weekdays = [["sun","الأحد"],["mon","الاثنين"],["tue","الثلاثاء"],["wed","الأربعاء"],["thu","الخميس"],["fri","الجمعة"],["sat","السبت"]] as const;
@@ -125,7 +126,7 @@ function OrganizationList() {
 function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;adminMode:boolean;userId:string;accessContext:unknown}) {
   const cache=useQueryClient();
   const [,setLocation]=useLocation();
-  const [adminTab,setAdminTab]=useState<"overview"|"branches"|"users"|"fleet"|"subscriptions"|"finance"|"records">(()=>{const params=new URLSearchParams(typeof window==="undefined"?"":window.location.search);const tab=params.get("section");return params.get("createBranch")==="1"?"branches":tab==="branches"||tab==="users"||tab==="fleet"||tab==="subscriptions"||tab==="finance"||tab==="records"?tab:"overview";});
+   const [adminTab,setAdminTab]=useState<"overview"|"branches"|"users"|"fleet"|"subscriptions"|"finance"|"records"|"catalog">(()=>{const params=new URLSearchParams(typeof window==="undefined"?"":window.location.search);const tab=params.get("section");return params.get("createBranch")==="1"?"branches":tab==="branches"||tab==="users"||tab==="fleet"||tab==="subscriptions"||tab==="finance"||tab==="records"||tab==="catalog"?tab:"overview";});
   const orgQ=useGetOrganization(id,{query:{queryKey:getGetOrganizationQueryKey(id),refetchOnMount:"always"}});
   const membershipQ=useListMemberships(id,{query:{queryKey:getListMembershipsQueryKey(id),enabled:!adminMode,refetchOnMount:"always",retry:false}});
   const canManage=adminMode||(membershipQ.data?.items??[]).some(member=>member.user_id===userId&&member.active&&member.scope==="organization"&&["organization_owner","manager"].includes(member.role));
@@ -163,7 +164,7 @@ function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;admin
   if(orgQ.isLoading)return <section className="co-content"><LoadingRows/></section>;
   if(orgQ.isError||!org)return <section className="co-content"><div className="co-state"><CircleAlert/><h2>تعذر تحميل بيانات الجهة</h2><p>{orgQ.isError?apiError(orgQ.error):"الجهة غير متاحة."}</p><button className="co-button co-secondary" onClick={()=>void orgQ.refetch()}><RefreshCw size={16}/> إعادة تحميل</button></div></section>;
   if(adminMode){
-    const adminTabs:Array<{id:"overview"|"branches"|"users"|"fleet"|"subscriptions"|"finance"|"records";label:string}>=[
+    const adminTabs:Array<{id:"overview"|"branches"|"users"|"fleet"|"subscriptions"|"finance"|"records"|"catalog";label:string}>=[
       {id:"overview",label:"الملخص"},
       {id:"branches",label:"الفروع"},
       {id:"users",label:"المستخدمون"},
@@ -171,6 +172,7 @@ function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;admin
       ...((org.kind==="company"||org.kind==="provider")?[{id:"subscriptions" as const,label:"الاشتراكات"}]:[]),
       ...(org.kind==="company"?[{id:"finance" as const,label:"المالية"}]:[]),
       {id:"records",label:"المستندات والطلبات"},
+      ...((org.kind==="station"||org.kind==="provider")?[{id:"catalog" as const,label:"الكتالوج والأسعار"}]:[]),
     ];
     const changeTab=(tab:typeof adminTabs[number]["id"])=>{setAdminTab(tab);setLocation(`/admin/organizations/${encodeURIComponent(id)}?section=${tab}`);};
     return <section className="co-content co-admin-entity">
@@ -215,6 +217,7 @@ function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;admin
       {adminTab==="subscriptions"&&(org.kind==="company"||org.kind==="provider")&&<OrganizationBillingPanel organizationId={id}/>}
       {adminTab==="finance"&&org.kind==="company"&&<OrganizationFinancePanel organizationId={id}/>}
       {adminTab==="records"&&<OrganizationRecords organizationId={id} canManage={canManage} canManageBank={canManageBank} managedBranchIds={managedBranchIds}/>}
+      {adminTab==="catalog"&&(org.kind==="station"||org.kind==="provider")&&<OrganizationCatalogPanel organizationId={id} organizationKind={org.kind} organizationName={org.name}/>}
       {action&&<div className="co-modal-backdrop" role="presentation"><section className="co-modal" role="dialog" aria-modal="true" aria-labelledby="co-action-title"><button className="co-icon-button co-modal-close" onClick={()=>setAction(null)} aria-label="إغلاق"><X size={18}/></button><span className="co-modal-mark"><ShieldCheck size={22}/></span><h2 id="co-action-title">{action.type==="approve"?"اعتماد "+(action.target==="org"?"الجهة":"الفرع"):action.type==="suspended"?"إيقاف التشغيل":"إعادة التشغيل"}</h2><p>سجّل سبب الإجراء. سيُحفظ السبب ضمن سجل التدقيق.</p><form onSubmit={runAction}><label>سبب الإجراء<textarea name="reason" required minLength={5} maxLength={500} rows={4} placeholder="اكتب سببًا واضحًا لا يقل عن خمسة أحرف" autoFocus/></label>{error&&<Toast error>{error}</Toast>}<div className="co-form-actions"><button className="co-button" disabled={approve.isPending||orgStatus.isPending||approveBranch.isPending||branchStatus.isPending}>{approve.isPending||orgStatus.isPending||approveBranch.isPending||branchStatus.isPending?"جارٍ التنفيذ…":"تأكيد الإجراء"}</button><button type="button" className="co-button co-secondary" onClick={()=>setAction(null)}>إلغاء</button></div></form></section></div>}
     </section>;
   }

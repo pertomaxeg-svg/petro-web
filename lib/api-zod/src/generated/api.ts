@@ -3424,3 +3424,199 @@ export const CancelAdminSubscriptionResponse = zod.object({
 })
 
 
+/**
+ * @summary Read active catalog categories and units for an authenticated catalog manager
+ */
+export const GetCatalogReferenceDataResponse = zod.object({
+  "categories": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "units": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary Read all catalog categories and units for authorized central roles
+ */
+export const GetAdminCatalogCategoriesResponse = zod.object({
+  "categories": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "units": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+export const listAdminCatalogOrganizationsQuerySearchMax = 100;
+
+export const listAdminCatalogOrganizationsQueryPageDefault = 1;
+
+export const listAdminCatalogOrganizationsQueryPageSizeDefault = 20;
+export const listAdminCatalogOrganizationsQueryPageSizeMax = 100;
+
+
+
+export const ListAdminCatalogOrganizationsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminCatalogOrganizationsQuerySearchMax).optional(),
+  "kind": zod.enum(['station', 'provider']).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminCatalogOrganizationsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminCatalogOrganizationsQueryPageSizeMax).default(listAdminCatalogOrganizationsQueryPageSizeDefault)
+})
+
+export const listAdminCatalogOrganizationsResponseTotalMin = 0;
+
+
+export const listAdminCatalogOrganizationsResponsePageSizeMax = 100;
+
+export const listAdminCatalogOrganizationsResponseTotalPagesMin = 0;
+
+
+
+export const ListAdminCatalogOrganizationsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "total": zod.number().int().min(listAdminCatalogOrganizationsResponseTotalMin).optional(),
+  "page": zod.number().int().min(1).optional(),
+  "pageSize": zod.number().int().min(1).max(listAdminCatalogOrganizationsResponsePageSizeMax).optional(),
+  "totalPages": zod.number().int().min(listAdminCatalogOrganizationsResponseTotalPagesMin).optional()
+})
+
+
+export const listAdminCatalogFuelQuerySearchMax = 100;
+
+export const listAdminCatalogFuelQueryPageDefault = 1;
+
+export const listAdminCatalogFuelQueryPageSizeDefault = 20;
+export const listAdminCatalogFuelQueryPageSizeMax = 100;
+
+
+
+export const ListAdminCatalogFuelQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminCatalogFuelQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminCatalogFuelQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminCatalogFuelQueryPageSizeMax).default(listAdminCatalogFuelQueryPageSizeDefault)
+})
+
+export const listAdminCatalogFuelResponseTotalMin = 0;
+
+
+export const listAdminCatalogFuelResponsePageSizeMax = 100;
+
+export const listAdminCatalogFuelResponseTotalPagesMin = 0;
+
+
+
+export const ListAdminCatalogFuelResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "total": zod.number().int().min(listAdminCatalogFuelResponseTotalMin).optional(),
+  "page": zod.number().int().min(1).optional(),
+  "pageSize": zod.number().int().min(1).max(listAdminCatalogFuelResponsePageSizeMax).optional(),
+  "totalPages": zod.number().int().min(listAdminCatalogFuelResponseTotalPagesMin).optional(),
+  "canManage": zod.boolean().optional()
+})
+
+
+export const previewAdminCatalogFuelBodyQuantityExclusiveMin = 0;
+
+export const previewAdminCatalogFuelBodyAmountMinorRegExp = new RegExp('^[1-9][0-9]{0,14}$');
+
+
+export const PreviewAdminCatalogFuelBody = zod.object({
+  "fuelTypeId": zod.string().uuid(),
+  "quantity": zod.number().gt(previewAdminCatalogFuelBodyQuantityExclusiveMin).optional(),
+  "amountMinor": zod.string().regex(previewAdminCatalogFuelBodyAmountMinorRegExp).optional()
+})
+
+export const PreviewAdminCatalogFuelResponse = zod.record(zod.string(), zod.unknown())
+
+
+export const getMerchantCatalogItemsQueryCategoryCodeMax = 40;
+
+export const getMerchantCatalogItemsQuerySearchMax = 100;
+
+export const getMerchantCatalogItemsQueryPageDefault = 1;
+
+export const getMerchantCatalogItemsQueryPageSizeDefault = 20;
+export const getMerchantCatalogItemsQueryPageSizeMax = 100;
+
+
+
+export const GetMerchantCatalogItemsQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid(),
+  "branchId": zod.coerce.string().uuid().optional(),
+  "categoryCode": zod.coerce.string().max(getMerchantCatalogItemsQueryCategoryCodeMax).optional(),
+  "kind": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional(),
+  "search": zod.coerce.string().max(getMerchantCatalogItemsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(getMerchantCatalogItemsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getMerchantCatalogItemsQueryPageSizeMax).default(getMerchantCatalogItemsQueryPageSizeDefault)
+})
+
+export const getMerchantCatalogItemsResponseTotalMin = 0;
+
+
+export const getMerchantCatalogItemsResponsePageSizeMax = 100;
+
+export const getMerchantCatalogItemsResponseTotalPagesMin = 0;
+
+
+
+export const GetMerchantCatalogItemsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "total": zod.number().int().min(getMerchantCatalogItemsResponseTotalMin).optional(),
+  "page": zod.number().int().min(1).optional(),
+  "pageSize": zod.number().int().min(1).max(getMerchantCatalogItemsResponsePageSizeMax).optional(),
+  "totalPages": zod.number().int().min(getMerchantCatalogItemsResponseTotalPagesMin).optional(),
+  "canManage": zod.boolean().optional(),
+  "canManageOrganization": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
+
+
+export const GetCatalogItemParams = zod.object({
+  "itemId": zod.coerce.string().uuid()
+})
+
+export const GetCatalogItemResponse = zod.object({
+  "item": zod.record(zod.string(), zod.unknown()).optional(),
+  "centralSuspended": zod.boolean().optional(),
+  "manageableBranches": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "availability": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "prices": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "images": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+export const executeCatalogCommandBodyReasonMin = 3;
+export const executeCatalogCommandBodyReasonMax = 500;
+
+export const executeCatalogCommandBodyIdempotencyKeyMin = 16;
+export const executeCatalogCommandBodyIdempotencyKeyMax = 120;
+
+
+
+export const ExecuteCatalogCommandBody = zod.object({
+  "action": zod.enum(['unit.create', 'unit.status', 'category.create', 'category.update', 'category.status', 'fuel.type.create', 'fuel.type.update', 'fuel.type.status', 'fuel.price.create_draft', 'fuel.price.publish', 'fuel.price.cancel', 'item.create', 'item.update', 'item.status', 'item.review', 'item.branch_availability', 'item.price.create_draft', 'item.price.publish', 'item.price.cancel', 'item.image.intent', 'item.image.remove']),
+  "payload": zod.record(zod.string(), zod.unknown()),
+  "reason": zod.string().min(executeCatalogCommandBodyReasonMin).max(executeCatalogCommandBodyReasonMax),
+  "idempotencyKey": zod.string().min(executeCatalogCommandBodyIdempotencyKeyMin).max(executeCatalogCommandBodyIdempotencyKeyMax)
+})
+
+export const ExecuteCatalogCommandResponse = zod.record(zod.string(), zod.unknown())
+
+
+export const UploadCatalogImageContentParams = zod.object({
+  "imageId": zod.coerce.string().uuid()
+})
+
+export const UploadCatalogImageContentResponse = zod.record(zod.string(), zod.unknown())
+
+
+export const DownloadCatalogImageParams = zod.object({
+  "imageId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const DownloadCatalogImageResponse = zod.object({
+  "signedUrl": zod.string().url(),
+  "expiresInSeconds": zod.number().int().min(1),
+  "fileName": zod.string()
+})
+
+

@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent, type Reac
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import "./AdminCentral.css";
-import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronDown, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronDown, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, Package, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X, Truck } from "lucide-react";
 import {
   getGetAuthMeQueryKey, getGetPlatformUserQueryKey, getListAdminOrganizationRequestsQueryKey,
   getGetPlatformUserMembershipsQueryKey, getListOrganizationsQueryKey, getListPlatformUsersQueryKey,
@@ -13,6 +13,7 @@ import {
 import type { PlatformRole, PlatformUser } from "@workspace/api-client-react";
 const AdminFinancePage = lazy(() => import("./admin-finance/AdminFinancePage").then(module => ({ default: module.AdminFinancePage })));
 const FleetAdminPage = lazy(() => import("./FleetAdmin").then(module => ({ default: module.FleetAdminPage })));
+const CatalogAdminPage = lazy(() => import("./CatalogAdmin").then(module => ({ default: module.CatalogAdminPage })));
 
 const roles: PlatformRole[] = ["owner", "operations", "finance", "support", "auditor"];
 const roleFallback: Record<PlatformRole, string> = { owner: "مالك المنصة", operations: "العمليات", finance: "المالية", support: "الدعم", auditor: "مراجع" };
@@ -86,10 +87,10 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
   const isOwner = userRoles.includes("owner");
   const canSeeFinance = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
   const isFleet = path.startsWith("/admin/fleet");
-  const active = path === "/admin" ? "overview" : isFleet ? "fleet" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
+  const active = path === "/admin" ? "overview" : isFleet ? "fleet" : path.startsWith("/admin/catalog") ? "catalog" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
   const fleetLabels: Record<string, string> = { "/admin/fleet": "الشركات والأسطول", "/admin/fleet/vehicles": "المركبات", "/admin/fleet/drivers": "السائقون", "/admin/fleet/policies": "سياسات الأسطول", "/admin/fleet/coverage": "تغطية المركبات", "/admin/fleet/credentials": "رموز تعريف المركبات", "/admin/fleet/documents": "مستندات المركبات", "/admin/fleet/odometer": "قراءات العداد", "/admin/fleet/maintenance": "سجلات الصيانة", "/admin/fleet/imports": "استيراد بيانات الأسطول" };
   const fleetTitle = isFleet ? path.match(/\/branches\/[^/]+$/) ? "مركبات الفرع" : path.match(/\/companies\/[^/]+$/) ? "الشركة والفروع" : path.startsWith("/admin/fleet/companies/") ? "الشركة والأسطول" : fleetLabels[path] ?? "إدارة الأسطول" : "";
-  const pageTitle = isFleet ? fleetTitle : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const pageTitle = isFleet ? fleetTitle : active === "catalog" ? "الكتالوج والخدمات" : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
   const fleetLinks = [
     ["/admin/fleet", "الشركات والأسطول"],
@@ -118,6 +119,7 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
     </>}
     {isOwner && <>
       <Link href="/admin/platform-users" onClick={()=>setDrawerOpen(false)} className={active === "users" ? "selected" : ""}><span className="ac-nav-icon"><Users size={17}/></span><span className="ac-nav-label">مستخدمو المنصة</span></Link>
+      <Link href="/admin/catalog" onClick={()=>setDrawerOpen(false)} className={active === "catalog" ? "selected" : ""}><span className="ac-nav-icon"><Package size={17}/></span><span className="ac-nav-label">الكتالوج والخدمات</span></Link>
       <span className="ac-nav-group ac-nav-group-spaced">التسعير والاشتراكات</span>
       <Link href="/admin/plans" onClick={()=>setDrawerOpen(false)} className={active === "plans" ? "selected" : ""}><span className="ac-nav-icon"><CreditCard size={17}/></span><span className="ac-nav-label">الباقات والأسعار</span></Link>
       <Link href="/admin/subscriptions" onClick={()=>setDrawerOpen(false)} className={active === "subscriptions" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">الطلبات والاشتراكات</span></Link>

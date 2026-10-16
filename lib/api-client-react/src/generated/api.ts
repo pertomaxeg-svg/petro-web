@@ -25,6 +25,8 @@ import type {
   AdminBillingActionResult,
   AdminBillingCatalog,
   AdminBillingPriceDefaultsInput,
+  AdminCatalogDirectoryResult,
+  AdminCatalogFuelResult,
   AdminFinancePage,
   AdminFinanceResult,
   AdminFinanceSummary,
@@ -66,6 +68,13 @@ import type {
   BranchList,
   BranchPage,
   BranchStatusRequest,
+  CatalogCommandRequest,
+  CatalogCommandResult,
+  CatalogImageDownload,
+  CatalogImageResult,
+  CatalogItemResult,
+  CatalogItemsResult,
+  CatalogReferenceData,
   CreateAdminFinanceBankAccount,
   CreateAdminFinanceTopup,
   CreateAdminFinanceTransfer,
@@ -83,6 +92,8 @@ import type {
   FinanceReasonAction,
   FinanceVersionedReasonAction,
   FleetConsumptionRateInput,
+  FuelPreviewRequest,
+  FuelPreviewResult,
   GetAdminFleetCatalogParams,
   GetAdminFleetCompanySummariesParams,
   GetAdminFleetConsumptionRatesParams,
@@ -92,9 +103,12 @@ import type {
   GetAdminOrganizationBillingParams,
   GetAdminOrganizationBranch200,
   GetAdminOrganizationFinanceAccountsParams,
+  GetMerchantCatalogItemsParams,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
+  ListAdminCatalogFuelParams,
+  ListAdminCatalogOrganizationsParams,
   ListAdminFinanceAccountsParams,
   ListAdminFinanceJournalParams,
   ListAdminFinanceOrganizationsParams,
@@ -241,13 +255,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getSupabaseHealthCheckUrl = () => {
 
 
@@ -9254,3 +9261,774 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getCancelAdminSubscriptionMutationOptions(options));
     }
+
+export const getGetCatalogReferenceDataUrl = () => {
+
+
+
+
+  return `/api/catalog/reference-data`
+}
+
+/**
+ * @summary Read active catalog categories and units for an authenticated catalog manager
+ */
+export const getCatalogReferenceData = async ( options?: Parameters<typeof customFetch>[1]): Promise<CatalogReferenceData> => {
+
+  return customFetch<CatalogReferenceData>(getGetCatalogReferenceDataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCatalogReferenceDataQueryKey = () => {
+    return [
+    `/api/catalog/reference-data`
+    ] as const;
+    }
+
+
+export const getGetCatalogReferenceDataQueryOptions = <TData = Awaited<ReturnType<typeof getCatalogReferenceData>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCatalogReferenceData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCatalogReferenceDataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCatalogReferenceData>>> = ({ signal }) => getCatalogReferenceData({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCatalogReferenceData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCatalogReferenceDataQueryResult = NonNullable<Awaited<ReturnType<typeof getCatalogReferenceData>>>
+export type GetCatalogReferenceDataQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read active catalog categories and units for an authenticated catalog manager
+ */
+
+export function useGetCatalogReferenceData<TData = Awaited<ReturnType<typeof getCatalogReferenceData>>, TError = ErrorType<ApiErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCatalogReferenceData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCatalogReferenceDataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminCatalogCategoriesUrl = () => {
+
+
+
+
+  return `/api/admin/catalog/categories`
+}
+
+/**
+ * @summary Read all catalog categories and units for authorized central roles
+ */
+export const getAdminCatalogCategories = async ( options?: Parameters<typeof customFetch>[1]): Promise<CatalogReferenceData> => {
+
+  return customFetch<CatalogReferenceData>(getGetAdminCatalogCategoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminCatalogCategoriesQueryKey = () => {
+    return [
+    `/api/admin/catalog/categories`
+    ] as const;
+    }
+
+
+export const getGetAdminCatalogCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof getAdminCatalogCategories>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCatalogCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminCatalogCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminCatalogCategories>>> = ({ signal }) => getAdminCatalogCategories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminCatalogCategories>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminCatalogCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminCatalogCategories>>>
+export type GetAdminCatalogCategoriesQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read all catalog categories and units for authorized central roles
+ */
+
+export function useGetAdminCatalogCategories<TData = Awaited<ReturnType<typeof getAdminCatalogCategories>>, TError = ErrorType<ApiErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCatalogCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminCatalogCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminCatalogOrganizationsUrl = (params?: ListAdminCatalogOrganizationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/catalog/organizations?${stringifiedParams}` : `/api/admin/catalog/organizations`
+}
+
+export const listAdminCatalogOrganizations = async (params?: ListAdminCatalogOrganizationsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminCatalogDirectoryResult> => {
+
+  return customFetch<AdminCatalogDirectoryResult>(getListAdminCatalogOrganizationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminCatalogOrganizationsQueryKey = (params?: ListAdminCatalogOrganizationsParams,) => {
+    return [
+    `/api/admin/catalog/organizations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminCatalogOrganizationsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminCatalogOrganizations>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminCatalogOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCatalogOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminCatalogOrganizationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminCatalogOrganizations>>> = ({ signal }) => listAdminCatalogOrganizations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminCatalogOrganizations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminCatalogOrganizationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminCatalogOrganizations>>>
+export type ListAdminCatalogOrganizationsQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useListAdminCatalogOrganizations<TData = Awaited<ReturnType<typeof listAdminCatalogOrganizations>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminCatalogOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCatalogOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminCatalogOrganizationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminCatalogFuelUrl = (params?: ListAdminCatalogFuelParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/catalog/fuel?${stringifiedParams}` : `/api/admin/catalog/fuel`
+}
+
+export const listAdminCatalogFuel = async (params?: ListAdminCatalogFuelParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminCatalogFuelResult> => {
+
+  return customFetch<AdminCatalogFuelResult>(getListAdminCatalogFuelUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminCatalogFuelQueryKey = (params?: ListAdminCatalogFuelParams,) => {
+    return [
+    `/api/admin/catalog/fuel`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminCatalogFuelQueryOptions = <TData = Awaited<ReturnType<typeof listAdminCatalogFuel>>, TError = ErrorType<ApiErrorResponse>>(params?: ListAdminCatalogFuelParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCatalogFuel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminCatalogFuelQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminCatalogFuel>>> = ({ signal }) => listAdminCatalogFuel(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminCatalogFuel>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminCatalogFuelQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminCatalogFuel>>>
+export type ListAdminCatalogFuelQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useListAdminCatalogFuel<TData = Awaited<ReturnType<typeof listAdminCatalogFuel>>, TError = ErrorType<ApiErrorResponse>>(
+ params?: ListAdminCatalogFuelParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCatalogFuel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminCatalogFuelQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewAdminCatalogFuelUrl = () => {
+
+
+
+
+  return `/api/admin/catalog/fuel/preview`
+}
+
+export const previewAdminCatalogFuel = async (fuelPreviewRequest: FuelPreviewRequest, options?: Parameters<typeof customFetch>[1]): Promise<FuelPreviewResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FuelPreviewResult>(getPreviewAdminCatalogFuelUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fuelPreviewRequest)
+  }
+);}
+
+
+
+
+
+export const getPreviewAdminCatalogFuelMutationKey = () => ['previewAdminCatalogFuel'] as const;
+
+export const getPreviewAdminCatalogFuelMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewAdminCatalogFuel>>, TError,PreviewAdminCatalogFuelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewAdminCatalogFuel>>, TError,PreviewAdminCatalogFuelMutationVariables, TContext> => {
+
+const mutationKey = getPreviewAdminCatalogFuelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewAdminCatalogFuel>>, PreviewAdminCatalogFuelMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewAdminCatalogFuel(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewAdminCatalogFuelMutationResult = NonNullable<Awaited<ReturnType<typeof previewAdminCatalogFuel>>>
+    export type PreviewAdminCatalogFuelMutationBody = BodyType<FuelPreviewRequest>
+    export type PreviewAdminCatalogFuelMutationError = ErrorType<ApiErrorResponse>
+    export type PreviewAdminCatalogFuelMutationVariables = {data: BodyType<FuelPreviewRequest>}
+
+    export const usePreviewAdminCatalogFuel = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewAdminCatalogFuel>>, TError,PreviewAdminCatalogFuelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewAdminCatalogFuel>>,
+        TError,
+        PreviewAdminCatalogFuelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewAdminCatalogFuelMutationOptions(options));
+    }
+
+export const getGetMerchantCatalogItemsUrl = (params: GetMerchantCatalogItemsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/catalog/items?${stringifiedParams}` : `/api/admin/catalog/items`
+}
+
+export const getMerchantCatalogItems = async (params: GetMerchantCatalogItemsParams, options?: Parameters<typeof customFetch>[1]): Promise<CatalogItemsResult> => {
+
+  return customFetch<CatalogItemsResult>(getGetMerchantCatalogItemsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMerchantCatalogItemsQueryKey = (params?: GetMerchantCatalogItemsParams,) => {
+    return [
+    `/api/admin/catalog/items`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMerchantCatalogItemsQueryOptions = <TData = Awaited<ReturnType<typeof getMerchantCatalogItems>>, TError = ErrorType<ApiErrorResponse>>(params: GetMerchantCatalogItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMerchantCatalogItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMerchantCatalogItemsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMerchantCatalogItems>>> = ({ signal }) => getMerchantCatalogItems(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMerchantCatalogItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMerchantCatalogItemsQueryResult = NonNullable<Awaited<ReturnType<typeof getMerchantCatalogItems>>>
+export type GetMerchantCatalogItemsQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useGetMerchantCatalogItems<TData = Awaited<ReturnType<typeof getMerchantCatalogItems>>, TError = ErrorType<ApiErrorResponse>>(
+ params: GetMerchantCatalogItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMerchantCatalogItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMerchantCatalogItemsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCatalogItemUrl = (itemId: string,) => {
+
+
+
+
+  return `/api/catalog/items/${itemId}`
+}
+
+export const getCatalogItem = async (itemId: string, options?: Parameters<typeof customFetch>[1]): Promise<CatalogItemResult> => {
+
+  return customFetch<CatalogItemResult>(getGetCatalogItemUrl(itemId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCatalogItemQueryKey = (itemId: string,) => {
+    return [
+    `/api/catalog/items/${itemId}`
+    ] as const;
+    }
+
+
+export const getGetCatalogItemQueryOptions = <TData = Awaited<ReturnType<typeof getCatalogItem>>, TError = ErrorType<ApiErrorResponse>>(itemId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCatalogItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCatalogItemQueryKey(itemId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCatalogItem>>> = ({ signal }) => getCatalogItem(itemId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: itemId !== null && itemId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCatalogItem>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCatalogItemQueryResult = NonNullable<Awaited<ReturnType<typeof getCatalogItem>>>
+export type GetCatalogItemQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useGetCatalogItem<TData = Awaited<ReturnType<typeof getCatalogItem>>, TError = ErrorType<ApiErrorResponse>>(
+ itemId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCatalogItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCatalogItemQueryOptions(itemId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExecuteCatalogCommandUrl = () => {
+
+
+
+
+  return `/api/catalog/commands`
+}
+
+export const executeCatalogCommand = async (catalogCommandRequest: CatalogCommandRequest, options?: Parameters<typeof customFetch>[1]): Promise<CatalogCommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CatalogCommandResult>(getExecuteCatalogCommandUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(catalogCommandRequest)
+  }
+);}
+
+
+
+
+
+export const getExecuteCatalogCommandMutationKey = () => ['executeCatalogCommand'] as const;
+
+export const getExecuteCatalogCommandMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeCatalogCommand>>, TError,ExecuteCatalogCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof executeCatalogCommand>>, TError,ExecuteCatalogCommandMutationVariables, TContext> => {
+
+const mutationKey = getExecuteCatalogCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeCatalogCommand>>, ExecuteCatalogCommandMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  executeCatalogCommand(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteCatalogCommandMutationResult = NonNullable<Awaited<ReturnType<typeof executeCatalogCommand>>>
+    export type ExecuteCatalogCommandMutationBody = BodyType<CatalogCommandRequest>
+    export type ExecuteCatalogCommandMutationError = ErrorType<ApiErrorResponse>
+    export type ExecuteCatalogCommandMutationVariables = {data: BodyType<CatalogCommandRequest>}
+
+    export const useExecuteCatalogCommand = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeCatalogCommand>>, TError,ExecuteCatalogCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof executeCatalogCommand>>,
+        TError,
+        ExecuteCatalogCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExecuteCatalogCommandMutationOptions(options));
+    }
+
+export const getUploadCatalogImageContentUrl = (imageId: string,) => {
+
+
+
+
+  return `/api/catalog/images/${imageId}/content`
+}
+
+export const uploadCatalogImageContent = async (imageId: string,
+    uploadCatalogImageContentBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<CatalogImageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CatalogImageResult>(getUploadCatalogImageContentUrl(imageId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'image/png', ...getHeaders(options?.headers) },
+    body: uploadCatalogImageContentBody
+  }
+);}
+
+
+
+
+
+export const getUploadCatalogImageContentMutationKey = () => ['uploadCatalogImageContent'] as const;
+
+export const getUploadCatalogImageContentMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCatalogImageContent>>, TError,UploadCatalogImageContentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadCatalogImageContent>>, TError,UploadCatalogImageContentMutationVariables, TContext> => {
+
+const mutationKey = getUploadCatalogImageContentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadCatalogImageContent>>, UploadCatalogImageContentMutationVariables> = (props) => {
+          const {imageId,data} = props ?? {};
+
+          return  uploadCatalogImageContent(imageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadCatalogImageContentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadCatalogImageContent>>>
+    export type UploadCatalogImageContentMutationBody = BodyType<Blob>
+    export type UploadCatalogImageContentMutationError = ErrorType<ApiErrorResponse>
+    export type UploadCatalogImageContentMutationVariables = {imageId: string;data: BodyType<Blob>}
+
+    export const useUploadCatalogImageContent = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCatalogImageContent>>, TError,UploadCatalogImageContentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadCatalogImageContent>>,
+        TError,
+        UploadCatalogImageContentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadCatalogImageContentMutationOptions(options));
+    }
+
+export const getDownloadCatalogImageUrl = (imageId: string,) => {
+
+
+
+
+  return `/api/catalog/images/${imageId}/download`
+}
+
+export const downloadCatalogImage = async (imageId: string, options?: Parameters<typeof customFetch>[1]): Promise<CatalogImageDownload> => {
+
+  return customFetch<CatalogImageDownload>(getDownloadCatalogImageUrl(imageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadCatalogImageQueryKey = (imageId: string,) => {
+    return [
+    `/api/catalog/images/${imageId}/download`
+    ] as const;
+    }
+
+
+export const getDownloadCatalogImageQueryOptions = <TData = Awaited<ReturnType<typeof downloadCatalogImage>>, TError = ErrorType<ApiErrorResponse>>(imageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCatalogImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadCatalogImageQueryKey(imageId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadCatalogImage>>> = ({ signal }) => downloadCatalogImage(imageId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: imageId !== null && imageId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadCatalogImage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadCatalogImageQueryResult = NonNullable<Awaited<ReturnType<typeof downloadCatalogImage>>>
+export type DownloadCatalogImageQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useDownloadCatalogImage<TData = Awaited<ReturnType<typeof downloadCatalogImage>>, TError = ErrorType<ApiErrorResponse>>(
+ imageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCatalogImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadCatalogImageQueryOptions(imageId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
