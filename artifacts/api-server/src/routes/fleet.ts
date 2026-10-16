@@ -163,6 +163,55 @@ router.get("/admin/fleet/catalog", async (req: Request, res: Response) => {
   res.json(data ?? {});
 });
 
+router.get("/admin/fleet/subscription-options", async (req: Request, res: Response) => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const rawOrganizationId = safeString(req.query["organizationId"]);
+  const search = safeString(req.query["search"]) ?? null;
+  const rawPage = safeString(req.query["page"]) ?? "1";
+  const rawPageSize = safeString(req.query["pageSize"]) ?? "20";
+  const page = /^\d{1,6}$/.test(rawPage) ? Number(rawPage) : NaN;
+  const pageSize = /^\d{1,3}$/.test(rawPageSize) ? Number(rawPageSize) : NaN;
+  if ((rawOrganizationId && !UUID_RE.test(rawOrganizationId))
+      || (search !== null && search.length > 160)
+      || !Number.isInteger(page) || page < 1
+      || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+    return fail(res, 400, "معايير اختيار الاشتراك غير صالحة.");
+  }
+  const { data, error } = await callRpc(session, "petro_admin_fleet_subscription_options", {
+    p_organization_id: rawOrganizationId ?? null,
+    p_search: search,
+    p_page: page,
+    p_page_size: pageSize,
+  });
+  if (error) return mapError(res, error);
+  res.json(data ?? {});
+});
+
+router.get("/admin/fleet/stock-options", async (req: Request, res: Response) => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const search = safeString(req.query["search"]) ?? null;
+  const rawPage = safeString(req.query["page"]) ?? "1";
+  const rawPageSize = safeString(req.query["pageSize"]) ?? "20";
+  const page = /^\d{1,6}$/.test(rawPage) ? Number(rawPage) : NaN;
+  const pageSize = /^\d{1,3}$/.test(rawPageSize) ? Number(rawPageSize) : NaN;
+  if ((search !== null && search.length > 160)
+      || !Number.isInteger(page) || page < 1
+      || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+    return fail(res, 400, "معايير اختيار وحدة الشريحة غير صالحة.");
+  }
+  const { data, error } = await callRpc(session, "petro_admin_fleet_stock_options", {
+    p_search: search,
+    p_page: page,
+    p_page_size: pageSize,
+  });
+  if (error) return mapError(res, error);
+  res.json(data ?? {});
+});
+
 router.post("/admin/fleet/commands", async (req: Request, res: Response) => {
   setNoStore(res);
   const session = await requireSession(req, res);
@@ -187,12 +236,18 @@ router.post("/admin/fleet/commands", async (req: Request, res: Response) => {
   } catch {
     return fail(res, 503, "تعذر تجهيز العملية الآمنة. راجع إعدادات الخدمة.");
   }
-  const { data, error } = await callRpc(session, "petro_admin_fleet_command", {
-    p_action: action,
-    p_payload: rpcPayload,
-    p_reason: reason,
-    p_idempotency_key: idempotencyKey,
-  });
+  const { data, error } = action === "coverage.assign"
+    ? await callRpc(session, "petro_admin_fleet_assign_coverage", {
+        p_payload: rpcPayload,
+        p_reason: reason,
+        p_idempotency_key: idempotencyKey,
+      })
+    : await callRpc(session, "petro_admin_fleet_command", {
+        p_action: action,
+        p_payload: rpcPayload,
+        p_reason: reason,
+        p_idempotency_key: idempotencyKey,
+      });
   if (error) return mapError(res, error);
   res.json({
     ...(isRecord(data) ? data : {}),

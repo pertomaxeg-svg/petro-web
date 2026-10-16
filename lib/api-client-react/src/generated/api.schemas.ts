@@ -7,6 +7,23 @@
  */
 export interface AdminFleetCatalog { [key: string]: unknown }
 
+export type AdminFleetReferenceOptionsItemsItem = { [key: string]: unknown };
+
+export interface AdminFleetReferenceOptions {
+  items: AdminFleetReferenceOptionsItemsItem[];
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 0 */
+  totalPages: number;
+}
+
 export type AdminFleetCommandRequestAction = typeof AdminFleetCommandRequestAction[keyof typeof AdminFleetCommandRequestAction];
 
 
@@ -2322,6 +2339,41 @@ export const GetAdminFleetCatalogSort = {
   plate: 'plate',
   updatedAt: 'updatedAt',
 } as const;
+
+export type GetAdminFleetSubscriptionOptionsParams = {
+organizationId?: string;
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminFleetStockOptionsParams = {
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
 
 export type AuthCallbackParams = {
 code?: string;

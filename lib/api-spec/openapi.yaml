@@ -99,6 +99,55 @@ paths:
               schema: { $ref: "#/components/schemas/AdminFleetCatalog" }
         "401": { description: Authentication required }
         "403": { description: Fleet read permission required }
+  /admin/fleet/subscription-options:
+    get:
+      operationId: getAdminFleetSubscriptionOptions
+      tags: [fleet]
+      summary: Search company vehicle-subscription options for fleet coverage
+      parameters:
+        - name: organizationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 160 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Scoped active or scheduled vehicle subscriptions, paginated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetReferenceOptions" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet read permission required }
+  /admin/fleet/stock-options:
+    get:
+      operationId: getAdminFleetStockOptions
+      tags: [fleet]
+      summary: Search available NFC stock units for authorized fleet administrators
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 160 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Available stock units, paginated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetReferenceOptions" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet management permission required }
   /admin/fleet/commands:
     post:
       operationId: executeAdminFleetCommand
@@ -2014,6 +2063,20 @@ components:
     AdminFleetCatalog:
       type: object
       additionalProperties: true
+    AdminFleetReferenceOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+      required: [items, page, pageSize, total, totalPages]
     AdminFleetCommandRequest:
       type: object
       additionalProperties: false

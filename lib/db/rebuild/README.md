@@ -16,7 +16,7 @@ Run:
 bash lib/db/rebuild/run-local-test.sh
 ```
 
-The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`, and `pg_dump`) on `PATH`. It creates a temporary cluster under `/tmp` with TCP listening disabled, creates the local Auth stub, loads the saved schema baseline, recreates the Auth trigger fixture, verifies object counts, and compares a schema dump to the snapshot **before** later changes. It then runs the DB-01 checks, applies 0004–0009 in sequence while comparing `pg_default_acl` before and after each migration, runs the DB-02 and platform-user SQL checks, and executes the actual API management router over local HTTP with a fake Supabase transport backed only by the temporary PostgreSQL cluster. The runner removes the cluster even on failure.
+The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`, and `pg_dump`) on `PATH`. It creates a temporary cluster under `/tmp` with TCP listening disabled, creates the local Auth stub, loads the saved schema baseline, recreates the Auth trigger fixture, verifies object counts, and compares a schema dump to the snapshot **before** later changes. It runs the organization, user, billing, finance, and fleet SQL checks; applies each proposed migration to the disposable database while comparing default ACLs; and runs local HTTP router checks. The fleet-finance harness calls the real PostgreSQL policy, coverage, reservation, and ledger functions over synthetic fixtures; it does not use a fake Supabase response for those integration assertions. The runner removes the cluster even on failure.
 
 ## Snapshot and migration relationship
 
@@ -25,6 +25,7 @@ The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`,
 - The current Supabase migration ledger was not changed. The DB-01 review found ledger labels `petro_foundation` and `petro_plan_versions` without matching SQL source files in the repository; `0001`–`0003` names do not match those ledger entries. Do not invent historical source files, edit the ledger to make it appear complete, or use these files as a fresh-install chain.
 - `0004_db02_invitation_permissions.sql` is a forward migration **after the baseline**. It passed the disposable local tests and was applied to the approved Supabase project on 2026-10-15 after explicit approval and live preflight comparison. The live snapshot and post-apply evidence are in `docs/DB-02-PRODUCTION-SNAPSHOT-2026-10-15.md`; the existing migration ledger was left untouched.
 - `0008_platform_user_administration.sql` adds owner-only platform-user RPCs and preserves the legacy status RPC for API compatibility. `0009_revoke_legacy_account_status_rpc.sql` is the later cutover step: it removes only `PUBLIC`, `anon`, and `authenticated` execution from the legacy RPC while preserving `service_role`. Both passed isolated tests; neither has been applied to Supabase. Follow `docs/PLATFORM-USER-ADMIN-ROLLOUT.md` before any live application.
+- `0014_fleet_registry_and_controls.sql` is applied to the approved project. `0015_fleet_subscription_options.sql` is an additive, source-fingerprinted forward migration for coverage assignment and scoped subscription/available-stock choices; its live apply record and rollback plan are in `docs/FLEET-ADMIN-0015-ROLLBACK-PLAN.md`. The 0015 fixtures exist only in the temporary local cluster.
 
 ## Tested boundaries and remaining limits
 
@@ -33,4 +34,5 @@ The test requires PostgreSQL 17 client/server tools (`initdb`, `pg_ctl`, `psql`,
 - All test users use `.invalid` addresses. SQL acceptance fixtures roll back; API integration fixtures exist only in the temporary local cluster, which the runner removes on success or failure.
 - The local fixture validates SQL/RLS using a local `auth.uid()` stub. It does not prove real Supabase Auth sessions, SMTP, or production API behavior.
 - Migrations 0004–0009 do not change default ACLs in any schema. Existing baseline defaults for future public objects remain as-is; this is a separate unresolved policy risk, not a claim that future objects are automatically safe.
-- No live DDL, DML, grant, RLS, owner, bootstrap, Secret, or migration-ledger change was made for 0008/0009.
+- 0008 and 0010–0015 were applied only through their reviewed, project-scoped rollout records; 0009 remains deferred and no live data fixtures were inserted. The local runner does not apply 0009.
+- Local tests simulate private document storage; they do not prove real Supabase Storage RLS, signed-download access, or an authenticated owner’s rendered admin UI. Do not treat the local PostgreSQL Auth stub as a live user session.

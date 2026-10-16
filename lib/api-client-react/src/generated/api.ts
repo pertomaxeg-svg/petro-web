@@ -34,6 +34,7 @@ import type {
   AdminFleetDocumentUploadIntent,
   AdminFleetDocumentUploadIntentRequest,
   AdminFleetImportApplyRequest,
+  AdminFleetReferenceOptions,
   AdminFleetVerifyPairRequest,
   AdminFleetVerifyPairResult,
   AdminOrganizationRequestList,
@@ -78,6 +79,8 @@ import type {
   FinanceReasonAction,
   FinanceVersionedReasonAction,
   GetAdminFleetCatalogParams,
+  GetAdminFleetStockOptionsParams,
+  GetAdminFleetSubscriptionOptionsParams,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
@@ -381,6 +384,174 @@ export function useGetAdminFleetCatalog<TData = Awaited<ReturnType<typeof getAdm
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAdminFleetCatalogQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminFleetSubscriptionOptionsUrl = (params?: GetAdminFleetSubscriptionOptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/fleet/subscription-options?${stringifiedParams}` : `/api/admin/fleet/subscription-options`
+}
+
+/**
+ * @summary Search company vehicle-subscription options for fleet coverage
+ */
+export const getAdminFleetSubscriptionOptions = async (params?: GetAdminFleetSubscriptionOptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetReferenceOptions> => {
+
+  return customFetch<AdminFleetReferenceOptions>(getGetAdminFleetSubscriptionOptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetSubscriptionOptionsQueryKey = (params?: GetAdminFleetSubscriptionOptionsParams,) => {
+    return [
+    `/api/admin/fleet/subscription-options`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminFleetSubscriptionOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetSubscriptionOptions>>, TError = ErrorType<void>>(params?: GetAdminFleetSubscriptionOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetSubscriptionOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetSubscriptionOptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetSubscriptionOptions>>> = ({ signal }) => getAdminFleetSubscriptionOptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetSubscriptionOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetSubscriptionOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetSubscriptionOptions>>>
+export type GetAdminFleetSubscriptionOptionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Search company vehicle-subscription options for fleet coverage
+ */
+
+export function useGetAdminFleetSubscriptionOptions<TData = Awaited<ReturnType<typeof getAdminFleetSubscriptionOptions>>, TError = ErrorType<void>>(
+ params?: GetAdminFleetSubscriptionOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetSubscriptionOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetSubscriptionOptionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminFleetStockOptionsUrl = (params?: GetAdminFleetStockOptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/fleet/stock-options?${stringifiedParams}` : `/api/admin/fleet/stock-options`
+}
+
+/**
+ * @summary Search available NFC stock units for authorized fleet administrators
+ */
+export const getAdminFleetStockOptions = async (params?: GetAdminFleetStockOptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetReferenceOptions> => {
+
+  return customFetch<AdminFleetReferenceOptions>(getGetAdminFleetStockOptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetStockOptionsQueryKey = (params?: GetAdminFleetStockOptionsParams,) => {
+    return [
+    `/api/admin/fleet/stock-options`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminFleetStockOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetStockOptions>>, TError = ErrorType<void>>(params?: GetAdminFleetStockOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetStockOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetStockOptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetStockOptions>>> = ({ signal }) => getAdminFleetStockOptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetStockOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetStockOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetStockOptions>>>
+export type GetAdminFleetStockOptionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Search available NFC stock units for authorized fleet administrators
+ */
+
+export function useGetAdminFleetStockOptions<TData = Awaited<ReturnType<typeof getAdminFleetStockOptions>>, TError = ErrorType<void>>(
+ params?: GetAdminFleetStockOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetStockOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetStockOptionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

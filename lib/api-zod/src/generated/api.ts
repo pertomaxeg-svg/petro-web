@@ -67,6 +67,81 @@ export const GetAdminFleetCatalogResponse = zod.record(zod.string(), zod.unknown
 
 
 /**
+ * @summary Search company vehicle-subscription options for fleet coverage
+ */
+export const getAdminFleetSubscriptionOptionsQuerySearchMax = 160;
+
+export const getAdminFleetSubscriptionOptionsQueryPageDefault = 1;
+export const getAdminFleetSubscriptionOptionsQueryPageMax = 100000;
+
+export const getAdminFleetSubscriptionOptionsQueryPageSizeDefault = 20;
+export const getAdminFleetSubscriptionOptionsQueryPageSizeMax = 100;
+
+
+
+export const GetAdminFleetSubscriptionOptionsQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "search": zod.coerce.string().max(getAdminFleetSubscriptionOptionsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getAdminFleetSubscriptionOptionsQueryPageMax).default(getAdminFleetSubscriptionOptionsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminFleetSubscriptionOptionsQueryPageSizeMax).default(getAdminFleetSubscriptionOptionsQueryPageSizeDefault)
+})
+
+
+export const getAdminFleetSubscriptionOptionsResponsePageSizeMax = 100;
+
+export const getAdminFleetSubscriptionOptionsResponseTotalMin = 0;
+
+export const getAdminFleetSubscriptionOptionsResponseTotalPagesMin = 0;
+
+
+
+export const GetAdminFleetSubscriptionOptionsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(getAdminFleetSubscriptionOptionsResponsePageSizeMax),
+  "total": zod.number().int().min(getAdminFleetSubscriptionOptionsResponseTotalMin),
+  "totalPages": zod.number().int().min(getAdminFleetSubscriptionOptionsResponseTotalPagesMin)
+})
+
+
+/**
+ * @summary Search available NFC stock units for authorized fleet administrators
+ */
+export const getAdminFleetStockOptionsQuerySearchMax = 160;
+
+export const getAdminFleetStockOptionsQueryPageDefault = 1;
+export const getAdminFleetStockOptionsQueryPageMax = 100000;
+
+export const getAdminFleetStockOptionsQueryPageSizeDefault = 20;
+export const getAdminFleetStockOptionsQueryPageSizeMax = 100;
+
+
+
+export const GetAdminFleetStockOptionsQueryParams = zod.object({
+  "search": zod.coerce.string().max(getAdminFleetStockOptionsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getAdminFleetStockOptionsQueryPageMax).default(getAdminFleetStockOptionsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminFleetStockOptionsQueryPageSizeMax).default(getAdminFleetStockOptionsQueryPageSizeDefault)
+})
+
+
+export const getAdminFleetStockOptionsResponsePageSizeMax = 100;
+
+export const getAdminFleetStockOptionsResponseTotalMin = 0;
+
+export const getAdminFleetStockOptionsResponseTotalPagesMin = 0;
+
+
+
+export const GetAdminFleetStockOptionsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(getAdminFleetStockOptionsResponsePageSizeMax),
+  "total": zod.number().int().min(getAdminFleetStockOptionsResponseTotalMin),
+  "totalPages": zod.number().int().min(getAdminFleetStockOptionsResponseTotalPagesMin)
+})
+
+
+/**
  * @summary Run an audited, idempotent central fleet command
  */
 export const executeAdminFleetCommandBodyReasonMin = 3;
