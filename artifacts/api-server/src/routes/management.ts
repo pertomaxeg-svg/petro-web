@@ -899,6 +899,108 @@ router.get("/admin/platform-users/:userId", async (req, res): Promise<void> => {
   res.json({ ...data, roleCatalog: PLATFORM_ROLE_CATALOG });
 });
 
+router.get("/admin/platform-users/:userId/memberships", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const userId = req.params["userId"];
+  if (!validId(userId)) {
+    fail(res, 400, "معرّف الحساب غير صالح.");
+    return;
+  }
+  const { data: profileData, error: profileError } = await session.supabase.rpc("petro_admin_get_platform_user", {
+    p_user_id: userId,
+  });
+  if (profileError) {
+    apiError(res, profileError);
+    return;
+  }
+  if (!isRecord(profileData) || !isRecord(profileData.user)) {
+    fail(res, 404, "لم يتم العثور على حساب المنصة.");
+    return;
+  }
+
+  const { data: membershipRowsData, error: membershipRowsError } = await session.supabase
+    .from("petro_memberships")
+    .select("id,organization_id,role,scope,active")
+    .eq("user_id", userId)
+    .order("organization_id");
+  if (membershipRowsError) {
+    apiError(res, membershipRowsError);
+    return;
+  }
+  const membershipRows = (membershipRowsData ?? []) as Array<{
+    id: string;
+    organization_id: string;
+    role: string;
+    scope: string;
+    active: boolean;
+  }>;
+  const organizationIds = [...new Set(membershipRows.map((membership) => membership.organization_id))];
+  const membershipIds = membershipRows.map((membership) => membership.id);
+  const { data: organizationRowsData, error: organizationRowsError } = organizationIds.length
+    ? await session.supabase
+      .from("petro_organizations")
+      .select("id,name,kind,code")
+      .in("id", organizationIds)
+    : { data: [], error: null };
+  if (organizationRowsError) {
+    apiError(res, organizationRowsError);
+    return;
+  }
+  const { data: branchLinksData, error: branchLinksError } = membershipIds.length
+    ? await session.supabase
+      .from("petro_membership_branches")
+      .select("membership_id,branch_id")
+      .in("membership_id", membershipIds)
+    : { data: [], error: null };
+  if (branchLinksError) {
+    apiError(res, branchLinksError);
+    return;
+  }
+  const branchIds = [...new Set((branchLinksData ?? []).map((row) => row.branch_id as string))];
+  const { data: branchRowsData, error: branchRowsError } = branchIds.length
+    ? await session.supabase
+      .from("petro_branches")
+      .select("id,name,code")
+      .in("id", branchIds)
+    : { data: [], error: null };
+  if (branchRowsError) {
+    apiError(res, branchRowsError);
+    return;
+  }
+  const organizationById = new Map((organizationRowsData ?? []).map((organization) => [organization.id, organization]));
+  const branchById = new Map((branchRowsData ?? []).map((branch) => [branch.id, branch]));
+  const branchIdsByMembership = new Map<string, string[]>();
+  for (const link of branchLinksData ?? []) {
+    const current = branchIdsByMembership.get(link.membership_id) ?? [];
+    current.push(link.branch_id);
+    branchIdsByMembership.set(link.membership_id, current);
+  }
+  const memberships = membershipRows.flatMap((membership) => {
+    const organization = organizationById.get(membership.organization_id);
+    if (!organization) return [];
+    const branches = (branchIdsByMembership.get(membership.id) ?? [])
+      .flatMap((branchId) => {
+        const branch = branchById.get(branchId);
+        return branch ? [{ branchId: branch.id, branchName: branch.name, branchCode: branch.code }] : [];
+      });
+    return [{
+      membershipId: membership.id,
+      organizationId: organization.id,
+      organizationName: organization.name,
+      organizationKind: organization.kind,
+      organizationCode: organization.code,
+      role: membership.role,
+      scope: membership.scope,
+      active: membership.active,
+      branches,
+    }];
+  });
+  res.json({ items: memberships });
+});
+
 router.patch("/admin/platform-users/:userId/roles", async (req, res): Promise<void> => {
   setNoStore(res);
   const session = await requireSession(req, res);

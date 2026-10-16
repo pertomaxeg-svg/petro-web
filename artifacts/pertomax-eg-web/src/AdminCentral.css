@@ -1,0 +1,20 @@
+.ac-membership-panel{margin-top:16px}
+.ac-membership-panel .ac-panel-head h2{font-size:21px}
+.ac-membership-list{display:grid;gap:10px}
+.ac-membership-card{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(130px,.8fr) minmax(220px,1.3fr) auto;gap:16px;align-items:center;padding:15px 17px;border:1px solid hsl(var(--border));background:#fff}
+.ac-membership-main,.ac-membership-scope{display:grid;gap:5px;min-width:0}
+.ac-membership-main>span,.ac-membership-scope>span{color:hsl(var(--muted-foreground));font-size:13px;line-height:1.5}
+.ac-membership-org{color:hsl(var(--primary));font-size:16px;font-weight:700;text-decoration:none}
+.ac-membership-org:hover{text-decoration:underline}
+.ac-membership-scope>b{font-size:14px}
+.ac-membership-links{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}
+.ac-membership-links a{display:inline-flex;align-items:center;min-height:34px;padding:6px 10px;border:1px solid hsl(var(--border));color:hsl(var(--foreground));font-size:12px;text-decoration:none}
+.ac-membership-links a:hover{border-color:hsl(var(--primary));color:hsl(var(--primary));background:hsl(var(--primary)/.05)}
+.ac-membership-card .ac-status{font-size:12px}
+.ac-profile-card{padding:22px 24px}
+.ac-profile-identity h2{font-size:22px}
+.ac-account-facts small{font-size:12px}
+.ac-account-facts b{font-size:14px}
+.ac-panel-head h2{font-size:21px}
+@media(max-width:900px){.ac-membership-card{grid-template-columns:1fr 1fr}.ac-membership-links{justify-content:flex-start}}
+@media(max-width:560px){.ac-membership-card{grid-template-columns:1fr;gap:10px;padding:13px}.ac-membership-links a{flex:1 1 auto;justify-content:center}.ac-account-facts{grid-template-columns:1fr 1fr}}

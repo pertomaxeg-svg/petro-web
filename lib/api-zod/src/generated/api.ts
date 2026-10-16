@@ -1435,6 +1435,32 @@ export const GetPlatformUserResponse = zod.object({
 
 
 /**
+ * @summary Read organization memberships and branch scopes for one platform account; owner only
+ */
+export const GetPlatformUserMembershipsParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const GetPlatformUserMembershipsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "membershipId": zod.string().uuid(),
+  "organizationId": zod.string().uuid(),
+  "organizationName": zod.string(),
+  "organizationKind": zod.enum(['company', 'station', 'provider']),
+  "organizationCode": zod.string(),
+  "role": zod.enum(['organization_owner', 'manager', 'finance', 'worker', 'viewer']),
+  "scope": zod.enum(['organization', 'branches']),
+  "active": zod.boolean(),
+  "branches": zod.array(zod.object({
+  "branchId": zod.string().uuid(),
+  "branchName": zod.string(),
+  "branchCode": zod.string()
+}))
+}))
+})
+
+
+/**
  * @summary Replace a user's active platform roles with an audited reason; owner only
  */
 export const SetPlatformUserRolesParams = zod.object({

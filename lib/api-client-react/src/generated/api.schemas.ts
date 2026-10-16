@@ -1270,6 +1270,56 @@ export interface PlatformUserDetail {
   activity: PlatformUserActivity[];
 }
 
+export type PlatformUserMembershipOrganizationKind = typeof PlatformUserMembershipOrganizationKind[keyof typeof PlatformUserMembershipOrganizationKind];
+
+
+export const PlatformUserMembershipOrganizationKind = {
+  company: 'company',
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export type PlatformUserMembershipRole = typeof PlatformUserMembershipRole[keyof typeof PlatformUserMembershipRole];
+
+
+export const PlatformUserMembershipRole = {
+  organization_owner: 'organization_owner',
+  manager: 'manager',
+  finance: 'finance',
+  worker: 'worker',
+  viewer: 'viewer',
+} as const;
+
+export type PlatformUserMembershipScope = typeof PlatformUserMembershipScope[keyof typeof PlatformUserMembershipScope];
+
+
+export const PlatformUserMembershipScope = {
+  organization: 'organization',
+  branches: 'branches',
+} as const;
+
+export interface PlatformUserMembershipBranch {
+  branchId: string;
+  branchName: string;
+  branchCode: string;
+}
+
+export interface PlatformUserMembership {
+  membershipId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationKind: PlatformUserMembershipOrganizationKind;
+  organizationCode: string;
+  role: PlatformUserMembershipRole;
+  scope: PlatformUserMembershipScope;
+  active: boolean;
+  branches: PlatformUserMembershipBranch[];
+}
+
+export interface PlatformUserMembershipList {
+  items: PlatformUserMembership[];
+}
+
 export interface PlatformUserRolesResult {
   roles: PlatformRole[];
   message: string;

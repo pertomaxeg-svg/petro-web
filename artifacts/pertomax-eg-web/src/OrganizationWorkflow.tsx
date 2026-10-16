@@ -14,7 +14,8 @@ import {
   getListOrganizationDocumentsQueryKey, getListOrganizationJoinRequestDocumentsQueryKey, getGetAuthMeQueryKey, getCreateOrganizationDocumentDownloadQueryKey,
   getListBranchesQueryKey, getGetOrganizationQueryKey,
 } from "@workspace/api-client-react";
-import type { CreateOrganizationJoinRequest, OrganizationJoinRequest, AdminOrganizationRequest } from "@workspace/api-client-react";
+import type { CreateOrganizationJoinRequest, OrganizationJoinRequest, AdminOrganizationRequest, PlatformRole } from "@workspace/api-client-react";
+import { AdminShell } from "./AdminCentral";
 
 const labels: Record<string,string> = {
   draft:"مسودة", submitted:"قيد المراجعة", needs_completion:"تحتاج استكمالًا", approved:"معتمد",
@@ -132,13 +133,14 @@ export function AdminOrganizationInbox(){
   if(me.isLoading)return <div className="ow-admin-shell" dir="rtl"><Loading/></div>;
   if(me.isError||!me.data)return <Guard signedOut title="يلزم تسجيل الدخول" body="سجّل الدخول بحساب مخوّل للوصول إلى صندوق مراجعة الطلبات."/>;
   if(me.data.state!=="active"||!allowed)return <Guard title="هذه المساحة غير متاحة" body="صندوق المراجعة مخصص للمستخدمين ذوي صلاحية الإدارة المركزية." />;
-   return <main className="ow-admin-shell" dir="rtl"><header className="ow-admin-top"><Link href="/admin" className="ow-brand"><img src="/petro-max-lockup.png" alt="Pertomax EG"/></Link><span><small>الإدارة المركزية</small><b>مراجعة سجلات الجهات</b></span><Link className="ow-button ow-quiet" href="/admin/organizations">الجهات والفروع <ArrowLeft size={15}/></Link></header><nav className="ac-nav ow-admin-nav" aria-label="التنقل المركزي"><Link href="/admin">نظرة عامة</Link><Link href="/admin/organizations">الجهات والفروع</Link><Link href="/admin/organization-requests" className="selected">مراجعة الطلبات</Link><Link href="/admin/platform-users">مستخدمو المنصة</Link><span className="ac-nav-boundary">نطاق المنصة فقط</span></nav>
-     <div className="ow-admin-content"><div className="ow-admin-title"><div><span className="ow-eyebrow">صندوق المراجعة / {me.data.displayName}</span><h1>طلبات الجهات</h1><p>مراجعة الطلبات والتغييرات والمستندات ضمن صلاحيتك.</p></div><div className="ow-admin-actions">{canInitiateJoin&&<button className="ow-button" onClick={()=>setShowJoinForm(value=>!value)}>{showJoinForm?"إغلاق":"بدء طلب نيابةً عن مستخدم"}</button>}<div className="ow-secure-mark"><ShieldCheck size={18}/> وصول مركزي موثّق</div></div></div>
+   const roleSource=field(me.data.accessContext,"platform_roles")??field(me.data.accessContext,"platformRoles");
+   const userRoles=Array.isArray(roleSource)?roleSource.filter((role):role is PlatformRole=>["owner","operations","finance","support","auditor"].includes(String(role))):[];
+   return <AdminShell name={me.data.displayName} userRoles={userRoles}><div className="ow-admin-content"><div className="ow-admin-title"><div><span className="ow-eyebrow">صندوق المراجعة / {me.data.displayName}</span><h1>طلبات الجهات</h1><p>مراجعة الطلبات والتغييرات والمستندات ضمن صلاحيتك.</p></div><div className="ow-admin-actions">{canInitiateJoin&&<button className="ow-button" onClick={()=>setShowJoinForm(value=>!value)}>{showJoinForm?"إغلاق":"بدء طلب نيابةً عن مستخدم"}</button>}<div className="ow-secure-mark"><ShieldCheck size={18}/> وصول مركزي موثّق</div></div></div>
        {showJoinForm&&canInitiateJoin&&<JoinForm centralMode onClose={()=>setShowJoinForm(false)} onSaved={async()=>{await list.refetch();}}/>}
       <div className="ow-filter-tabs" role="group" aria-label="تصفية الطلبات">{[["","الكل"],["join","انضمام"],["change","تعديلات"],["bank","حسابات بنكية"],["document","مستندات"]].map(([v,l])=><button key={v} className={filter===v?"active":""} onClick={()=>setFilter(v)}>{l}</button>)}</div>
       {list.isLoading?<Loading/>:list.isError?<div className="ow-state"><CircleAlert/><h3>تعذر تحميل صندوق المراجعة</h3><p>{errorMessage(list.error)}</p><button className="ow-button" onClick={()=>void list.refetch()}>إعادة المحاولة</button></div>:(list.data?.items??[]).length===0?<div className="ow-empty"><span><ShieldCheck size={22}/></span><div><b>لا توجد طلبات في هذا العرض</b><p>ستظهر السجلات المرسلة هنا بعد وصولها إلى المراجعة.</p></div></div>:<div className="ow-admin-list">{list.data?.items.map(item=><button className="ow-admin-row" key={`${item.requestType}-${item.id}`} onClick={()=>setSelected(item)}><span className="ow-record-icon">{item.requestType==="bank"?<Landmark size={18}/>:item.requestType==="document"?<FileText size={18}/>:<Building2 size={18}/>}</span><span className="ow-record-main"><b>{item.title}</b><small>{labels[item.requestType]??item.requestType} · نسخة {item.version} · {new Date(item.createdAt).toLocaleDateString("ar-EG")}</small></span><Pill value={item.status}/><ArrowLeft size={16}/></button>)}</div>}
-    </div>{selected&&<AdminReviewDialog item={selected} onClose={()=>setSelected(null)} onComplete={async()=>{setSelected(null);await list.refetch();}}/>}
-  </main>;
+     </div>{selected&&<AdminReviewDialog item={selected} onClose={()=>setSelected(null)} onComplete={async()=>{setSelected(null);await list.refetch();}}/>}
+   </AdminShell>;
 }
 function Guard({title,body,signedOut=false}:{title:string;body:string;signedOut?:boolean}){return <main className="ow-guard" dir="rtl"><span><LockKeyhole size={22}/></span><h1>{title}</h1><p>{body}</p><Link href={signedOut?"/sign-in":"/workspace"} className="ow-button">{signedOut?"تسجيل الدخول":"العودة إلى مساحة العمل"}</Link></main>}
 function AdminReviewDialog({item,onClose,onComplete}:{item:AdminOrganizationRequest;onClose:()=>void;onComplete:()=>Promise<void>}){

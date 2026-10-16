@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, BadgeCheck, ClipboardList, FileText, Fuel, Gauge, ImagePlus, LockKeyhole,
-  PanelRightClose, PanelRightOpen, Plus, RefreshCw, Search, ShieldCheck, Truck, UserRound, Wrench, Upload, X,
+  Plus, RefreshCw, Search, ShieldCheck, Truck, UserRound, Wrench, Upload, X,
 } from "lucide-react";
 import {
   getDownloadAdminFleetImportTemplateQueryKey, getGetAdminFleetCatalogQueryKey, getGetAdminFleetCompanySummariesQueryKey,
@@ -205,14 +205,27 @@ const referenceStatusesByAction: Record<string, Record<string, string[]>> = {
   "credential.stop": { credentialId: ["active"] },
 };
 function date(value: unknown) { if (typeof value !== "string" || !value) return "—"; const parsed = new Date(value); return Number.isNaN(+parsed) ? value : new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" }).format(parsed); }
-function Field({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
+const vehicleCreateRequiredByStep: Record<number, string[]> = {
+  0: ["plateOriginal", "plateStandard", "category", "vehicleType", "brand", "model", "fuelType"],
+  1: ["organizationId", "branchId"],
+  2: [],
+  3: [],
+};
+function egpFromMinor(value: number | null) {
+  if (value === null || !Number.isSafeInteger(value) || value < 0) return "السعر غير متاح";
+  const whole = Math.trunc(value / 100);
+  const fraction = value % 100;
+  const pounds = new Intl.NumberFormat("ar-EG").format(whole);
+  return fraction === 0 ? `${pounds} جنيه مصري` : `${pounds}٫${fraction.toLocaleString("ar-EG", { minimumIntegerDigits: 2, useGrouping: false })} جنيه مصري`;
+}
+function Field({ label, children, wide = false, required = false, error, hint }: { label: string; children: ReactNode; wide?: boolean; required?: boolean; error?: string; hint?: string }) {
   const childProps = isValidElement(children) ? children.props as { name?: string; "data-testid"?: string } : {};
   const key = childProps.name ?? label;
   const slug = key.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff_-]+/g, "-").replace(/^-+|-+$/g, "");
   const control = isValidElement(children) && typeof children.type === "string" && !childProps["data-testid"]
     ? cloneElement(children as ReactElement<{ "data-testid"?: string }>, { "data-testid": `fleet-field-${slug}` })
     : children;
-  return <label className={`fleet-field ${wide ? "fleet-wide" : ""}`}>{label}{control}</label>;
+  return <label className={`fleet-field ${wide ? "fleet-wide" : ""}`}><span className="fleet-field-label">{label}{required && <b className="fleet-required-mark">مطلوب</b>}</span>{control}{hint && <small className="fleet-field-hint">{hint}</small>}{error && <small className="fleet-field-error" role="alert">{error}</small>}</label>;
 }
 function Reason({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <Field label="سبب موثّق — مطلوب (٣ إلى ٥٠٠ حرف)" wide><textarea data-testid="fleet-reason" required minLength={3} maxLength={500} value={value} onChange={event => onChange(event.target.value)} placeholder="اكتب سبب الإجراء لتسجيله في التدقيق."/></Field>; }
 function Skeleton() { return <div className="fleet-skeleton" aria-label="جارٍ تحميل سجلات الأسطول"><i/><i/><i/><i/></div>; }
@@ -222,8 +235,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [path, navigate] = useLocation();
   const isCompanyDirectory = path === "/admin/fleet";
   const isCompanyDetail = /^\/admin\/fleet\/companies\/[^/]+$/.test(path);
+  const isCompanyVehicles = /^\/admin\/fleet\/companies\/[^/]+\/vehicles$/.test(path);
   const isBranchFleet = /^\/admin\/fleet\/companies\/[^/]+\/branches\/[^/]+$/.test(path);
-  const isCompanyRoute = isCompanyDirectory || isCompanyDetail || isBranchFleet;
+  const isCompanyRoute = isCompanyDirectory || isCompanyDetail || isCompanyVehicles || isBranchFleet;
   const isDriverDetail = path.startsWith("/admin/fleet/drivers/") && path !== "/admin/fleet/drivers";
   const isVehicleDetail = path.startsWith("/admin/fleet/vehicles/") && path !== "/admin/fleet/vehicles/new";
   const active = views.find(item => item.path === path) ?? (isDriverDetail ? views.find(item => item.view === "drivers")! : isVehicleDetail || path === "/admin/fleet/vehicles/new" ? views.find(item => item.view === "vehicles")! : views[0]);
@@ -251,6 +265,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [formOrganizationId, setFormOrganizationId] = useState("");
   const [formVehicleId, setFormVehicleId] = useState("");
   const [formWizardStep, setFormWizardStep] = useState(0);
+  const [wizardErrors, setWizardErrors] = useState<Record<string, string>>({});
   const [initialDriverMode, setInitialDriverMode] = useState<"none" | "existing" | "new">("none");
   const [initialReadingInput, setInitialReadingInput] = useState("");
   const [initialReadingTimeInput, setInitialReadingTimeInput] = useState("");
@@ -260,8 +275,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const odometerRetryRef = useRef<{ signature: string; key: string } | null>(null);
   const [sort, setSort] = useState<"newest" | "oldest" | "name" | "plate" | "updatedAt">("newest");
   const [showForm, setShowForm] = useState(false);
-  const [fleetNavOpen, setFleetNavOpen] = useState(false);
-  const [fleetRailCollapsed, setFleetRailCollapsed] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<Row>({});
   const [problem, setProblem] = useState("");
   const [message, setMessage] = useState("");
@@ -299,12 +312,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     }
   }, [path, canMutate, navigate]);
   useEffect(() => { setPage(1); }, [view]);
-  useEffect(() => {
-    if (!fleetNavOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setFleetNavOpen(false); };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [fleetNavOpen]);
   useEffect(() => {
     if (!showForm) return;
     const dialog = dialogRef.current;
@@ -385,7 +392,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const reservedStockRows = Array.isArray(stockReservations.data?.items) ? stockReservations.data.items as Row[] : [];
   const nfcIssuePriceMinor = typeof fleetMeta.data?.nfcIssuePriceMinor === "number" ? fleetMeta.data.nfcIssuePriceMinor : null;
   const pageInfo = fields(root.pageInfo ?? root.pagination ?? query.data);
-  const title = isVehicleDetail ? "ملف المركبة" : isDriverDetail ? "ملف السائق" : isCompanyRoute ? isBranchFleet ? "أسطول الفرع" : isCompanyDetail ? "الشركة والفروع" : "الشركات" : active.title;
+  const title = isVehicleDetail ? "ملف المركبة" : isDriverDetail ? "ملف السائق" : isCompanyRoute ? isBranchFleet ? "أسطول الفرع" : isCompanyVehicles ? "مركبات الشركة" : isCompanyDetail ? "الشركة والفروع" : "الشركات" : active.title;
   const refresh = async () => {
     await cache.invalidateQueries({ queryKey: getGetAdminFleetCatalogQueryKey(params) });
     await cache.invalidateQueries({ queryKey: getGetAdminFleetStockReservationsQueryKey() });
@@ -436,8 +443,26 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     "maintenance.create": ["vehicleId", "maintenanceType", "performedAt", "odometerEventId", "notes", "nextDueAt", "nextDueKm", "documentId"],
     "maintenance.cancel": ["maintenanceId"],
   };
+  const clearWizardError = (field: string) => {
+    setWizardErrors(current => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+    setProblem("");
+  };
+  const reportWizardError = (field: string, message: string) => {
+    setWizardErrors({ [field]: message });
+    setProblem(message);
+    const named = dialogRef.current?.querySelector<HTMLInputElement>(`[name="${field}"]`);
+    const focusable = named?.type === "hidden"
+      ? named.parentElement?.querySelector<HTMLElement>("button, input:not([type=hidden]), select")
+      : named;
+    focusable?.focus();
+  };
   const openAction = (action: string, row: Row = {}) => {
-    setSelectedRecord(row); setCommand(action); setVehicleCredentialChoice(""); setReason(""); setProblem(""); setMessage(""); setOneTimeToken("");
+    setSelectedRecord(row); setCommand(action); setVehicleCredentialChoice(""); setReason(""); setProblem(""); setWizardErrors({}); setMessage(""); setOneTimeToken("");
     setVehicleCreatedMessage(""); setFormWizardStep(0); setInitialDriverMode("none"); setInitialReadingInput(""); setInitialReadingTimeInput(""); setVehiclePhoto(null); setOdometerEvidencePhoto(null);
     createdVehiclePhotoRef.current = null; driverLinkRetryRef.current = null; driverCreateRetryRef.current = null; odometerRetryRef.current = null;
     commandRetryRef.current = null;
@@ -525,40 +550,54 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         1: ["organizationId", "branchId"],
       };
       const missing = (requiredByStep[formWizardStep] ?? []).find(field => !String(payload[field] ?? "").trim());
-      if (missing) { setProblem("أكمل الحقول المطلوبة في هذه الخطوة قبل المتابعة."); return; }
+      if (missing) {
+        const fieldLabel = labels[missing] ?? missing;
+        const message = `${fieldLabel} مطلوب لإكمال هذه الخطوة.`;
+        reportWizardError(missing, `أكمل الحقل المحدد: ${message}`);
+        return;
+      }
+      setWizardErrors({});
       if (formWizardStep === 2 && driverMode === "existing" && !UUID_RE.test(initialDriverId)) {
-        setProblem("اختر سائقًا تشغيليًا من الشركة المحددة.");
+        reportWizardError("initialDriverId", "اختر سائقًا تشغيليًا من الشركة المحددة.");
         return;
       }
       if (formWizardStep === 2 && driverMode === "new" && (!newDriverCode || !newDriverName)) {
-        setProblem("أدخل كودًا تشغيليًا واسمًا للسائق الجديد.");
+        const errors: Record<string, string> = {};
+        if (!newDriverCode) errors.newDriverCode = "الكود التشغيلي مطلوب.";
+        if (!newDriverName) errors.newDriverName = "اسم السائق مطلوب.";
+        setWizardErrors(errors);
+        setProblem("أكمل بيانات السائق الجديد المحددة.");
+        const focusField = !newDriverCode ? "newDriverCode" : "newDriverName";
+        dialogRef.current?.querySelector<HTMLInputElement>(`[name="${focusField}"]`)?.focus();
         return;
       }
       if (formWizardStep === 2 && driverMode !== "none" && !initialLinkStartsAt) {
-        setProblem("أدخل تاريخ بداية إسناد السائق إلى المركبة.");
+        reportWizardError("initialLinkStartsAt", "تاريخ بداية إسناد السائق إلى المركبة مطلوب.");
         return;
       }
       if (formWizardStep === 2 && initialLinkPin && !/^\d{4}$/.test(initialLinkPin)) {
-        setProblem("رمز الربط اختياري، لكن عند إدخاله يجب أن يتكون من أربعة أرقام.");
+        reportWizardError("initialDriverPin", "الرمز اختياري، لكن عند إدخاله يجب أن يتكون من أربعة أرقام.");
         return;
       }
       if (formWizardStep === 2 && Boolean(initialReadingRaw) !== Boolean(initialRecordedAt)) {
-        setProblem("سجّل قراءة العداد وتاريخها معًا.");
+        const missingField = initialReadingRaw ? "initialRecordedAt" : "initialReadingKm";
+        reportWizardError(missingField, initialReadingRaw ? "أدخل وقت تسجيل قراءة العداد." : "أدخل قراءة العداد بالكيلومتر.");
         return;
       }
       if (formWizardStep === 2 && initialReadingRaw && (!Number.isFinite(Number(initialReadingRaw)) || Number(initialReadingRaw) < 0 || Number.isNaN(new Date(initialRecordedAt).getTime()))) {
-        setProblem("تحقق من قراءة العداد وتاريخها.");
+        const invalidField = !Number.isFinite(Number(initialReadingRaw)) || Number(initialReadingRaw) < 0 ? "initialReadingKm" : "initialRecordedAt";
+        reportWizardError(invalidField, invalidField === "initialReadingKm" ? "تحقق من قراءة العداد." : "تحقق من وقت تسجيل القراءة.");
         return;
       }
       if (formWizardStep === 2 && odometerEvidencePhoto && !initialReadingRaw) {
-        setProblem("أضف قراءة العداد قبل إرفاق صورة إثباتها.");
+        reportWizardError("initialReadingKm", "أضف قراءة العداد قبل إرفاق صورة إثباتها.");
         return;
       }
       setFormWizardStep(step => Math.min(3, step + 1));
       return;
     }
     if (command === "vehicle.create" && (!String(payload.organizationId ?? "").trim() || !String(payload.branchId ?? "").trim())) {
-      setProblem("اختر الشركة والفرع من القوائم قبل الحفظ.");
+      reportWizardError(!String(payload.organizationId ?? "").trim() ? "organizationId" : "branchId", "اختر الشركة والفرع من القوائم قبل الحفظ.");
       return;
     }
     if (reason.trim().length < 3) { setProblem("سبب الإجراء مطلوب."); return; }
@@ -938,14 +977,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   }, [query.data, view, page]);
 
   return <div className="fleet-page" dir="rtl">
-    {!isCompanyRoute && <div className="fleet-heading"><div><div className="fleet-eyebrow"><span/> إدارة الأسطول / مركز التشغيل</div><h1>{title}</h1><p>سجلات المركبات والسائقين وضوابط الأهلية — من بيانات الخادم فقط.</p></div><button data-testid="fleet-mobile-nav-toggle" className="fleet-mobile-nav-toggle" aria-controls="fleet-rail" aria-expanded={fleetNavOpen} onClick={() => setFleetNavOpen(true)}>أقسام الأسطول</button><div className="fleet-heading-mark">PERTOMAX <b>EG</b><small>FLEET CONTROL</small></div></div>}
-    <div className={`fleet-layout ${fleetRailCollapsed ? "fleet-rail-collapsed" : ""}`}>
-        {fleetNavOpen && <button data-testid="fleet-nav-scrim" className="fleet-nav-scrim" aria-label="إغلاق أقسام الأسطول" onClick={() => setFleetNavOpen(false)}/>}
-      <aside id="fleet-rail" className={`fleet-rail ${fleetNavOpen ? "is-open" : ""}`} aria-label="أقسام إدارة الأسطول">
-         <div className="fleet-rail-title"><span className="fleet-rail-heading">سجل الأسطول</span><span className="fleet-rail-index">01—10</span><button data-testid="fleet-rail-collapse" type="button" className="fleet-rail-collapse" onClick={() => setFleetRailCollapsed(value => !value)} aria-label={fleetRailCollapsed ? "توسيع قائمة الأسطول" : "طي قائمة الأسطول"} aria-expanded={!fleetRailCollapsed}>{fleetRailCollapsed ? <PanelRightOpen size={16}/> : <PanelRightClose size={16}/>}</button></div>
-        {views.map(item => <Link data-testid={`fleet-nav-${item.view}`} key={item.path} href={item.path} onClick={() => setFleetNavOpen(false)} aria-current={active.path === item.path && !isVehicleDetail ? "page" : undefined} title={fleetRailCollapsed ? item.title : undefined} className={`fleet-rail-link ${active.path === item.path && !isVehicleDetail ? "is-active" : ""}`}>{item.icon}<span>{item.title}</span><ArrowLeft size={13}/></Link>)}
-        <div className="fleet-rail-note"><LockKeyhole size={15}/><span>تغييرات موثقة<br/>بسبب إلزامي</span></div>
-      </aside>
+        {!isCompanyRoute && <div className="fleet-heading"><div><div className="fleet-eyebrow"><span/> إدارة الأسطول / مركز التشغيل</div><h1>{title}</h1><p>الشركات والمركبات والسائقون وضوابط الاستخدام في مكان واحد.</p></div><div className="fleet-heading-mark">PERTOMAX <b>EG</b><small>إدارة تشغيلية</small></div></div>}
       <main className="fleet-main">
          {!isCompanyRoute && <div className="fleet-toolbar"><div className="fleet-breadcrumb"><span>الأسطول</span><ArrowLeft size={13}/><b>{title}</b></div>
            <div className="fleet-tools">{!["overview", "vehicle"].includes(view) && !isVehicleDetail && !isDriverDetail && <label className="fleet-search"><Search size={16}/><input data-testid="fleet-record-search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="بحث في سجلات هذا القسم" aria-label="البحث في السجل"/></label>}
@@ -1016,7 +1048,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             {driverEvents.isLoading ? <Skeleton/> : driverEvents.isError ? <State error title="تعذر تحميل سجل الأحداث" retry={() => void driverEvents.refetch()}>{apiError(driverEvents.error)}</State> : <div className="fleet-detail-list"><h3>أحداث السائق</h3>{safeRows(driverEvents.data, "events").length ? <div className="fleet-facts">{safeRows(driverEvents.data, "events").map((event, index) => <div key={`driver-event-${index}`}>{Object.entries(event).filter(([key]) => !isHiddenKey(key)).map(([key, value]) => <span key={key}><small>{labels[key] ?? key}</small><b>{typeof value === "object" ? readable(value) : key.toLowerCase().includes("at") ? date(value) : statusText(value)}</b></span>)}</div>)}</div> : <p className="fleet-muted">لا توجد أحداث مرتبطة في السجل المتاح.</p>}</div>}
           </section>}
           {view !== "overview" && <section className="fleet-table-card">
-            <div className="fleet-table-head"><div><span className="fleet-eyebrow">مصدر البيانات: API</span><h2>{isVehicleDetail || isDriverDetail ? "تفاصيل السجل" : `${title} — السجل`}</h2></div><span className="fleet-count">{text(totalRecords ?? records.length)} <small>{totalRecords === undefined ? "نتيجة من الخادم" : "سجل مطابق"}</small></span></div>
+            <div className="fleet-table-head"><div><span className="fleet-eyebrow">السجلات المعتمدة</span><h2>{isVehicleDetail || isDriverDetail ? "تفاصيل السجل" : `${title} — السجل`}</h2></div><span className="fleet-count">{text(totalRecords ?? records.length)} <small>{totalRecords === undefined ? "نتيجة" : "سجل مطابق"}</small></span></div>
             {entries.length === 0 ? <State title="لا توجد سجلات للعرض">ستظهر هنا النتائج التي يعيدها الخادم، دون سجلات أو مؤشرات افتراضية.</State> :
             <div className="fleet-table-scroll"><table><thead><tr>{tableHeaders.map(key => <th key={key}>{labels[key] ?? key}</th>)}<th>إجراء</th></tr></thead><tbody>{entries.map((row, index) => {
               const id = text(get(row, "id", "vehicleId", "driverId", "policyId", "documentId", "eventId", "jobId"));
@@ -1051,9 +1083,18 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           const defaultValue = field === "policyVersionId" ? formDefaults.id : field === "expectedVersion" ? formReferences.expectedVersion ?? formDefaults.version : field === "vehicleId" && isVehicleDetail ? formDefaults.id : field === "driverId" && isDriverDetail ? formDefaults.id : formDefaults[field];
           const dateTime = ["startsAt", "endsAt", "effectiveFrom", "scheduledAt", "recordedAt", "performedAt", "nextDueAt"].includes(field);
           const normalizedDefault = dateTime && typeof defaultValue === "string" ? defaultValue.slice(0, 16) : defaultValue;
-          const common = { name: field, required: isRequired && command !== "vehicle.create", dir: /id|code|plate|phone/i.test(field) ? "ltr" as const : undefined, ...(field === "expectedVersion" ? {} : { defaultValue: String(normalizedDefault ?? "") }), "data-testid": `fleet-field-${field}` };
           const stepByField = field === "organizationId" || field === "branchId" ? 1 : field === "credentialType" ? 2 : 0;
           const stepHidden = command === "vehicle.create" && formWizardStep < 3 && stepByField !== formWizardStep;
+          const wizardRequired = command === "vehicle.create" && !stepHidden && (vehicleCreateRequiredByStep[formWizardStep] ?? []).includes(field);
+          const common = { name: field, required: command === "vehicle.create" ? wizardRequired : isRequired, "aria-invalid": Boolean(wizardErrors[field]), onChange: () => clearWizardError(field), dir: /id|code|plate|phone/i.test(field) ? "ltr" as const : undefined, ...(field === "expectedVersion" ? {} : { defaultValue: String(normalizedDefault ?? "") }), "data-testid": `fleet-field-${field}` };
+          const wizardHint = field === "plateOriginal" ? "أدخل رقم اللوحة كما يظهر في مستند المركبة."
+            : field === "plateStandard" ? "صيغة للبحث ومطابقة التكرار؛ احذف المسافات فقط ولا تغيّر الأحرف أو الأرقام."
+              : field === "category" ? "اكتب التصنيف التشغيلي المعتمد للمركبة."
+                : field === "vehicleType" ? "اكتب نوع المركبة كما يرد في مستنداتها."
+                  : field === "brand" ? "اسم الصانع كما يظهر في مستند المركبة."
+                    : field === "model" ? "الطراز كما يظهر في بيانات المركبة."
+                      : field === "fuelType" ? "نوع الوقود المسجل لهذه المركبة."
+                        : undefined;
           const wrap = (node: ReactNode) => <div key={field} hidden={stepHidden}>{node}</div>;
           const choices: Record<string, Array<[string, string]>> = {
             status: [["active", "نشط"], ["suspended", "موقوف"], ["inactive", "غير نشط"]],
@@ -1082,7 +1123,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             );
             const locked = selectedId && ((field === "vehicleId" && isVehicleDetail && ["vehicle.update", "vehicle.status"].includes(command)) || (field === "driverId" && isDriverDetail && ["driver.update", "driver.status"].includes(command)));
             if (locked) return wrap(<><input type="hidden" name={field} value={selectedId}/><Field label={labels[field] ?? field}><div className="fleet-reference-fixed">{initialLabel || "السجل الحالي المحدد"}</div></Field></>);
-            return wrap(<FleetReferencePicker kind={referenceKind} name={field} label={labels[field] ?? field} value={selectedId} initialLabel={initialLabel} organizationId={formOrganizationId || undefined} vehicleId={formVehicleId || undefined} allowedStatuses={field === "requestId" ? requestStatusesByAction[command] : referenceStatusesByAction[command]?.[field]} requiresWaiver={command === "credential.activate_nfc" && field === "requestId"} requiresProof={command === "credential.activate_nfc" && field === "requestId"} required={isRequired} onChange={(value, option) => {
+            return wrap(<FleetReferencePicker kind={referenceKind} name={field} label={labels[field] ?? field} value={selectedId} initialLabel={initialLabel} organizationId={formOrganizationId || undefined} vehicleId={formVehicleId || undefined} allowedStatuses={field === "requestId" ? requestStatusesByAction[command] : referenceStatusesByAction[command]?.[field]} requiresWaiver={command === "credential.activate_nfc" && field === "requestId"} requiresProof={command === "credential.activate_nfc" && field === "requestId"} required={command === "vehicle.create" ? wizardRequired : isRequired} error={wizardErrors[field]} onChange={(value, option) => {
+              clearWizardError(field);
               setFormReferences(current => {
                 const next = { ...current, [field]: value };
                 if (field === "organizationId") {
@@ -1098,28 +1140,28 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
               if (field === "requestId" && command === "tag_stock.reserve") selectedReserveRequestRef.current = { id: value, vehicleId: option?.vehicleId ?? "", label: option?.label ?? "طلب الإصدار المحدد" };
             }}/>);
           }
-          if (choices[field]?.length) return wrap(<Field label={labels[field] ?? field}><select {...common} value={field === "scope" ? policyScope : field === "credentialType" ? vehicleCredentialChoice : undefined} onChange={field === "scope" ? event => setPolicyScope(event.target.value) : field === "credentialType" ? event => setVehicleCredentialChoice(event.target.value) : undefined}>{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{choices[field].map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && nfcIssuePriceMinor === null}>{field === "credentialType" && value === "nfc" ? `NFC · ${nfcIssuePriceMinor === null ? "السعر غير متاح" : `${nfcIssuePriceMinor.toLocaleString("ar-EG")} قرشًا`}` : label}</option>)}</select>{field === "credentialType" && <small>سعر NFC مُعاد من إعدادات الخادم؛ طلب الإصدار لا ينفذ تحصيلًا أو تركيبًا أو تنشيطًا.</small>}</Field>);
+          if (choices[field]?.length) return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><select {...common} value={field === "scope" ? policyScope : field === "credentialType" ? vehicleCredentialChoice : undefined} onChange={field === "scope" ? event => setPolicyScope(event.target.value) : field === "credentialType" ? event => setVehicleCredentialChoice(event.target.value) : undefined}>{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{choices[field].map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && nfcIssuePriceMinor === null}>{field === "credentialType" && value === "nfc" ? `NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : label}</option>)}</select>{field === "credentialType" && <small>سعر إصدار الشريحة منفصل عن الاشتراك؛ الطلب لا يثبت التحصيل أو التركيب أو التفعيل.</small>}</Field>);
           if (field === "expectedVersion") return wrap(<Field label={labels[field]}><input {...common} type="number" min="1" value={formReferences.expectedVersion ?? String(defaultValue ?? "")} onChange={event => setFormReferences(current => ({ ...current, expectedVersion: event.target.value }))}/></Field>);
           if (field === "pinCode") return wrap(<Field label={labels[field]}><input {...common} type="password" inputMode="numeric" autoComplete="new-password" pattern="[0-9]{4}" maxLength={4}/></Field>);
           if (field === "allowedWeekdays") return wrap(<fieldset className="fleet-weekday-picker"><legend>{labels[field]}</legend><p>الأيام غير المحددة تمنع الاستخدام.</p><div>{[["1","الاثنين"],["2","الثلاثاء"],["3","الأربعاء"],["4","الخميس"],["5","الجمعة"],["6","السبت"],["7","الأحد"]].map(([day, name]) => <label key={day}><input data-testid={`fleet-weekday-${day}`} type="checkbox" checked={formWeekdays.includes(day)} onChange={event => setFormWeekdays(current => event.target.checked ? [...current, day].sort() : current.filter(item => item !== day))}/>{name}</label>)}</div></fieldset>);
           if (field === "allowedMerchantOrganizationIds") return wrap(<FleetReferencePicker kind="organization" label={labels[field]} value="" multiple selectedValues={String(formReferences[field] ?? "").split(",").filter(Boolean)} onValuesChange={values => setFormReferences(current => ({ ...current, [field]: values.join(",") }))}/>);
           if (field === "allowedMerchantBranchIds") return wrap(<div className="fleet-policy-branch-picker"><FleetReferencePicker kind="organization" label="اختر جهة لعرض فروعها" value={merchantBranchScope} onChange={value => { setMerchantBranchScope(value); setFormReferences(current => ({ ...current, [field]: "" })); }}/><FleetReferencePicker kind="branch" label={labels[field]} value="" multiple selectedValues={String(formReferences[field] ?? "").split(",").filter(Boolean)} organizationId={merchantBranchScope || undefined} onValuesChange={values => setFormReferences(current => ({ ...current, [field]: values.join(",") }))}/></div>);
-          if (field === "startTime" || field === "endTime") return wrap(<Field label={labels[field]}><input {...common} type="time"/></Field>);
+          if (field === "startTime" || field === "endTime") return wrap(<Field label={labels[field]} required={wizardRequired} error={wizardErrors[field]}><input {...common} type="time"/></Field>);
           if (field === "notes") return wrap(<Field label={labels[field] ?? field}><textarea {...common}/></Field>);
           const numeric = ["modelYear", "expectedVersion", "maxOperationMinor", "maxOperationQuantity", "dailyAmountLimitMinor", "weeklyAmountLimitMinor", "monthlyAmountLimitMinor", "dailyQuantityLimit", "weeklyQuantityLimit", "monthlyQuantityLimit", "readingKm", "nextDueKm"].includes(field);
-          return wrap(<Field label={labels[field] ?? field}><input {...common} type={numeric ? "number" : dateTime ? "datetime-local" : "text"} min={field === "modelYear" ? 1886 : undefined} max={field === "modelYear" ? 2200 : undefined}/></Field>);
+          return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><input {...common} type={numeric ? "number" : dateTime ? "datetime-local" : "text"}/></Field>);
         })}</div>
         {command === "vehicle.create" && <section className="fleet-create-optional" hidden={formWizardStep < 2}>
           <div className="fleet-create-option-block"><h3>السائق التشغيلي (اختياري)</h3><p>السائق سجل تشغيلي فقط؛ لا يُنشأ حساب دخول أو مستخدم Auth.</p>
             <Field label="اختيار السائق"><select data-testid="fleet-create-driver-mode" name="initialDriverMode" value={initialDriverMode} onChange={event => { const mode = event.target.value as "none" | "existing" | "new"; setInitialDriverMode(mode); if (mode !== "existing") setFormReferences(current => { const next = { ...current }; delete next.initialDriverId; return next; }); driverLinkRetryRef.current = null; }}><option value="none">بدون سائق الآن</option><option value="existing">استخدام سائق موجود</option><option value="new">إضافة سائق تشغيلي جديد</option></select></Field>
-            {initialDriverMode === "existing" && <FleetReferencePicker kind="driver" label="السائق التشغيلي" value={formReferences.initialDriverId ?? ""} organizationId={formOrganizationId || undefined} testId="fleet-create-existing-driver" onChange={value => { setFormReferences(current => ({ ...current, initialDriverId: value })); driverLinkRetryRef.current = null; }}/>}
-            {initialDriverMode === "new" && <div className="fleet-form-grid"><Field label="الكود التشغيلي للسائق"><input data-testid="fleet-create-driver-code" name="newDriverCode" autoComplete="off" dir="ltr" maxLength={80}/></Field><Field label="اسم السائق"><input data-testid="fleet-create-driver-name" name="newDriverName" maxLength={160}/></Field><Field label="رقم الهاتف (اختياري)"><input data-testid="fleet-create-driver-phone" name="newDriverPhone" inputMode="tel" dir="ltr" maxLength={40}/></Field></div>}
-            {initialDriverMode !== "none" && <div className="fleet-create-link-fields"><p>رمز الربط اختياري. إذا أدخلته، يُستخدم مرة واحدة لإنشاء الربط الآمن؛ لن يُخزّن في واجهة التطبيق. إذا تركته فارغًا، يُحفظ ملف السائق دون ربط المركبة.</p><Field label="رمز ربط جديد من أربعة أرقام (اختياري)"><input data-testid="fleet-create-driver-pin" type="password" name="initialDriverPin" inputMode="numeric" autoComplete="new-password" maxLength={4}/></Field><Field label="بداية الربط عند استخدام الرمز"><input data-testid="fleet-create-link-starts-at" type="datetime-local" name="initialLinkStartsAt"/></Field><Field label="نهاية الربط (اختياري)"><input data-testid="fleet-create-link-ends-at" type="datetime-local" name="initialLinkEndsAt"/></Field></div>}
+            {initialDriverMode === "existing" && <FleetReferencePicker kind="driver" name="initialDriverId" label="السائق التشغيلي" value={formReferences.initialDriverId ?? ""} organizationId={formOrganizationId || undefined} testId="fleet-create-existing-driver" required error={wizardErrors.initialDriverId} onChange={value => { clearWizardError("initialDriverId"); setFormReferences(current => ({ ...current, initialDriverId: value })); driverLinkRetryRef.current = null; }}/>}
+            {initialDriverMode === "new" && <div className="fleet-form-grid"><Field label="الكود التشغيلي للسائق" required error={wizardErrors.newDriverCode}><input data-testid="fleet-create-driver-code" name="newDriverCode" autoComplete="off" dir="ltr" maxLength={80} onChange={() => clearWizardError("newDriverCode")}/></Field><Field label="اسم السائق" required error={wizardErrors.newDriverName}><input data-testid="fleet-create-driver-name" name="newDriverName" maxLength={160} onChange={() => clearWizardError("newDriverName")}/></Field><Field label="رقم الهاتف (اختياري)"><input data-testid="fleet-create-driver-phone" name="newDriverPhone" inputMode="tel" dir="ltr" maxLength={40}/></Field></div>}
+            {initialDriverMode !== "none" && <div className="fleet-create-link-fields"><p>رمز الربط اختياري. إذا أدخلته، يُستخدم مرة واحدة لإنشاء الربط الآمن؛ لن يُخزّن في واجهة التطبيق.</p><Field label="رمز ربط جديد من أربعة أرقام (اختياري)" error={wizardErrors.initialDriverPin}><input data-testid="fleet-create-driver-pin" type="password" name="initialDriverPin" inputMode="numeric" autoComplete="new-password" maxLength={4} onChange={() => clearWizardError("initialDriverPin")}/></Field><Field label="بداية الربط — مطلوبة عند إسناد السائق" required error={wizardErrors.initialLinkStartsAt}><input data-testid="fleet-create-link-starts-at" type="datetime-local" name="initialLinkStartsAt" onChange={() => clearWizardError("initialLinkStartsAt")}/></Field><Field label="نهاية الربط (اختياري)"><input data-testid="fleet-create-link-ends-at" type="datetime-local" name="initialLinkEndsAt"/></Field></div>}
           </div>
-          <div className="fleet-create-option-block"><h3>قراءة العداد الأولية (اختيارية)</h3><p>تُسجل قراءة مؤرخة من مسار العداد المعتمد؛ لا تُحسب كفاءة الوقود دون أحداث تعبئة فعلية.</p><Field label="قراءة العداد بالكيلومتر"><input data-testid="fleet-create-odometer-reading" type="number" name="initialReadingKm" min="0" step="0.001" value={initialReadingInput} onChange={event => setInitialReadingInput(event.target.value)}/></Field><Field label="وقت تسجيل القراءة"><input data-testid="fleet-create-odometer-time" type="datetime-local" name="initialRecordedAt" value={initialReadingTimeInput} onChange={event => setInitialReadingTimeInput(event.target.value)}/></Field><div className="fleet-create-photo"><div><ImagePlus size={18}/><div><b>إثبات القراءة (اختياري)</b><small>صورة PNG أو JPEG تُحفظ عبر مسار المستند الخاص.</small></div></div><input data-testid="fleet-create-odometer-evidence" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setOdometerEvidencePhoto(file); }}/></div></div>
+          <div className="fleet-create-option-block"><h3>قراءة العداد الأولية (اختيارية)</h3><p>تُسجل قراءة مؤرخة من مسار العداد المعتمد؛ لا تُحسب كفاءة الوقود دون أحداث تعبئة فعلية.</p><Field label="قراءة العداد بالكيلومتر" error={wizardErrors.initialReadingKm}><input data-testid="fleet-create-odometer-reading" type="number" name="initialReadingKm" min="0" step="0.001" value={initialReadingInput} onChange={event => { setInitialReadingInput(event.target.value); clearWizardError("initialReadingKm"); }}/></Field><Field label="وقت تسجيل القراءة" error={wizardErrors.initialRecordedAt}><input data-testid="fleet-create-odometer-time" type="datetime-local" name="initialRecordedAt" value={initialReadingTimeInput} onChange={event => { setInitialReadingTimeInput(event.target.value); clearWizardError("initialRecordedAt"); }}/></Field><div className="fleet-create-photo"><div><ImagePlus size={18}/><div><b>إثبات القراءة (اختياري)</b><small>صورة PNG أو JPEG تُحفظ عبر مسار المستند الخاص.</small></div></div><input data-testid="fleet-create-odometer-evidence" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setOdometerEvidencePhoto(file); }}/></div></div>
           <div className="fleet-create-option-block"><h3>صورة المركبة (اختيارية)</h3><p>تُرفع بعد إنشاء المركبة إلى التخزين الخاص.</p><div className="fleet-create-photo"><input data-testid="fleet-create-vehicle-photo" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setVehiclePhoto(file); }}/>{vehiclePhotoPreview && <img src={vehiclePhotoPreview} alt="معاينة صورة المركبة قبل الرفع"/>}</div></div>
         </section>}
-         {command === "vehicle.create" && formWizardStep === 3 && <section className="fleet-create-review"><h3>مراجعة قبل الحفظ</h3><p>سيُنشأ سجل المركبة مرة واحدة. السائق والربط والعداد والملفات خطوات مستقلة؛ يمكن متابعة السجل إذا تعذرت خطوة لاحقة.</p><dl><div><dt>اللوحة</dt><dd>{text(formDefaults.plateOriginal) === "—" ? "أدخلت في الخطوة الأولى" : text(formDefaults.plateOriginal)}</dd></div><div><dt>الشركة والفرع</dt><dd>{formOrganizationId ? "محددان من القوائم" : "لم يُحددا"}</dd></div><div><dt>السائق التشغيلي</dt><dd>{initialDriverMode === "none" ? "بدون سائق" : initialDriverMode === "new" ? "سجل سائق جديد" : "سائق موجود"}</dd></div><div><dt>رمز الربط</dt><dd>{initialDriverMode === "none" ? "لا يوجد" : "اختياري؛ يُرسل مرة واحدة عند الربط"}</dd></div><div><dt>طلب تعريف المركبة</dt><dd>{vehicleCredentialChoice === "nfc" ? `طلب NFC · ${nfcIssuePriceMinor?.toLocaleString("ar-EG") ?? "السعر غير متاح"} قرشًا` : vehicleCredentialChoice === "qr" ? "طلب QR" : "لا يوجد طلب إصدار"}</dd></div><div><dt>قراءة العداد</dt><dd>{initialReadingInput ? `${initialReadingInput} كم · ${initialReadingTimeInput || "يلزم اختيار الوقت"}` : "لم تُسجل"}</dd></div><div><dt>إثبات العداد</dt><dd>{odometerEvidencePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div><div><dt>صورة المركبة</dt><dd>{vehiclePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div></dl><small>سعر NFC المعروض هو سعر الإصدار من إعدادات الخادم؛ لا يُحصّل هذا النموذج مبلغًا ولا يثبت أو ينشّط بطاقة.</small></section>}
+         {command === "vehicle.create" && formWizardStep === 3 && <section className="fleet-create-review"><h3>مراجعة قبل الحفظ</h3><p>سيُنشأ سجل المركبة مرة واحدة. السائق والربط والعداد والملفات خطوات مستقلة؛ يمكن متابعة السجل إذا تعذرت خطوة لاحقة.</p><dl><div><dt>اللوحة</dt><dd>{text(formDefaults.plateOriginal) === "—" ? "أدخلت في الخطوة الأولى" : text(formDefaults.plateOriginal)}</dd></div><div><dt>الشركة والفرع</dt><dd>{formOrganizationId ? "محددان من القوائم" : "لم يُحددا"}</dd></div><div><dt>السائق التشغيلي</dt><dd>{initialDriverMode === "none" ? "بدون سائق" : initialDriverMode === "new" ? "سجل سائق جديد" : "سائق موجود"}</dd></div><div><dt>رمز الربط</dt><dd>{initialDriverMode === "none" ? "لا يوجد" : "اختياري؛ يُرسل مرة واحدة عند الربط"}</dd></div><div><dt>طلب تعريف المركبة</dt><dd>{vehicleCredentialChoice === "nfc" ? `طلب NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : vehicleCredentialChoice === "qr" ? "طلب QR" : "لا يوجد طلب إصدار"}</dd></div><div><dt>قراءة العداد</dt><dd>{initialReadingInput ? `${initialReadingInput} كم · ${initialReadingTimeInput || "يلزم اختيار الوقت"}` : "لم تُسجل"}</dd></div><div><dt>إثبات العداد</dt><dd>{odometerEvidencePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div><div><dt>صورة المركبة</dt><dd>{vehiclePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div></dl><small>سعر NFC المعروض هو سعر الإصدار من إعدادات الخادم؛ لا يُحصّل هذا النموذج مبلغًا ولا يثبت أو ينشّط بطاقة.</small></section>}
         {(command === "policy.create" || command === "policy.update") && <fieldset className="fleet-policy-rules"><legend>حدود مجموعات الخدمة</legend><p>تبدأ كل مجموعة غير مفعّلة. لا يؤدي ترك حد فارغ إلى سماح مفتوح.</p><div className="fleet-policy-group-list">{policyGroups.map(group => {
           const currentRules = Array.isArray(formDefaults.rules) ? formDefaults.rules.map(fields) : [];
           const currentRule = currentRules.find(rule => text(get(rule, "serviceGroup", "service_group")) === group.id) ?? {};
@@ -1133,7 +1175,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         </div></form></section></div>}
         {documentReview && <div className="fleet-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setDocumentReview(null); }}><section className="fleet-dialog" role="dialog" aria-modal="true" aria-labelledby="fleet-document-review-title"><header><div><span className="fleet-eyebrow">مراجعة مستند مركبة</span><h2 id="fleet-document-review-title">{text(get(documentReview, "fileName"))}</h2></div><button data-testid="fleet-document-review-close" className="fleet-icon-button" aria-label="إغلاق" onClick={() => setDocumentReview(null)}><X size={18}/></button></header><form className="fleet-form" onSubmit={reviewFleetDocument}><Field label="قرار المراجعة"><select data-testid="fleet-document-decision" value={documentDecision} onChange={event => setDocumentDecision(event.target.value)} required><option value="">اختر القرار</option><option value="approve">اعتماد</option><option value="needs_completion">طلب استكمال</option><option value="reject">رفض</option></select></Field><Reason value={documentReason} onChange={setDocumentReason}/><div className="fleet-dialog-actions"><button data-testid="fleet-document-review-submit" className="fleet-button" disabled={documentReason.trim().length < 3}>تأكيد القرار</button><button data-testid="fleet-document-review-cancel" type="button" className="fleet-button fleet-quiet" onClick={() => setDocumentReview(null)}>إلغاء</button></div></form></section></div>}
         <div className="fleet-scope-note"><LockKeyhole size={14}/> الخدمة المنفذة، الكتابة الفعلية على NFC، الدفع، بوابات الشركات/الهاتف والبريد الإلكتروني أو PDF ليست ضمن هذه المساحة.</div>
-      </main>
-    </div>
+       </main>
   </div>;
 }

@@ -1041,6 +1041,25 @@ paths:
           $ref: "#/components/responses/ApiError"
         "404":
           $ref: "#/components/responses/ApiError"
+  /admin/platform-users/{userId}/memberships:
+    get:
+      operationId: getPlatformUserMemberships
+      tags: [management]
+      summary: Read organization memberships and branch scopes for one platform account; owner only
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The account's organization memberships and visible branch names
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformUserMembershipList" }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
   /admin/platform-users/{userId}/roles:
     patch:
       operationId: setPlatformUserRoles
@@ -2897,6 +2916,35 @@ components:
           type: array
           items: { $ref: "#/components/schemas/PlatformUserActivity" }
       required: [user, roleCatalog, activity]
+    PlatformUserMembershipList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformUserMembership" }
+      required: [items]
+    PlatformUserMembership:
+      type: object
+      properties:
+        membershipId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        organizationName: { type: string }
+        organizationKind: { type: string, enum: [company, station, provider] }
+        organizationCode: { type: string }
+        role: { type: string, enum: [organization_owner, manager, finance, worker, viewer] }
+        scope: { type: string, enum: [organization, branches] }
+        active: { type: boolean }
+        branches:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformUserMembershipBranch" }
+      required: [membershipId, organizationId, organizationName, organizationKind, organizationCode, role, scope, active, branches]
+    PlatformUserMembershipBranch:
+      type: object
+      properties:
+        branchId: { type: string, format: uuid }
+        branchName: { type: string }
+        branchCode: { type: string }
+      required: [branchId, branchName, branchCode]
     PlatformUserRolesResult:
       type: object
       properties:

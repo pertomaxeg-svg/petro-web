@@ -691,13 +691,19 @@ export function AdminSubscriptionsPage() {
   const createRequest = useCreateAdminSubscriptionRequest();
   const reviewRequest = useReviewAdminSubscriptionRequest();
   const cancelSubscription = useCancelAdminSubscription();
-  const [tab, setTab] = useState<"requests" | "subscriptions">("requests");
+  const readOrganizationFilter = () => {
+    if (typeof window === "undefined") return "";
+    const value = new URLSearchParams(window.location.search).get("organizationId") ?? "";
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : "";
+  };
+  const [organizationFilter, setOrganizationFilter] = useState(readOrganizationFilter);
+  const [tab, setTab] = useState<"requests" | "subscriptions">(() => organizationFilter ? "subscriptions" : "requests");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sort, setSort] = useState(false);
   const [page, setPage] = useState(1);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [selectedOrgId, setSelectedOrgId] = useState(() => organizationFilter);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [requestType, setRequestType] = useState<RequestKind>("new");
   const [selectedBranchId, setSelectedBranchId] = useState("");
@@ -725,12 +731,14 @@ export function AdminSubscriptionsPage() {
     const rows = sourceRows.filter(row => {
       const snapshotName = "planSnapshot" in row ? snapshotValue(row.planSnapshot, "planName") : "";
       const name = `${row.organizationName} ${row.branchName ?? ""} ${row.id} ${row.planId} ${String(snapshotName ?? "")}`.toLocaleLowerCase();
-      return (statusFilter === "all" || row.status === statusFilter) && (!needle || name.includes(needle));
+      return (!organizationFilter || row.organizationId === organizationFilter)
+        && (statusFilter === "all" || row.status === statusFilter)
+        && (!needle || name.includes(needle));
     });
     return [...rows].sort((a, b) => sort
       ? a.createdAt.localeCompare(b.createdAt)
       : b.createdAt.localeCompare(a.createdAt));
-  }, [sourceRows, search, statusFilter, sort, tab]);
+  }, [sourceRows, search, statusFilter, sort, tab, organizationFilter]);
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
   const activeOrgBranches = (queryBranches.data?.items ?? []).filter(branch =>
     branch.status === "active" && branch.approval_status === "approved" && branch.operational_status === "active",
@@ -841,6 +849,16 @@ export function AdminSubscriptionsPage() {
       <div className="ab-tabs" role="tablist" aria-label="سجلات الاشتراك">
         <button role="tab" aria-selected={tab === "requests"} className={tab === "requests" ? "selected" : ""} onClick={() => { setTab("requests"); setPage(1); setStatusFilter("all"); }}>الطلبات <span>{requests.length.toLocaleString("ar-EG")}</span></button>
         <button role="tab" aria-selected={tab === "subscriptions"} className={tab === "subscriptions" ? "selected" : ""} onClick={() => { setTab("subscriptions"); setPage(1); setStatusFilter("all"); }}>السجلات المحفوظة <span>{subscriptions.length.toLocaleString("ar-EG")}</span></button>
+      </div>
+      <div className="ab-organization-filter">
+        <label className="ab-field">تصفية حسب الجهة
+          <select value={organizationFilter} onChange={event => { setOrganizationFilter(event.target.value); setPage(1); }}>
+            <option value="">كل الجهات</option>
+            {organizationFilter && !(organizations.data?.items ?? []).some(org => org.id === organizationFilter) && <option value={organizationFilter}>الجهة المحددة من ملفها</option>}
+            {(organizations.data?.items ?? []).map(org => <option key={org.id} value={org.id}>{org.name} · {audienceLabel[org.kind as Audience] ?? org.kind}</option>)}
+          </select>
+        </label>
+        {organizationFilter && <button type="button" className="ac-button ac-button-quiet" onClick={() => { setOrganizationFilter(""); setPage(1); }}>مسح تصفية الجهة</button>}
       </div>
       <SearchFilter search={search} onSearch={value => { setSearch(value); setPage(1); }} filter={statusFilter}
         onFilter={value => { setStatusFilter(value); setPage(1); }}

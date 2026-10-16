@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Building2, ChevronLeft, CircleAlert, CircleCheck, MapPin, Plus, RefreshCw, Search, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Building2, ChevronLeft, CircleAlert, CircleCheck, MapPin, Plus, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Truck, Users, Wallet, X } from "lucide-react";
 import {
   useGetAuthMe, useListOrganizations, useCreateOrganization, useGetOrganization, useUpdateOrganization,
   useApproveOrganization, useUpdateOrganizationStatus, useListBranchesPaginated, useCreateBranch,
@@ -10,8 +10,10 @@ import {
   getListOrganizationsQueryKey, getGetOrganizationQueryKey, getListBranchesPaginatedQueryKey, getListBranchesQueryKey,
   getGetAuthMeQueryKey,
 } from "@workspace/api-client-react";
-import type { Organization, Branch, ListOrganizationsParams, ListBranchesPaginatedParams, CreateOrganizationRequest, UpdateOrganizationRequest, CreateBranchRequest, UpdateBranchRequest } from "@workspace/api-client-react";
+import type { Organization, Branch, PlatformRole, ListOrganizationsParams, ListBranchesPaginatedParams, CreateOrganizationRequest, UpdateOrganizationRequest, CreateBranchRequest, UpdateBranchRequest } from "@workspace/api-client-react";
 import { OrganizationRecords } from "./OrganizationWorkflow";
+import { AdminShell } from "./AdminCentral";
+import "./CentralOrganizationsAdmin.css";
 
 const kindLabels: Record<string,string> = { company: "شركة", station: "محطة وقود", provider: "مقدّم خدمة" };
 const weekdays = [["sun","الأحد"],["mon","الاثنين"],["tue","الثلاثاء"],["wed","الأربعاء"],["thu","الخميس"],["fri","الجمعة"],["sat","السبت"]] as const;
@@ -47,15 +49,21 @@ export default function CentralOrganizations() {
   if (me.isLoading) return <main className="co-loading" dir="rtl"><div className="co-loader"><span/><span/><span/></div><p>جارٍ التحقق من صلاحية الوصول</p></main>;
   if (me.isError || !me.data) return <main className="co-guard" dir="rtl"><header><img src="/petro-max-lockup.png" alt="Petro Max EG"/></header><section><ShieldCheck/><h1>يلزم تسجيل الدخول</h1><p>سجّل الدخول بحساب مخوّل للوصول إلى إدارة الجهات والفروع.</p><Link className="co-button" href="/sign-in">تسجيل الدخول <ArrowRight size={16}/></Link></section></main>;
   if (!permitted) return <main className="co-guard" dir="rtl"><header><img src="/petro-max-lockup.png" alt="Petro Max EG"/></header><section><ShieldCheck/><h1>هذه المساحة غير متاحة</h1><p>لا يملك الحساب الحالي صلاحية الوصول إلى هذا المسار.</p><Link className="co-button" href="/workspace">العودة إلى مساحة العمل <ArrowRight size={16}/></Link></section></main>;
-  return <div className="central-admin" dir="rtl">
-     <header className="co-topbar"><Link href={adminMode?"/admin":"/workspace"} aria-label="Pertomax EG"><img src="/petro-max-lockup.png" alt="Pertomax EG"/></Link><div className="co-topbar-label"><span>{adminMode?"الإدارة المركزية":"مساحة العمل"}</span><b>الجهات والفروع</b></div><div className="co-user"><span className="co-user-mark"><ShieldCheck size={16}/></span><span>{me.data.displayName}<small>{adminMode?"وصول مركزي":"عضوية الجهة"}</small></span>{adminMode&&<Link className="co-review-link" href="/admin/organization-requests">صندوق المراجعة</Link>}<button onClick={()=>setLocation(adminMode?"/workspace":"/workspace")} aria-label="العودة إلى مساحة العمل">مساحة العمل</button></div></header>
-     {adminMode&&<nav className="ac-nav co-admin-nav" aria-label="التنقل المركزي"><Link href="/admin">نظرة عامة</Link><Link href="/admin/organizations" className="selected">الجهات والفروع</Link><Link href="/admin/organization-requests">مراجعة الطلبات</Link><Link href="/admin/platform-users">مستخدمو المنصة</Link><span className="ac-nav-boundary">نطاق المنصة فقط</span></nav>}
-    <div className="co-frame">
-      <div className="co-crumb"><span>الإدارة</span><ChevronLeft size={14}/><span>الجهات</span>{id&&<><ChevronLeft size={14}/><span>تفاصيل الجهة</span></>}</div>
-      {id ? <OrganizationDetail id={id} adminMode={adminMode} userId={me.data.id} accessContext={me.data.accessContext}/> : <OrganizationList/>}
-      <footer className="co-footer"><span>Pertomax EG</span><span>البيانات والصلاحيات تخضع للتحقق من الخادم</span></footer>
-    </div>
-  </div>;
+   const organizationContent = <div className="co-frame">
+     {!adminMode&&<div className="co-crumb"><span>مساحة العمل</span><ChevronLeft size={14}/><span>الجهات</span>{id&&<><ChevronLeft size={14}/><span>تفاصيل الجهة</span></>}</div>}
+     {id ? <OrganizationDetail id={id} adminMode={adminMode} userId={me.data.id} accessContext={me.data.accessContext}/> : <OrganizationList/>}
+     {!adminMode&&<footer className="co-footer"><span>Pertomax EG</span><span>البيانات والصلاحيات تخضع للتحقق من الخادم</span></footer>}
+   </div>;
+   if (adminMode) {
+     const access = me.data.accessContext as {platform_roles?:unknown;platformRoles?:unknown};
+     const source = access?.platform_roles ?? access?.platformRoles;
+     const roles = Array.isArray(source) ? source.filter((role): role is PlatformRole => ["owner","operations","finance","support","auditor"].includes(String(role))) : [];
+     return <AdminShell name={me.data.displayName} userRoles={roles}>{organizationContent}</AdminShell>;
+   }
+   return <div className="central-admin" dir="rtl">
+     <header className="co-topbar"><Link href="/workspace" aria-label="Pertomax EG"><img src="/petro-max-lockup.png" alt="Pertomax EG"/></Link><div className="co-topbar-label"><span>مساحة العمل</span><b>الجهات والفروع</b></div><div className="co-user"><span className="co-user-mark"><ShieldCheck size={16}/></span><span>{me.data.displayName}<small>عضوية الجهة</small></span><button onClick={()=>setLocation("/workspace")} aria-label="العودة إلى مساحة العمل">مساحة العمل</button></div></header>
+     {organizationContent}
+   </div>;
 }
 
 function OrganizationList() {
@@ -81,7 +89,7 @@ function OrganizationList() {
     catch(x){setError(apiError(x));}
   }
   const pageData=query.data;
-  return <main className="co-content">
+  return <section className="co-content">
     <section className="co-page-heading"><div><span className="co-eyebrow">سجل المنصة <i/></span><h1>الجهات</h1><p>إدارة الجهات المسجّلة ومراجعة اعتمادها وحالتها التشغيلية.</p></div><div className="co-heading-count"><small>إجمالي النتائج</small><b>{pageData?.total ?? "—"}</b><span>جهة</span></div></section>
     <div className="co-list-actions"><div className="co-search"><Search size={18}/><input value={search} onChange={e=>{setPage(1);setSearch(e.target.value)}} placeholder="ابحث بالاسم أو الكود" aria-label="ابحث بالاسم أو الكود"/></div><button className="co-button" onClick={()=>{setForm(!form);setError("");setNotice("")}}><Plus size={17}/>{form?"إغلاق النموذج":"إضافة جهة"}</button></div>
     {form&&<form className="co-form-card" onSubmit={submit}><div className="co-form-heading"><div><span className="co-eyebrow">تسجيل جهة</span><h2>بيانات الجهة الجديدة</h2></div><button type="button" className="co-icon-button" aria-label="إغلاق" onClick={()=>setForm(false)}><X size={18}/></button></div><div className="co-fields">
@@ -107,13 +115,14 @@ function OrganizationList() {
       <div className="co-pagination"><span>عرض {pageData?.items.length} من {pageData?.total} جهة</span><div><button disabled={page<=1} onClick={()=>setPage(page-1)}>السابق</button><b>{pageData?.page} / {Math.max(1,pageData?.totalPages??1)}</b><button disabled={page>=(pageData?.totalPages??1)} onClick={()=>setPage(page+1)}>التالي</button></div></div>
     </>}
     </section>
-  </main>;
+  </section>;
 }
 
 function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;adminMode:boolean;userId:string;accessContext:unknown}) {
   const cache=useQueryClient();
+  const [,setLocation]=useLocation();
   const orgQ=useGetOrganization(id,{query:{queryKey:getGetOrganizationQueryKey(id),refetchOnMount:"always"}});
-  const membershipQ=useListMemberships(id,{query:{queryKey:getListMembershipsQueryKey(id),enabled:!adminMode,refetchOnMount:"always",retry:false}});
+  const membershipQ=useListMemberships(id,{query:{queryKey:getListMembershipsQueryKey(id),enabled:true,refetchOnMount:"always",retry:false}});
   const canManage=adminMode||(membershipQ.data?.items??[]).some(member=>member.user_id===userId&&member.active&&member.scope==="organization"&&["organization_owner","manager"].includes(member.role));
   const managedBranchIds=[...new Set((membershipQ.data?.items??[]).filter(member=>member.user_id===userId&&member.active&&member.scope==="branches"&&["organization_owner","manager"].includes(member.role)).flatMap(member=>member.branchIds??[]))];
   const context=accessContext as {platform_roles?:unknown;platformRoles?:unknown}|undefined;
@@ -122,7 +131,16 @@ function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;admin
   const [search,setSearch]=useState("");const [approval,setApproval]=useState("");const [operation,setOperation]=useState("");const [sortBy,setSortBy]=useState<NonNullable<ListBranchesPaginatedParams["sortBy"]>>("createdAt");const [sortDirection,setSortDirection]=useState<NonNullable<ListBranchesPaginatedParams["sortDirection"]>>("desc");const [page,setPage]=useState(1);
   const params=useMemo<ListBranchesPaginatedParams>(()=>({organizationId:id,page,pageSize:10,...(search.trim()?{search:search.trim()}:{}),...(approval?{approvalStatus:approval as ListBranchesPaginatedParams["approvalStatus"]}:{}),...(operation?{operationalStatus:operation as ListBranchesPaginatedParams["operationalStatus"]}:{}),sortBy,sortDirection}),[id,page,search,approval,operation,sortBy,sortDirection]);
   const branchesQ=useListBranchesPaginated(params,{query:{queryKey:getListBranchesPaginatedQueryKey(params),refetchOnMount:"always"}});
+  const scopeBranchParams=useMemo<ListBranchesPaginatedParams>(()=>({organizationId:id,page:1,pageSize:100,sortBy:"name",sortDirection:"asc"}),[id]);
+  const needsBranchNames=(membershipQ.data?.items??[]).some(member=>member.scope==="branches"&&(member.branchIds??[]).length>0);
+  const scopeBranchesQ=useListBranchesPaginated(scopeBranchParams,{query:{queryKey:getListBranchesPaginatedQueryKey(scopeBranchParams),enabled:adminMode&&needsBranchNames,retry:false}});
+  const branchNameById=new Map((scopeBranchesQ.data?.items??branchesQ.data?.items??[]).map(branch=>[branch.id,branch.name]));
+  const searchParams=new URLSearchParams(typeof window==="undefined"?"":window.location.search);
+  const fleetReturnPath=`/admin/fleet/companies/${encodeURIComponent(id)}`;
+  const returnToFleet=adminMode&&searchParams.get("returnTo")===fleetReturnPath;
+  const createBranchRequested=adminMode&&searchParams.get("createBranch")==="1";
   const [editOrg,setEditOrg]=useState(false);const [branchForm,setBranchForm]=useState(false);const [editingBranch,setEditingBranch]=useState<Branch|null>(null);const [action,setAction]=useState<{target:"org"|"branch";id:string;type:"approve"|"active"|"suspended"}|null>(null);const [error,setError]=useState("");const [notice,setNotice]=useState("");
+  useEffect(()=>{if(createBranchRequested){setBranchForm(true);setEditingBranch(null);}},[createBranchRequested,id]);
   useEffect(()=>{if(!branchForm)return;const fieldset=document.querySelector(".co-hours");if(!fieldset)return;const updateRequired=(event:Event)=>{const input=event.target as HTMLInputElement;if(input.type!=="checkbox"||!input.name.endsWith("_closed"))return;input.closest("div")?.querySelectorAll<HTMLInputElement>('input[type="time"]').forEach(time=>{time.required=!input.checked;});};fieldset.addEventListener("change",updateRequired);return()=>fieldset.removeEventListener("change",updateRequired);},[branchForm]);
   const edit=useUpdateOrganization();const approve=useApproveOrganization();const orgStatus=useUpdateOrganizationStatus();const createBranch=useCreateBranch();const updateBranch=useUpdateBranch();const approveBranch=useApproveBranch();const branchStatus=useUpdateBranchStatus();
   const org=orgQ.data as Organization|undefined;const branches=branchesQ.data;
@@ -130,22 +148,29 @@ function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;admin
   async function saveOrg(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!org||!canManage)return;setError("");const d=new FormData(e.currentTarget);const reason=String(d.get("reason")).trim();if(reason.length<5||reason.length>500){setError("سبب التعديل مطلوب، من 5 إلى 500 حرف.");return;}try{await edit.mutateAsync({organizationId:id,data:{expectedVersion:org.version,name:String(d.get("name")).trim(),kind:String(d.get("kind")) as UpdateOrganizationRequest["kind"],code:String(d.get("code")).trim(),legalName:String(d.get("legalName")).trim()||null,contactName:String(d.get("contactName")).trim()||null,contactPhone:String(d.get("contactPhone")).trim()||null,contactEmail:String(d.get("contactEmail")).trim()||null,address:String(d.get("address")).trim(),reason}});await invalidateAll();setEditOrg(false);setNotice("تم حفظ بيانات الجهة.");}catch(x){setError(apiError(x));}}
   async function saveBranch(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!org||!canManage)return;setError("");const d=new FormData(e.currentTarget);const reason=String(d.get("reason")).trim();if(editingBranch&&(reason.length<5||reason.length>500)){setError("سبب تعديل الفرع مطلوب، من 5 إلى 500 حرف.");return;}for(const [key,label] of weekdays){if(d.get(`${key}_closed`)!=="on"&&(!d.get(`${key}_open`)||!d.get(`${key}_close`))){setError(`أدخل ساعات العمل ليوم ${label} أو حدّد أنه مغلق.`);return;}}const hours=Object.fromEntries(weekdays.map(([key])=>{const closed=d.get(`${key}_closed`)==="on";return [key,closed?{closed:true}:{closed:false,open:String(d.get(`${key}_open`)),close:String(d.get(`${key}_close`))}]})) as CreateBranchRequest["hours"];
     const common={code:String(d.get("code")).trim(),name:String(d.get("name")).trim(),address:String(d.get("address")).trim(),governorate:String(d.get("governorate")).trim()||null,latitude:String(d.get("latitude")).trim()?Number(d.get("latitude")):null,longitude:String(d.get("longitude")).trim()?Number(d.get("longitude")):null,hours,contactName:String(d.get("contactName")).trim()||null,contactPhone:String(d.get("contactPhone")).trim()||null};
-     try {if(editingBranch){const payload:UpdateBranchRequest={expectedVersion:editingBranch.version,organizationId:id,...common,reason};await updateBranch.mutateAsync({branchId:editingBranch.id,data:payload});}else{await createBranch.mutateAsync({organizationId:id,data:common as CreateBranchRequest});}await invalidateAll();setBranchForm(false);setEditingBranch(null);setNotice(editingBranch?"تم تحديث بيانات الفرع.":"تمت إضافة الفرع.");}catch(x){setError(apiError(x));}}
+     try {if(editingBranch){const payload:UpdateBranchRequest={expectedVersion:editingBranch.version,organizationId:id,...common,reason};await updateBranch.mutateAsync({branchId:editingBranch.id,data:payload});}else{await createBranch.mutateAsync({organizationId:id,data:common as CreateBranchRequest});}await invalidateAll();setBranchForm(false);setEditingBranch(null);setNotice(editingBranch?"تم تحديث بيانات الفرع.":"تمت إضافة الفرع.");if(!editingBranch&&returnToFleet)setLocation(fleetReturnPath);}catch(x){setError(apiError(x));}}
   async function runAction(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!adminMode||!action||!org)return;setError("");const d=new FormData(e.currentTarget);const reason=String(d.get("reason")).trim();if(reason.length<5){setError("اكتب سببًا لا يقل عن خمسة أحرف.");return;}try{
       if(action.target==="org"&&action.type==="approve") await approve.mutateAsync({organizationId:id,data:{expectedVersion:org.version,reason}});
       else if(action.target==="org") await orgStatus.mutateAsync({organizationId:id,data:{expectedVersion:org.version,operationalStatus:action.type as "active"|"suspended",reason}});
       else {const branch=(branches?.items??[]).find(b=>b.id===action.id);if(!branch)throw new Error("تعذر العثور على الفرع؛ أعد تحميل البيانات.");if(action.type==="approve")await approveBranch.mutateAsync({branchId:branch.id,data:{organizationId:id,expectedVersion:branch.version,reason}});else await branchStatus.mutateAsync({branchId:branch.id,data:{organizationId:id,expectedVersion:branch.version,operationalStatus:action.type,reason}});}
       await invalidateAll();setAction(null);setNotice("تم تسجيل الإجراء بنجاح.");
     }catch(x){setError(apiError(x));}}
-  if(orgQ.isLoading)return <main className="co-content"><LoadingRows/></main>;
-  if(orgQ.isError||!org)return <main className="co-content"><div className="co-state"><CircleAlert/><h2>تعذر تحميل بيانات الجهة</h2><p>{orgQ.isError?apiError(orgQ.error):"الجهة غير متاحة."}</p><button className="co-button co-secondary" onClick={()=>void orgQ.refetch()}><RefreshCw size={16}/> إعادة تحميل</button></div></main>;
-  return <main className="co-content">
+  if(orgQ.isLoading)return <section className="co-content"><LoadingRows/></section>;
+  if(orgQ.isError||!org)return <section className="co-content"><div className="co-state"><CircleAlert/><h2>تعذر تحميل بيانات الجهة</h2><p>{orgQ.isError?apiError(orgQ.error):"الجهة غير متاحة."}</p><button className="co-button co-secondary" onClick={()=>void orgQ.refetch()}><RefreshCw size={16}/> إعادة تحميل</button></div></section>;
+  return <section className="co-content">
     <Link className="co-back" href={adminMode?"/admin/organizations":"/workspace"}><ArrowRight size={16}/> {adminMode?"العودة إلى الجهات":"العودة إلى مساحة العمل"}</Link>
     {!adminMode&&membershipQ.isLoading&&<div className="co-membership-check">جارٍ التحقق من نطاق عضويتك…</div>}
     {!adminMode&&membershipQ.isError&&<div className="co-state"><CircleAlert/><h2>تعذر التحقق من العضوية</h2><p>{apiError(membershipQ.error)}</p><button className="co-button co-secondary" onClick={()=>void membershipQ.refetch()}><RefreshCw size={16}/> إعادة المحاولة</button></div>}
     {!adminMode&&!membershipQ.isLoading&&!membershipQ.isError&&!canManage&&<div className="co-readonly-note"><ShieldCheck size={16}/> عرض فقط بحسب صلاحيات العضوية. لا يمكن تعديل بيانات الجهة أو فروعها.</div>}
     <section className="co-detail-hero"><div className="co-detail-symbol"><Building2 size={27}/></div><div className="co-detail-title"><span className="co-eyebrow">{kindLabels[org.kind]} <i/> مصر · الجنيه المصري</span><h1>{org.name}</h1><div className="co-code"><span>كود الجهة</span><b dir="ltr">{org.code||"غير مسجل"}</b></div></div><div className="co-detail-status"><Pill value={org.approval_status} kind="approval"/><Pill value={org.operational_status} kind="operation"/></div><div className="co-detail-buttons">{canManage&&<button className="co-button co-secondary" onClick={()=>{setEditOrg(!editOrg);setError("")}}>تعديل البيانات</button>}{adminMode&&org.approval_status==="pending"&&<button className="co-button" onClick={()=>{setAction({target:"org",id,type:"approve"});setError("")}}>اعتماد الجهة</button>}{adminMode&&org.approval_status==="approved"&&org.operational_status!=="suspended"&&<button className="co-button co-danger" onClick={()=>{setAction({target:"org",id,type:"suspended"});setError("")}}>إيقاف التشغيل</button>}{adminMode&&org.approval_status==="approved"&&org.operational_status!=="active"&&<button className="co-button" onClick={()=>{setAction({target:"org",id,type:"active"});setError("")}}>إعادة التشغيل</button>}</div></section>
     {notice&&<Toast>{notice}</Toast>}{error&&<Toast error>{error}</Toast>}
+    {adminMode&&<section className="co-linked-records" aria-label="السجلات المرتبطة بالجهة">
+      {org.kind==="company"&&<Link href={`/admin/fleet/companies/${encodeURIComponent(id)}`}><Truck size={17}/><span><b>الأسطول والتغطية</b><small>المركبات والفروع المسجلة لهذه الشركة</small></span><ChevronLeft size={16}/></Link>}
+      {(org.kind==="company"||org.kind==="provider")&&<Link href={`/admin/subscriptions?organizationId=${encodeURIComponent(id)}`}><ShieldCheck size={17}/><span><b>الطلبات والاشتراكات</b><small>سجلات الجهة ونسخ شروطها المحفوظة</small></span><ChevronLeft size={16}/></Link>}
+    {org.kind==="company"&&<Link href={`/admin/finance?section=accounts&search=${encodeURIComponent(org.code??org.name)}`}><Wallet size={17}/><span><b>الحسابات المالية</b><small>دفتر التمويل باسم الجهة ورمزها</small></span><ChevronLeft size={16}/></Link>}
+      {org.kind==="station"&&<div className="co-linked-note"><ShieldCheck size={17}/><span><b>المحطة مجانية</b><small>لا توجد باقة مدفوعة أو عمولة محطة.</small></span></div>}
+      {org.kind==="provider"&&<div className="co-linked-note"><ShieldCheck size={17}/><span><b>مقدم خدمات</b><small>تُدار اشتراكاته حسب الفروع؛ لا يتضمن هذا الملف خدمة وقود.</small></span></div>}
+    </section>}
     {editOrg&&canManage&&<form className="co-form-card" onSubmit={saveOrg}><div className="co-form-heading"><div><span className="co-eyebrow">تحديث السجل</span><h2>بيانات الجهة</h2></div><button type="button" className="co-icon-button" onClick={()=>setEditOrg(false)} aria-label="إغلاق"><X size={18}/></button></div><div className="co-fields">
       <label>الاسم التجاري<input name="name" required defaultValue={org.name}/></label><label>الكود الفريد<input name="code" required pattern="[A-Za-z0-9_-]+" dir="ltr" defaultValue={org.code??""}/></label><label>النوع<select name="kind" defaultValue={org.kind}><option value="company">شركة</option><option value="station">محطة وقود</option><option value="provider">مقدّم خدمة</option></select></label><label>الاسم القانوني<input name="legalName" defaultValue={org.legal_name??""}/></label><label>مسؤول التواصل<input name="contactName" defaultValue={org.contact_name??""}/></label><label>الهاتف<input name="contactPhone" dir="ltr" defaultValue={org.contact_phone??""}/></label><label>البريد الإلكتروني<input name="contactEmail" type="email" dir="ltr" defaultValue={org.contact_email??""}/></label><label className="co-field-wide">العنوان<input name="address" required defaultValue={org.address}/></label>
     </div><label className="co-audit-reason">سبب التعديل (5–500 حرف)<textarea name="reason" required minLength={5} maxLength={500} rows={3} placeholder="اشرح سبب تحديث بيانات الجهة"/></label><p className="co-version-note">نسخة السجل الحالية: {org.version} · يتحقق الخادم من عدم وجود تعديل أحدث.</p><div className="co-form-actions"><button className="co-button" disabled={edit.isPending}>{edit.isPending?"جارٍ الحفظ…":"حفظ التعديلات"}</button><button className="co-button co-secondary" type="button" onClick={()=>setEditOrg(false)}>إلغاء</button></div></form>}
@@ -158,5 +183,10 @@ function OrganizationDetail({id,adminMode,userId,accessContext}:{id:string;admin
     </section>
     <OrganizationRecords organizationId={id} canManage={canManage} canManageBank={canManageBank} managedBranchIds={managedBranchIds}/>
     {adminMode&&action&&<div className="co-modal-backdrop" role="presentation"><section className="co-modal" role="dialog" aria-modal="true" aria-labelledby="co-action-title"><button className="co-icon-button co-modal-close" onClick={()=>setAction(null)} aria-label="إغلاق"><X size={18}/></button><span className="co-modal-mark"><ShieldCheck size={22}/></span><h2 id="co-action-title">{action.type==="approve"?"اعتماد "+(action.target==="org"?"الجهة":"الفرع"):action.type==="suspended"?"إيقاف التشغيل":"إعادة التشغيل"}</h2><p>سجّل سبب الإجراء. سيُحفظ السبب ضمن سجل التدقيق.</p><form onSubmit={runAction}><label>سبب الإجراء<textarea name="reason" required minLength={5} maxLength={500} rows={4} placeholder="اكتب سببًا واضحًا لا يقل عن خمسة أحرف" autoFocus/></label>{error&&<Toast error>{error}</Toast>}<div className="co-form-actions"><button className="co-button" disabled={approve.isPending||orgStatus.isPending||approveBranch.isPending||branchStatus.isPending}>{approve.isPending||orgStatus.isPending||approveBranch.isPending||branchStatus.isPending?"جارٍ التنفيذ…":"تأكيد الإجراء"}</button><button type="button" className="co-button co-secondary" onClick={()=>setAction(null)}>إلغاء</button></div></form></section></div>}
-  </main>;
+    {adminMode&&<section className="co-memberships" aria-labelledby="co-memberships-heading">
+      <div className="co-branches-head"><div><span className="co-eyebrow">عضويات الجهة</span><h2 id="co-memberships-heading">المستخدمون والنطاقات <small>{membershipQ.data?.items.length??"—"}</small></h2><p>الدور ونطاق الفروع مستقلان عن أدوار المنصة.</p></div></div>
+      {membershipQ.isLoading?<LoadingRows/>:membershipQ.isError?<div className="co-state"><CircleAlert/><h2>تعذر تحميل عضويات الجهة</h2><p>{apiError(membershipQ.error)}</p><button className="co-button co-secondary" onClick={()=>void membershipQ.refetch()}><RefreshCw size={16}/> إعادة المحاولة</button></div>:
+        membershipQ.data?.items.length?<div className="co-membership-list">{membershipQ.data.items.map(member=>{const assigned=member.branchIds??[];const branchNames=assigned.map(branchId=>branchNameById.get(branchId)).filter((name):name is string=>Boolean(name));return <article key={member.id}><div><b>{member.profile?.display_name??"مستخدم الجهة"}</b>{member.profile?.username&&<small dir="ltr">@{member.profile.username}</small>}</div><span>{member.role==="organization_owner"?"مالك الجهة":member.role==="manager"?"مدير":member.role==="finance"?"المالية":member.role==="worker"?"موظف":"مشاهد"}</span><span>{member.scope==="organization"?"نطاق الجهة بالكامل":`نطاق ${assigned.length.toLocaleString("ar-EG")} فرع`}</span><span>{member.scope==="organization"?"كل الفروع":branchNames.length?branchNames.join("، "):"أسماء الفروع غير متاحة في هذه الصفحة"}</span><Pill value={member.active?"active":"suspended"} kind="operation"/></article>})}</div>:<div className="co-state co-empty"><Users size={22}/><h2>لا توجد عضويات مسجلة</h2><p>لا توجد حسابات مرتبطة بهذه الجهة في السجل الحالي.</p></div>}
+    </section>}
+  </section>;
 }

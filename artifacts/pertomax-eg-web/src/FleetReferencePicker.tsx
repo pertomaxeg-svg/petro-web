@@ -100,6 +100,7 @@ export function FleetReferencePicker({
   vehicleId,
   label,
   required = false,
+  error: fieldError,
   initialLabel,
   allowAll = false,
   emptyLabel = "اختر سجلًا",
@@ -119,6 +120,7 @@ export function FleetReferencePicker({
   vehicleId?: string;
   label: string;
   required?: boolean;
+  error?: string;
   initialLabel?: string;
   allowAll?: boolean;
   emptyLabel?: string;
@@ -289,9 +291,10 @@ export function FleetReferencePicker({
       </span>)}
       {!selectedValues.length && <small>لم تُحدد خيارات بعد؛ لا تعني القائمة الفارغة السماح العام.</small>}
     </div>}
-    <label className="fleet-field">{label}
-      <input type="search" data-testid={`${controlId}-input`} value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === "Escape") setSearch(""); }} placeholder={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId ? "اختر الشركة أو المركبة أولًا" : selected ? "ابحث لاختيار سجل آخر" : emptyLabel} aria-label={label} aria-expanded={!!options.length} aria-controls={listId} autoComplete="off" disabled={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId}/>
+     <label className="fleet-field"><span className="fleet-field-label">{label}{required && <b className="fleet-required-mark">مطلوب</b>}</span>
+       <input type="search" data-testid={`${controlId}-input`} value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === "Escape") setSearch(""); }} placeholder={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId ? "اختر الشركة أو المركبة أولًا" : selected ? "ابحث لاختيار سجل آخر" : emptyLabel} aria-label={label} aria-required={required} aria-invalid={Boolean(fieldError)} aria-expanded={!!options.length} aria-controls={listId} autoComplete="off" disabled={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId}/>
     </label>
+     {fieldError && <small className="fleet-field-error" role="alert">{fieldError}</small>}
     {name && <input type="hidden" name={name} value={multiple ? selectedValues.join(",") : value}/>}
     {allowAll && !multiple && <button type="button" data-testid={`${controlId}-all`} className="fleet-reference-clear" onClick={() => { setSelected(null); onChange?.(""); }}>كل السجلات</button>}
     {loading && <small className="fleet-reference-state" role="status">جارٍ تحميل الخيارات…</small>}

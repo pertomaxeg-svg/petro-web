@@ -119,8 +119,14 @@ export function AdminFinancePage({ roles }: { roles: string[] }) {
   const canRead = finance || auditor;
   const canSubmit = finance || operations;
   const cache = useQueryClient();
-  const [section, setSection] = useState<Section>(canRead ? "overview" : "topups");
-  const [search, setSearch] = useState("");
+  const [section, setSection] = useState<Section>(() => {
+    const requested = typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("section") ?? "";
+    const sections: Section[] = ["overview", "accounts", "banks", "topups", "receipts", "subscriptions", "journal", "reconciliation"];
+    return sections.includes(requested as Section) ? requested as Section : canRead ? "overview" : "topups";
+  });
+  const [search, setSearch] = useState(() => typeof window === "undefined"
+    ? ""
+    : (new URLSearchParams(window.location.search).get("search") ?? "").slice(0, 120));
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [action, setAction] = useState<ActionKind>(null);

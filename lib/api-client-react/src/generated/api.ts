@@ -117,6 +117,7 @@ import type {
   PasswordUpdateRequest,
   PlatformUserDetail,
   PlatformUserList,
+  PlatformUserMembershipList,
   PlatformUserRolesResult,
   ProposeBankAccountRequest,
   RecordAdminFinanceReceipt,
@@ -4018,6 +4019,83 @@ export function useGetPlatformUser<TData = Awaited<ReturnType<typeof getPlatform
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPlatformUserQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPlatformUserMembershipsUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/platform-users/${userId}/memberships`
+}
+
+/**
+ * @summary Read organization memberships and branch scopes for one platform account; owner only
+ */
+export const getPlatformUserMemberships = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<PlatformUserMembershipList> => {
+
+  return customFetch<PlatformUserMembershipList>(getGetPlatformUserMembershipsUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformUserMembershipsQueryKey = (userId: string,) => {
+    return [
+    `/api/admin/platform-users/${userId}/memberships`
+    ] as const;
+    }
+
+
+export const getGetPlatformUserMembershipsQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformUserMemberships>>, TError = ErrorType<ApiErrorResponse>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformUserMemberships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformUserMembershipsQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformUserMemberships>>> = ({ signal }) => getPlatformUserMemberships(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformUserMemberships>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformUserMembershipsQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformUserMemberships>>>
+export type GetPlatformUserMembershipsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read organization memberships and branch scopes for one platform account; owner only
+ */
+
+export function useGetPlatformUserMemberships<TData = Awaited<ReturnType<typeof getPlatformUserMemberships>>, TError = ErrorType<ApiErrorResponse>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformUserMemberships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformUserMembershipsQueryOptions(userId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

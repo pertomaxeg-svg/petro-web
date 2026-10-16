@@ -1,10 +1,12 @@
 import { lazy, Suspense, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import "./AdminCentral.css";
 import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X, Truck } from "lucide-react";
 import {
   getGetAuthMeQueryKey, getGetPlatformUserQueryKey, getListAdminOrganizationRequestsQueryKey,
-  getListOrganizationsQueryKey, getListPlatformUsersQueryKey, useGetAuthMe, useGetPlatformUser,
+  getGetPlatformUserMembershipsQueryKey, getListOrganizationsQueryKey, getListPlatformUsersQueryKey,
+  useGetAuthMe, useGetPlatformUser, useGetPlatformUserMemberships,
   useListAdminOrganizationRequests, useListOrganizations, useListPlatformUsers, useSetPlatformUserRoles,
   useSetUserStatus, useSignOut,
 } from "@workspace/api-client-react";
@@ -57,7 +59,7 @@ export function FleetAdminFrame() {
   </AdminGate>;
 }
 
-function AdminShell({ children, name, userRoles }: { children: ReactNode; name: string; userRoles: PlatformRole[] }) {
+export function AdminShell({ children, name, userRoles }: { children: ReactNode; name: string; userRoles: PlatformRole[] }) {
   const [route] = useRoute("/admin/platform-users/:userId");
   const [orgRoute] = useRoute("/admin/organizations/:id");
   const [path, navigate] = useLocation();
@@ -84,12 +86,32 @@ function AdminShell({ children, name, userRoles }: { children: ReactNode; name: 
   const fleetTitle = isFleet ? path.match(/\/branches\/[^/]+$/) ? "مركبات الفرع" : path.match(/\/companies\/[^/]+$/) ? "الشركة والفروع" : path.startsWith("/admin/fleet/companies/") ? "الشركة والأسطول" : fleetLabels[path] ?? "إدارة الأسطول" : "";
   const pageTitle = isFleet ? fleetTitle : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
+  const fleetLinks = [
+    ["/admin/fleet", "الشركات والأسطول"],
+    ["/admin/fleet/vehicles", "المركبات"],
+    ["/admin/fleet/drivers", "السائقون"],
+    ["/admin/fleet/policies", "سياسات الأسطول"],
+    ["/admin/fleet/coverage", "تغطية المركبات"],
+    ["/admin/fleet/credentials", "رموز تعريف المركبات"],
+    ["/admin/fleet/documents", "مستندات المركبات"],
+    ["/admin/fleet/odometer", "قراءات العداد"],
+    ["/admin/fleet/maintenance", "سجلات الصيانة"],
+    ["/admin/fleet/imports", "استيراد بيانات الأسطول"],
+  ];
   const nav = <nav className="ac-nav" aria-label="التنقل المركزي">
     {isOwner && <>
       <span className="ac-nav-group">مركز الإدارة</span>
       <Link href="/admin" onClick={()=>setDrawerOpen(false)} className={active === "overview" ? "selected" : ""}><span className="ac-nav-icon"><FileSearch size={17}/></span><span className="ac-nav-label">نظرة عامة</span></Link>
+    </>}
+    {(isOwner || userRoles.includes("operations")) && <>
+      {!isOwner && <span className="ac-nav-group">مركز الإدارة</span>}
       <Link href="/admin/organizations" onClick={()=>setDrawerOpen(false)} className={active === "organizations" ? "selected" : ""}><span className="ac-nav-icon"><Building2 size={17}/></span><span className="ac-nav-label">الجهات والفروع</span></Link>
+    </>}
+    {(isOwner || userRoles.some(role => role === "operations" || role === "finance")) && <>
+      {!isOwner && <span className="ac-nav-group ac-nav-group-spaced">مراجعة السجلات</span>}
       <Link href="/admin/organization-requests" onClick={()=>setDrawerOpen(false)} className={active === "requests" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">طلبات الجهات</span></Link>
+    </>}
+    {isOwner && <>
       <Link href="/admin/platform-users" onClick={()=>setDrawerOpen(false)} className={active === "users" ? "selected" : ""}><span className="ac-nav-icon"><Users size={17}/></span><span className="ac-nav-label">مستخدمو المنصة</span></Link>
       <span className="ac-nav-group ac-nav-group-spaced">التسعير والاشتراكات</span>
       <Link href="/admin/plans" onClick={()=>setDrawerOpen(false)} className={active === "plans" ? "selected" : ""}><span className="ac-nav-icon"><CreditCard size={17}/></span><span className="ac-nav-label">الباقات والأسعار</span></Link>
@@ -102,6 +124,7 @@ function AdminShell({ children, name, userRoles }: { children: ReactNode; name: 
     {(isOwner || userRoles.includes("operations") || userRoles.includes("auditor")) && <>
       <span className="ac-nav-group ac-nav-group-spaced">إدارة الأسطول</span>
       <Link href="/admin/fleet" onClick={()=>setDrawerOpen(false)} className={active === "fleet" ? "selected" : ""}><span className="ac-nav-icon"><Truck size={17}/></span><span className="ac-nav-label">مركز الأسطول</span></Link>
+      <div className="ac-fleet-subnav" aria-label="أقسام الأسطول">{fleetLinks.slice(1).map(([href, label]) => <Link key={href} href={href} onClick={()=>setDrawerOpen(false)} className={path === href ? "selected" : ""} aria-current={path === href ? "page" : undefined}>{label}</Link>)}</div>
     </>}
     <div className="ac-nav-bottom"><ShieldCheck size={15}/><span>قرارات موثقة<br/><small>نطاق المنصة فقط</small></span></div>
   </nav>;
@@ -205,6 +228,7 @@ export function PlatformUserProfile() {
 }
 function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: string }) {
   const query = useGetPlatformUser(userId, { query: { queryKey: getGetPlatformUserQueryKey(userId), enabled: !!userId, retry: false, refetchOnMount: "always" } });
+  const membershipsQuery = useGetPlatformUserMemberships(userId, { query: { queryKey: getGetPlatformUserMembershipsQueryKey(userId), enabled: !!userId, retry: false, refetchOnMount: "always" } });
   const cache = useQueryClient();
   const [editRoles, setEditRoles] = useState(false);
   const [draftRoles, setDraftRoles] = useState<PlatformRole[]>([]);
@@ -216,6 +240,7 @@ function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: str
   const statusMutation = useSetUserStatus();
   const detail = query.data;
   const isSelf = userId === actorUserId;
+  const membershipRoleLabel: Record<string, string> = { organization_owner: "مالك الجهة", manager: "مدير", finance: "المالية", worker: "موظف", viewer: "مشاهد" };
   async function refresh() {
     await Promise.all([
       cache.invalidateQueries({ queryKey: getGetPlatformUserQueryKey(userId) }),
@@ -251,15 +276,51 @@ function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: str
       <div className="ac-heading-row ac-profile-heading"><div><span className="ac-eyebrow">ملف حساب / صلاحيات المنصة</span><h1>حساب المنصة</h1><p>قرارات الدور والحالة تُسجّل في سجل تدقيق خاص بهذا الحساب.</p></div><span className="ac-audit-seal"><ShieldCheck size={17}/> مساحة حساسة</span></div>
       <section className="ac-profile-card">
         <div className="ac-profile-identity"><span className="ac-profile-avatar">{detail.user.displayName.trim().slice(0,1) || "م"}</span><div><h2>{detail.user.displayName}</h2><span className="ac-username" dir="ltr">@{detail.user.username}</span></div><span className={`ac-status ac-status-${detail.user.accountStatus}`}><i/>{statusLabel[detail.user.accountStatus]}</span></div>
-        <div className="ac-account-facts"><div><small>معرّف الحساب</small><b dir="ltr">{detail.user.userId}</b></div><div><small>تاريخ الإنشاء</small><b>{dateText(detail.user.createdAt)}</b></div><div><small>الحساب مُفعّل</small><b>{detail.user.active ? "نعم" : "لا"}</b></div></div>
+        <div className="ac-account-facts"><div><small>اسم المستخدم</small><b dir="ltr">{detail.user.username ? `@${detail.user.username}` : "غير محدد"}</b></div><div><small>تاريخ الإنشاء</small><b>{dateText(detail.user.createdAt)}</b></div><div><small>الدخول إلى الحساب</small><b>{detail.user.active ? "مفعّل" : "غير مفعّل"}</b></div></div>
       </section>
       <section className="ac-profile-grid">
         <article className="ac-panel ac-roles-panel"><div className="ac-panel-head"><div><span className="ac-eyebrow">نطاق: المنصة</span><h2>الأدوار النشطة</h2></div>{!editRoles&&!statusIntent&&<button className="ac-button ac-button-quiet" disabled={isSelf} title={isSelf?"لا يمكن تعديل أدوار حسابك من الجلسة نفسها":undefined} onClick={openRoleEditor}>تعديل الأدوار</button>}</div>
           {detail.user.platformRoles.length ? <div className="ac-active-roles">{detail.user.platformRoles.map(role=>{const catalog=detail.roleCatalog.find(item=>item.role===role);return <article className="ac-active-role" key={role}><div className="ac-active-role-title"><span className={`ac-role-glyph role-${role}`}><ShieldCheck size={16}/></span><div><b>{catalog?.label ?? roleFallback[role]}</b><small>دور على مستوى المنصة</small></div></div><ul>{catalog?.permissions.map(permission=><li key={permission.code}><Check size={13}/>{permission.label}</li>) ?? <li>لا توجد أوصاف قدرات متاحة.</li>}</ul></article>})}</div> : <div className="ac-no-active-roles"><span><ShieldCheck size={18}/></span><b>لا توجد أدوار منصة نشطة</b><small>لا يعني ذلك وجود عضوية جهة.</small></div>}
-          {editRoles && <form className="ac-action-form" onSubmit={saveRoles}><div className="ac-action-title"><div><b>تحديث أدوار المنصة</b><small>الأوصاف المعروضة مصدرها دليل الأدوار الفعلي في API.</small></div><button type="button" className="ac-icon-button" onClick={()=>setEditRoles(false)} aria-label="إلغاء"><X size={17}/></button></div><div className="ac-role-picker">{detail.roleCatalog.map(item=><label key={item.role} className={draftRoles.includes(item.role)?"checked":""}><input type="checkbox" checked={draftRoles.includes(item.role)} onChange={e=>setDraftRoles(current=>e.target.checked?[...current,item.role]:current.filter(r=>r!==item.role))}/><span><b>{item.label}</b><small>{item.permissions.map(p=>p.label).join(" · ") || "لا توجد قدرات مسجلة"}</small></span><i>{draftRoles.includes(item.role)&&<Check size={14}/>}</i></label>)}</div><ReasonField reason={reason} setReason={setReason}/>{actionError&&<InlineAlert error>{actionError}</InlineAlert>}<div className="ac-form-actions"><button className="ac-button" disabled={roleMutation.isPending||reason.trim().length<5}>{roleMutation.isPending?"جارٍ تسجيل الأدوار…":"حفظ الأدوار"}</button><button type="button" className="ac-button ac-button-quiet" onClick={()=>setEditRoles(false)}>إلغاء</button></div></form>}
+          {editRoles && <form className="ac-action-form" onSubmit={saveRoles}><div className="ac-action-title"><div><b>تحديث أدوار المنصة</b><small>راجع الصلاحيات المسجلة لكل دور قبل حفظ التغيير.</small></div><button type="button" className="ac-icon-button" onClick={()=>setEditRoles(false)} aria-label="إلغاء"><X size={17}/></button></div><div className="ac-role-picker">{detail.roleCatalog.map(item=><label key={item.role} className={draftRoles.includes(item.role)?"checked":""}><input type="checkbox" checked={draftRoles.includes(item.role)} onChange={e=>setDraftRoles(current=>e.target.checked?[...current,item.role]:current.filter(r=>r!==item.role))}/><span><b>{item.label}</b><small>{item.permissions.map(p=>p.label).join(" · ") || "لا توجد قدرات مسجلة"}</small></span><i>{draftRoles.includes(item.role)&&<Check size={14}/>}</i></label>)}</div><ReasonField reason={reason} setReason={setReason}/>{actionError&&<InlineAlert error>{actionError}</InlineAlert>}<div className="ac-form-actions"><button className="ac-button" disabled={roleMutation.isPending||reason.trim().length<5}>{roleMutation.isPending?"جارٍ تسجيل الأدوار…":"حفظ الأدوار"}</button><button type="button" className="ac-button ac-button-quiet" onClick={()=>setEditRoles(false)}>إلغاء</button></div></form>}
           {statusIntent&&<form className="ac-action-form" onSubmit={saveStatus}><div className="ac-action-title"><div><b>{statusIntent==="suspended"?"إيقاف الحساب":"تفعيل الحساب"}</b><small>سيُحفظ هذا الإجراء مع سبب واضح في سجل التدقيق.</small></div><button type="button" className="ac-icon-button" onClick={()=>setStatusIntent(null)} aria-label="إلغاء"><X size={17}/></button></div><ReasonField reason={reason} setReason={setReason}/>{actionError&&<InlineAlert error>{actionError}</InlineAlert>}<div className="ac-form-actions"><button className={statusIntent==="suspended"?"ac-button ac-button-danger":"ac-button"} disabled={statusMutation.isPending||reason.trim().length<5}>{statusMutation.isPending?"جارٍ تسجيل الحالة…":statusIntent==="suspended"?"تأكيد إيقاف الحساب":"تأكيد تفعيل الحساب"}</button><button type="button" className="ac-button ac-button-quiet" onClick={()=>setStatusIntent(null)}>إلغاء</button></div></form>}
         </article>
         <aside className="ac-panel ac-account-actions"><span className="ac-eyebrow">حالة الوصول</span><h2>إجراءات الحساب</h2><p>تغيير الحالة يؤثر في تسجيل الدخول، ولا يغيّر عضويات الجهات.</p>{isSelf ? <InlineAlert error>لا يمكن تغيير أدوار حسابك أو حالته من الجلسة نفسها.</InlineAlert> : detail.user.accountStatus==="suspended" ? <button className="ac-button" onClick={()=>{setStatusIntent("active");setReason("");setActionError("");setEditRoles(false)}}>تفعيل الحساب</button> : <button className="ac-button ac-button-danger-outline" onClick={()=>{setStatusIntent("suspended");setReason("");setActionError("");setEditRoles(false)}}>إيقاف الحساب</button>}{success&&<InlineAlert>{success}</InlineAlert>}<div className="ac-separation-note"><LockKeyhole size={15}/><span>أدوار المنصة منفصلة عن عضويات الجهات ونطاقات الفروع.</span></div></aside>
+      </section>
+      <section className="ac-panel ac-membership-panel" aria-labelledby="ac-memberships-title">
+        <div className="ac-panel-head">
+          <div><span className="ac-eyebrow">نطاق منفصل عن أدوار المنصة</span><h2 id="ac-memberships-title">عضويات الجهات والفروع</h2></div>
+          <span className="ac-audit-count">{membershipsQuery.data?.items.length.toLocaleString("ar-EG") ?? "—"} عضوية</span>
+        </div>
+        {membershipsQuery.isLoading ? <SkeletonRows/> : membershipsQuery.isError
+          ? <LoadError title="تعذر تحميل عضويات الجهات" error={membershipsQuery.error} retry={() => void membershipsQuery.refetch()}/>
+          : !membershipsQuery.data?.items.length
+            ? <div className="ac-empty"><span><Building2 size={18}/></span><b>لا توجد عضويات جهات لهذا الحساب</b><p>هذا لا يغيّر أدوار المنصة المعروضة أعلاه.</p></div>
+            : <div className="ac-membership-list">{membershipsQuery.data.items.map(membership => (
+              <article className="ac-membership-card" key={membership.membershipId}>
+                <div className="ac-membership-main">
+                  <Link className="ac-membership-org" href={`/admin/organizations/${encodeURIComponent(membership.organizationId)}`}>{membership.organizationName}</Link>
+                  <span>{kindLabel[membership.organizationKind] ?? membership.organizationKind} · <bdi dir="ltr">{membership.organizationCode}</bdi></span>
+                  <span className={`ac-status ${membership.active ? "ac-status-active" : "ac-status-suspended"}`}><i/>{membership.active ? "عضوية نشطة" : "عضوية موقوفة"}</span>
+                </div>
+                <div className="ac-membership-scope">
+                  <b>{membershipRoleLabel[membership.role] ?? "دور جهة"}</b>
+                  {membership.scope === "organization"
+                    ? <span>نطاق الجهة بالكامل</span>
+                    : <span>الفروع المحددة: {membership.branches.length
+                      ? membership.branches.map(branch => `${branch.branchName}${branch.branchCode ? ` (${branch.branchCode})` : ""}`).join("، ")
+                      : "لا توجد أسماء فروع متاحة"}</span>}
+                </div>
+                <div className="ac-membership-links">
+                  <Link href={`/admin/organizations/${encodeURIComponent(membership.organizationId)}`}>ملف الجهة</Link>
+                  {(membership.organizationKind === "company" || membership.organizationKind === "provider") &&
+                    <Link href={`/admin/subscriptions?organizationId=${encodeURIComponent(membership.organizationId)}`}>الاشتراك</Link>}
+                  {membership.organizationKind === "company" && <>
+                    <Link href={`/admin/fleet/companies/${encodeURIComponent(membership.organizationId)}`}>أسطول الشركة</Link>
+                    <Link href={`/admin/finance?section=accounts&search=${encodeURIComponent(membership.organizationCode)}`}>حسابات الشركة</Link>
+                  </>}
+                </div>
+              </article>
+            ))}</div>}
       </section>
       <section className="ac-panel ac-audit-panel"><div className="ac-panel-head"><div><span className="ac-eyebrow">أثر القرارات</span><h2>سجل التدقيق الأخير</h2></div><span className="ac-audit-count">{detail.activity.length.toLocaleString("ar-EG")} حدث</span></div>
         {!detail.activity.length ? <div className="ac-empty"><span><FileSearch size={18}/></span><b>لا توجد أحداث تدقيق بعد</b><p>ستظهر هنا التغييرات الفعلية على أدوار هذا الحساب وحالته.</p></div> : <div className="ac-audit-list">{detail.activity.map(event=><article className="ac-audit-event" key={event.activityId}><span className={`ac-event-mark ${event.action.includes("roles")?"event-role":"event-status"}`}>{event.action.includes("roles")?<ShieldCheck size={16}/>:<UserRound size={16}/>}</span><div className="ac-event-main"><div className="ac-event-head"><b>{event.action.includes("roles")?"تغيير أدوار المنصة":"تغيير حالة الحساب"}</b><time>{dateText(event.occurredAt)}</time></div><span>بواسطة {event.actorDisplayName || event.actorUsername || "النظام"}</span>{event.action.includes("roles")&&<div className="ac-role-diff"><small>قبل</small>{event.previousRoles.length?event.previousRoles.map(r=><i key={`old-${r}`}>{detail.roleCatalog.find(x=>x.role===r)?.label??roleFallback[r]}</i>):<i>بلا دور</i>}<ArrowLeft size={13}/><small>بعد</small>{event.newRoles.length?event.newRoles.map(r=><i key={`new-${r}`}>{detail.roleCatalog.find(x=>x.role===r)?.label??roleFallback[r]}</i>):<i>بلا دور</i>}</div>}{event.status&&<span className={`ac-status ac-status-${event.status}`}>{statusLabel[event.status]}</span>}{event.reason&&<p className="ac-event-reason"><b>السبب:</b> {event.reason}</p>}</div></article>)}</div>}
