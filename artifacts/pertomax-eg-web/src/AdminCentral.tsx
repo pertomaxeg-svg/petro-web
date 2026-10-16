@@ -1,8 +1,8 @@
-import { lazy, Suspense, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import "./AdminCentral.css";
-import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronDown, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X, Truck } from "lucide-react";
 import {
   getGetAuthMeQueryKey, getGetPlatformUserQueryKey, getListAdminOrganizationRequestsQueryKey,
   getGetPlatformUserMembershipsQueryKey, getListOrganizationsQueryKey, getListPlatformUsersQueryKey,
@@ -62,12 +62,17 @@ export function FleetAdminFrame() {
 export function AdminShell({ children, name, userRoles }: { children: ReactNode; name: string; userRoles: PlatformRole[] }) {
   const [route] = useRoute("/admin/platform-users/:userId");
   const [orgRoute] = useRoute("/admin/organizations/:id");
+  const [orgBranchRoute] = useRoute("/admin/organizations/:organizationId/branches/:branchId");
   const [path, navigate] = useLocation();
   const signOut = useSignOut();
   const cache = useQueryClient();
   const [signOutError, setSignOutError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [fleetExpanded, setFleetExpanded] = useState(path.startsWith("/admin/fleet"));
+  useEffect(() => {
+    setFleetExpanded(path.startsWith("/admin/fleet"));
+  }, [path]);
   async function exit() {
     setSignOutError("");
     try {
@@ -84,7 +89,7 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
   const active = path === "/admin" ? "overview" : isFleet ? "fleet" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
   const fleetLabels: Record<string, string> = { "/admin/fleet": "الشركات والأسطول", "/admin/fleet/vehicles": "المركبات", "/admin/fleet/drivers": "السائقون", "/admin/fleet/policies": "سياسات الأسطول", "/admin/fleet/coverage": "تغطية المركبات", "/admin/fleet/credentials": "رموز تعريف المركبات", "/admin/fleet/documents": "مستندات المركبات", "/admin/fleet/odometer": "قراءات العداد", "/admin/fleet/maintenance": "سجلات الصيانة", "/admin/fleet/imports": "استيراد بيانات الأسطول" };
   const fleetTitle = isFleet ? path.match(/\/branches\/[^/]+$/) ? "مركبات الفرع" : path.match(/\/companies\/[^/]+$/) ? "الشركة والفروع" : path.startsWith("/admin/fleet/companies/") ? "الشركة والأسطول" : fleetLabels[path] ?? "إدارة الأسطول" : "";
-  const pageTitle = isFleet ? fleetTitle : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const pageTitle = isFleet ? fleetTitle : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
   const fleetLinks = [
     ["/admin/fleet", "الشركات والأسطول"],
@@ -124,7 +129,10 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
     {(isOwner || userRoles.includes("operations") || userRoles.includes("auditor")) && <>
       <span className="ac-nav-group ac-nav-group-spaced">إدارة الأسطول</span>
       <Link href="/admin/fleet" onClick={()=>setDrawerOpen(false)} className={active === "fleet" ? "selected" : ""}><span className="ac-nav-icon"><Truck size={17}/></span><span className="ac-nav-label">مركز الأسطول</span></Link>
-      <div className="ac-fleet-subnav" aria-label="أقسام الأسطول">{fleetLinks.slice(1).map(([href, label]) => <Link key={href} href={href} onClick={()=>setDrawerOpen(false)} className={path === href ? "selected" : ""} aria-current={path === href ? "page" : undefined}>{label}</Link>)}</div>
+      <button type="button" className="ac-fleet-toggle" aria-expanded={fleetExpanded} onClick={()=>setFleetExpanded(value=>!value)}>
+        <span>أقسام الأسطول</span><ChevronDown size={15} aria-hidden="true"/>
+      </button>
+      {fleetExpanded&&<div className="ac-fleet-subnav" aria-label="أقسام الأسطول">{fleetLinks.slice(1).map(([href, label]) => <Link key={href} href={href} onClick={()=>setDrawerOpen(false)} className={path === href ? "selected" : ""} aria-current={path === href ? "page" : undefined}>{label}</Link>)}</div>}
     </>}
     <div className="ac-nav-bottom"><ShieldCheck size={15}/><span>قرارات موثقة<br/><small>نطاق المنصة فقط</small></span></div>
   </nav>;

@@ -85,6 +85,61 @@ router.get("/admin/billing/catalog", async (req, res): Promise<void> => {
   res.json(data);
 });
 
+router.get("/admin/billing/organization", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const rawOrganizationId = req.query["organizationId"];
+  const organizationId = typeof rawOrganizationId === "string" ? rawOrganizationId : undefined;
+  const selectedSection = req.query["section"];
+  const section = typeof selectedSection === "string"
+    ? selectedSection
+    : "subscriptions";
+  const pageValue = (key: "page" | "pageSize", fallback: number, maximum: number): number | null => {
+    const raw = req.query[key];
+    if (raw === undefined) return fallback;
+    if (typeof raw !== "string" || !/^\d+$/.test(raw)) return null;
+    const parsed = Number(raw);
+    return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= maximum ? parsed : null;
+  };
+  const page = pageValue("page", 1, 100000);
+  const pageSize = pageValue("pageSize", 10, 100);
+  if (!validId(organizationId) || page === null || pageSize === null ||
+    !["requests", "subscriptions", "priceOverrides"].includes(section)) {
+    fail(res, 400, "معرّف الجهة أو خيارات عرض الاشتراكات غير صالحة.");
+    return;
+  }
+  const session = await requireOwner(req, res);
+  if (!session) return;
+  const { data, error } = await session.supabase.rpc("petro_billing_admin_catalog_v2");
+  if (error) {
+    mapBillingError(res, error);
+    return;
+  }
+  if (!isRecord(data)) {
+    fail(res, 503, "استجابة مخطط إدارة الباقات غير متوافقة.");
+    return;
+  }
+  const pageItems = (key: "requests" | "subscriptions" | "priceOverrides") => {
+    const source = Array.isArray(data[key]) ? data[key] as unknown[] : [];
+    const scoped = source.filter((item) =>
+      isRecord(item) && item["organizationId"] === organizationId
+    );
+    const start = (page - 1) * pageSize;
+    return {
+      items: scoped.slice(start, start + pageSize),
+      total: scoped.length,
+      totalPages: Math.ceil(scoped.length / pageSize),
+      truncatedAtSource: (key === "requests" || key === "subscriptions") && source.length >= 500,
+    };
+  };
+  const selected = pageItems(section as "requests" | "subscriptions" | "priceOverrides");
+  res.json({
+    organizationId,
+    section,
+    ...selected,
+    sourceNote: "طلبات واشتراكات التاريخ الطويل تُعرض بحد الأرشيف الذي يعيده سجل الباقات الحالي.",
+  });
+});
+
 router.post("/admin/billing/plans", async (req, res): Promise<void> => {
   setNoStore(res);
   const session = await requireOwner(req, res);

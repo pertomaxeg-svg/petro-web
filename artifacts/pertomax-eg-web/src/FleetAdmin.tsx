@@ -132,7 +132,7 @@ function apiError(error: unknown) {
 }
 const labels: Record<string, string> = {
   id: "السجل", organizationName: "الشركة", organization: "الشركة", branchName: "الفرع",
-  plateOriginal: "رقم اللوحة", plateStandard: "اللوحة المعيارية", plateNormalized: "اللوحة الموحّدة", category: "الفئة", type: "النوع",
+  plateOriginal: "رقم اللوحة", plateStandard: "اللوحة المعيارية", plateStandardCorrection: "تصحيح اللوحة المعيارية", plateNormalized: "اللوحة الموحّدة", category: "الفئة", type: "النوع",
   vehicleType: "نوع المركبة", modelYear: "سنة الصنع", brand: "الصانع", model: "الطراز", year: "سنة الصنع", chassisNumber: "رقم الشاسيه", internalCode: "الكود الداخلي",
   fuelType: "الوقود", status: "الحالة", coverage: "التغطية", eligibility: "الأهلية", activeCredentials: "الرموز النشطة",
   version: "نسخة السجل", expectedVersion: "نسخة السجل الحالية", organizationId: "الشركة", branchId: "الفرع",
@@ -413,8 +413,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   };
   const selectedAction = actionOptions[view]?.includes(command) ? command : actionOptions[view]?.[0] ?? "";
   const fieldsByAction: Record<string, string[]> = {
-    "vehicle.create": ["organizationId", "branchId", "plateOriginal", "plateStandard", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType", "credentialType"],
-    "vehicle.update": ["vehicleId", "expectedVersion", "plateOriginal", "plateStandard", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType"],
+    "vehicle.create": ["organizationId", "branchId", "plateOriginal", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType", "credentialType"],
+    "vehicle.update": ["vehicleId", "expectedVersion", "plateOriginal", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType"],
     "vehicle.move": ["vehicleId", "targetBranchId", "expectedVersion"],
     "vehicle.status": ["vehicleId", "status", "expectedVersion"],
     "driver.create": ["organizationId", "driverCode", "fullName", "phone"],
@@ -544,9 +544,36 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     delete payload.initialDriverId;
     for (const [field, value] of Object.entries(formReferences)) if (value) payload[field] = value;
     if (command === "vehicle.create") delete payload.initialDriverId;
+    if (command === "vehicle.create" || command === "vehicle.update") {
+      const plateOriginal = String(payload.plateOriginal ?? "").trim();
+      const correction = String(form.get("plateStandardCorrection") ?? "").trim();
+      const correctionRequested = form.get("overridePlateStandard") === "on";
+      delete payload.overridePlateStandard;
+      delete payload.plateStandardCorrection;
+      if (correctionRequested && !correction) {
+        reportWizardError("plateStandardCorrection", "أدخل صيغة المطابقة المصححة أو أزل اختيار التصحيح.");
+        return;
+      }
+      payload.plateStandard = correctionRequested ? correction : plateOriginal.replace(/\s+/gu, "");
+    }
+    if (command === "vehicle.update") {
+      const required = ["plateOriginal", "category", "vehicleType", "brand", "model", "fuelType"];
+      const missing = required.find(field => !String(payload[field] ?? "").trim());
+      if (missing) {
+        reportWizardError(missing, `${labels[missing] ?? "هذا الحقل"} مطلوب.`);
+        return;
+      }
+    }
+    if ((command === "vehicle.create" || command === "vehicle.update") && String(payload.modelYear ?? "").trim()) {
+      const year = Number(payload.modelYear);
+      if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear()) {
+        reportWizardError("modelYear", `أدخل سنة صنع بين ١٩٠٠ و${new Date().getFullYear()}.`);
+        return;
+      }
+    }
     if (command === "vehicle.create" && formWizardStep < 3) {
       const requiredByStep: Record<number, string[]> = {
-        0: ["plateOriginal", "plateStandard", "category", "vehicleType", "brand", "model", "fuelType"],
+  0: ["plateOriginal", "category", "vehicleType", "brand", "model", "fuelType"],
         1: ["organizationId", "branchId"],
       };
       const missing = (requiredByStep[formWizardStep] ?? []).find(field => !String(payload[field] ?? "").trim());
@@ -954,6 +981,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     } catch (error) { setProblem(apiError(error)); }
   }
   const entries = records.slice(0, !["overview", "vehicle"].includes(view) ? 20 : records.length);
+  const formCompanyVehicles = formOrganizationId
+    ? records.filter(record => String(record.organizationId ?? "") === formOrganizationId)
+    : [];
   const driverRecord = isDriverDetail ? fields(driverDetail.data) : null;
   const driverLinks = Array.isArray(driverRecord?.links) ? driverRecord.links as Row[] : [];
   const vehicleRecord = fields(root.vehicle);
@@ -1065,7 +1095,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           {view === "odometer" && <p className="fleet-caution"><Fuel size={15}/> مراجعة القراءة والتصحيح لا يغيّران سجل الخدمة المنفذة.</p>}
           {view === "maintenance" && <p className="fleet-muted">سجلات الصيانة ومواعيد الاستحقاق مصدرها الخادم.</p>}
         </>}
-        {showForm && <div className="fleet-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) closeForm(); }}><section ref={dialogRef} tabIndex={-1} className="fleet-dialog" role="dialog" aria-modal="true" aria-labelledby="fleet-dialog-title"><header><div><span className="fleet-eyebrow">إجراء مسجل</span><h2 id="fleet-dialog-title">{actionLabels[command] ?? "إجراء الأسطول"}</h2></div><button data-testid="fleet-dialog-close" className="fleet-icon-button" aria-label="إغلاق" onClick={closeForm}><X size={18}/></button></header><form className="fleet-form" onSubmit={sendCommand}>
+        {showForm && <div className="fleet-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) closeForm(); }}><section ref={dialogRef} tabIndex={-1} className="fleet-dialog" role="dialog" aria-modal="true" aria-labelledby="fleet-dialog-title"><header><div><span className="fleet-eyebrow">إجراء مسجل</span><h2 id="fleet-dialog-title">{actionLabels[command] ?? "إجراء الأسطول"}</h2></div><button data-testid="fleet-dialog-close" className="fleet-icon-button" aria-label="إغلاق" onClick={closeForm}><X size={18}/></button></header><form className="fleet-form" noValidate={command === "vehicle.create" || command === "vehicle.update"} onSubmit={sendCommand}>
           {command === "vehicle.create" && <ol className="fleet-create-steps" aria-label="خطوات تسجيل المركبة">{["بيانات المركبة", "الشركة والفرع", "السائق والتعرّف", "المراجعة والحفظ"].map((step, index) => <li key={step} aria-current={formWizardStep === index ? "step" : undefined} className={formWizardStep === index ? "is-current" : index < formWizardStep ? "is-done" : ""}><b>{index + 1}</b><span>{step}</span></li>)}</ol>}
           {(command === "driver.link.end" || command === "credential.stop") && <FleetReferencePicker testId={`fleet-context-vehicle-${command.replaceAll(".", "-")}`} kind="vehicle" value={formVehicleId} organizationId={formOrganizationId || undefined} label="المركبة — لتحديد السجل المرتبط" emptyLabel="ابحث برقم اللوحة" onChange={(value, option) => { setFormVehicleId(value); if (option?.organizationId) setFormOrganizationId(option.organizationId); }}/>}
           {vehicleCreatedMessage && <div className="fleet-feedback" role="status"><p>{vehicleCreatedMessage}</p>{createdVehiclePhotoRef.current && !photoUploadPending && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.driverCreated || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved) && <button data-testid="fleet-create-continue-partial" type="button" className="fleet-button fleet-button-secondary" onClick={() => {
@@ -1087,18 +1117,23 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           const stepHidden = command === "vehicle.create" && formWizardStep < 3 && stepByField !== formWizardStep;
           const wizardRequired = command === "vehicle.create" && !stepHidden && (vehicleCreateRequiredByStep[formWizardStep] ?? []).includes(field);
           const common = { name: field, required: command === "vehicle.create" ? wizardRequired : isRequired, "aria-invalid": Boolean(wizardErrors[field]), onChange: () => clearWizardError(field), dir: /id|code|plate|phone/i.test(field) ? "ltr" as const : undefined, ...(field === "expectedVersion" ? {} : { defaultValue: String(normalizedDefault ?? "") }), "data-testid": `fleet-field-${field}` };
-          const wizardHint = field === "plateOriginal" ? "أدخل رقم اللوحة كما يظهر في مستند المركبة."
-            : field === "plateStandard" ? "صيغة للبحث ومطابقة التكرار؛ احذف المسافات فقط ولا تغيّر الأحرف أو الأرقام."
-              : field === "category" ? "اكتب التصنيف التشغيلي المعتمد للمركبة."
-                : field === "vehicleType" ? "اكتب نوع المركبة كما يرد في مستنداتها."
-                  : field === "brand" ? "اسم الصانع كما يظهر في مستند المركبة."
-                    : field === "model" ? "الطراز كما يظهر في بيانات المركبة."
-                      : field === "fuelType" ? "نوع الوقود المسجل لهذه المركبة."
+          const wizardHint = field === "plateOriginal" ? "أدخل اللوحة كما تظهر في المستند؛ تُشتق صيغة المطابقة بحذف المسافات فقط."
+            : field === "plateStandard" ? "تُستخدم للمطابقة والبحث؛ تُشتق تلقائيًا من اللوحة الأصلية."
+              : field === "category" ? "ابدأ الكتابة لعرض القيم المسجلة في هذه الشركة، أو أدخل التصنيف كما في مستند المركبة."
+                : field === "vehicleType" ? "تظهر اقتراحات من سجلات الشركة؛ أدخل نوع المركبة كما يرد في مستنداتها."
+                  : field === "brand" ? "ابحث بين أسماء الصانع المسجلة للشركة أو أدخل الاسم كما يظهر في المستند."
+                    : field === "model" ? "ابحث بين طرازات الشركة المسجلة أو أدخل الطراز كما في المستند."
+                      : field === "fuelType" ? "اختر نوع الوقود المسجل في وثائق المركبة."
                         : undefined;
+          const companyValueOptions = ["category", "vehicleType", "brand", "model"].includes(field)
+            ? [...new Set(formCompanyVehicles.map(record => String(record[field] ?? "").trim()).filter(Boolean))].slice(0, 30)
+            : [];
+          const companyValueListId = `fleet-company-values-${field}`;
           const wrap = (node: ReactNode) => <div key={field} hidden={stepHidden}>{node}</div>;
           const choices: Record<string, Array<[string, string]>> = {
             status: [["active", "نشط"], ["suspended", "موقوف"], ["inactive", "غير نشط"]],
             scope: [["branch", "نطاق فرع"], ["vehicle", "نطاق مركبة"]],
+            fuelType: [["gasoline", "بنزين"], ["petrol", "بنزين (قيمة مسجلة)"], ["diesel", "سولار"], ["natural_gas", "غاز طبيعي"]],
             credentialType: [["qr", "QR"], ["nfc", "NFC"]],
             requestType: [["issue", "إصدار"], ["replace", "استبدال"]],
             maintenanceType: [["oil", "زيت"], ["parts", "قطع غيار"], ["battery", "بطارية"], ["filters", "فلاتر"], ["tires", "إطارات"], ["other", "أخرى"]],
@@ -1140,7 +1175,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
               if (field === "requestId" && command === "tag_stock.reserve") selectedReserveRequestRef.current = { id: value, vehicleId: option?.vehicleId ?? "", label: option?.label ?? "طلب الإصدار المحدد" };
             }}/>);
           }
-          if (choices[field]?.length) return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><select {...common} value={field === "scope" ? policyScope : field === "credentialType" ? vehicleCredentialChoice : undefined} onChange={field === "scope" ? event => setPolicyScope(event.target.value) : field === "credentialType" ? event => setVehicleCredentialChoice(event.target.value) : undefined}>{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{choices[field].map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && nfcIssuePriceMinor === null}>{field === "credentialType" && value === "nfc" ? `NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : label}</option>)}</select>{field === "credentialType" && <small>سعر إصدار الشريحة منفصل عن الاشتراك؛ الطلب لا يثبت التحصيل أو التركيب أو التفعيل.</small>}</Field>);
+          if (choices[field]?.length) return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><select {...common} value={field === "scope" ? policyScope : field === "credentialType" ? vehicleCredentialChoice : undefined} onChange={field === "scope" ? event => setPolicyScope(event.target.value) : field === "credentialType" ? event => setVehicleCredentialChoice(event.target.value) : undefined}>{field === "fuelType" && <option value="">اختر الوقود كما في مستند المركبة</option>}{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{choices[field].map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && nfcIssuePriceMinor === null}>{field === "credentialType" && value === "nfc" ? `NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : label}</option>)}</select>{field === "credentialType" && <small>سعر إصدار الشريحة منفصل عن الاشتراك؛ الطلب لا يثبت التحصيل أو التركيب أو التفعيل.</small>}</Field>);
           if (field === "expectedVersion") return wrap(<Field label={labels[field]}><input {...common} type="number" min="1" value={formReferences.expectedVersion ?? String(defaultValue ?? "")} onChange={event => setFormReferences(current => ({ ...current, expectedVersion: event.target.value }))}/></Field>);
           if (field === "pinCode") return wrap(<Field label={labels[field]}><input {...common} type="password" inputMode="numeric" autoComplete="new-password" pattern="[0-9]{4}" maxLength={4}/></Field>);
           if (field === "allowedWeekdays") return wrap(<fieldset className="fleet-weekday-picker"><legend>{labels[field]}</legend><p>الأيام غير المحددة تمنع الاستخدام.</p><div>{[["1","الاثنين"],["2","الثلاثاء"],["3","الأربعاء"],["4","الخميس"],["5","الجمعة"],["6","السبت"],["7","الأحد"]].map(([day, name]) => <label key={day}><input data-testid={`fleet-weekday-${day}`} type="checkbox" checked={formWeekdays.includes(day)} onChange={event => setFormWeekdays(current => event.target.checked ? [...current, day].sort() : current.filter(item => item !== day))}/>{name}</label>)}</div></fieldset>);
@@ -1149,8 +1184,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           if (field === "startTime" || field === "endTime") return wrap(<Field label={labels[field]} required={wizardRequired} error={wizardErrors[field]}><input {...common} type="time"/></Field>);
           if (field === "notes") return wrap(<Field label={labels[field] ?? field}><textarea {...common}/></Field>);
           const numeric = ["modelYear", "expectedVersion", "maxOperationMinor", "maxOperationQuantity", "dailyAmountLimitMinor", "weeklyAmountLimitMinor", "monthlyAmountLimitMinor", "dailyQuantityLimit", "weeklyQuantityLimit", "monthlyQuantityLimit", "readingKm", "nextDueKm"].includes(field);
-          return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><input {...common} type={numeric ? "number" : dateTime ? "datetime-local" : "text"}/></Field>);
+          return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><><input {...common} list={companyValueOptions.length ? companyValueListId : undefined} min={field === "modelYear" ? "1900" : undefined} max={field === "modelYear" ? String(new Date().getFullYear()) : undefined} minLength={["plateOriginal", "category", "vehicleType", "brand", "model"].includes(field) ? 2 : undefined} maxLength={["plateOriginal", "category", "vehicleType", "brand", "model"].includes(field) ? 80 : undefined} type={numeric ? "number" : dateTime ? "datetime-local" : "text"}/>{companyValueOptions.length > 0 && <datalist id={companyValueListId}>{companyValueOptions.map(option => <option key={option} value={option}/>)}</datalist>}</></Field>);
         })}</div>
+        {command === "vehicle.update" && <details className="fleet-plate-correction"><summary>تصحيح استثنائي لصيغة المطابقة</summary><p>تُشتق الصيغة تلقائيًا من اللوحة. استخدم هذا التصحيح فقط إذا راجعت المستند، وستبقى اللوحة الأصلية محفوظة.</p><label><input type="checkbox" name="overridePlateStandard"/> أحتاج إلى تصحيح القيمة المشتقة</label><Field label="الصيغة المصححة"><input data-testid="fleet-field-plateStandardCorrection" name="plateStandardCorrection" dir="ltr" minLength={2} maxLength={80} onChange={() => clearWizardError("plateStandardCorrection")}/></Field></details>}
         {command === "vehicle.create" && <section className="fleet-create-optional" hidden={formWizardStep < 2}>
           <div className="fleet-create-option-block"><h3>السائق التشغيلي (اختياري)</h3><p>السائق سجل تشغيلي فقط؛ لا يُنشأ حساب دخول أو مستخدم Auth.</p>
             <Field label="اختيار السائق"><select data-testid="fleet-create-driver-mode" name="initialDriverMode" value={initialDriverMode} onChange={event => { const mode = event.target.value as "none" | "existing" | "new"; setInitialDriverMode(mode); if (mode !== "existing") setFormReferences(current => { const next = { ...current }; delete next.initialDriverId; return next; }); driverLinkRetryRef.current = null; }}><option value="none">بدون سائق الآن</option><option value="existing">استخدام سائق موجود</option><option value="new">إضافة سائق تشغيلي جديد</option></select></Field>

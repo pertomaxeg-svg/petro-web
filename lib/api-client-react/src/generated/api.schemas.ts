@@ -2704,6 +2704,36 @@ export const ListBranchesPaginatedSortDirection = {
   desc: 'desc',
 } as const;
 
+export type GetAdminOrganizationBranch200 = {
+  branch: Branch;
+  organizationId: string;
+  [key: string]: unknown;
+ };
+
+export type ListAdminOrganizationMembershipsParams = {
+organizationId: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminOrganizationMemberships200ItemsItem = { [key: string]: unknown };
+
+export type ListAdminOrganizationMemberships200 = {
+  items: ListAdminOrganizationMemberships200ItemsItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  [key: string]: unknown;
+ };
+
 export type ListPlatformUsersParams = {
 /**
  * @minimum 1
@@ -2803,6 +2833,19 @@ export type ListAdminFinanceAccountsParams = {
  * @maxLength 120
  */
 search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminOrganizationFinanceAccountsParams = {
+organizationId: string;
 /**
  * @minimum 1
  */
@@ -2928,5 +2971,28 @@ export const ListAdminFinanceJournalEntryType = {
   subscription_collection: 'subscription_collection',
   internal_transfer: 'internal_transfer',
   reversal: 'reversal',
+} as const;
+
+export type GetAdminOrganizationBillingParams = {
+organizationId: string;
+section?: GetAdminOrganizationBillingSection;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminOrganizationBillingSection = typeof GetAdminOrganizationBillingSection[keyof typeof GetAdminOrganizationBillingSection];
+
+
+export const GetAdminOrganizationBillingSection = {
+  requests: 'requests',
+  subscriptions: 'subscriptions',
+  priceOverrides: 'priceOverrides',
 } as const;
 

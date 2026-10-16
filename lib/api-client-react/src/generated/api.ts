@@ -89,6 +89,9 @@ import type {
   GetAdminFleetStockOptionsParams,
   GetAdminFleetStockReservationsParams,
   GetAdminFleetSubscriptionOptionsParams,
+  GetAdminOrganizationBillingParams,
+  GetAdminOrganizationBranch200,
+  GetAdminOrganizationFinanceAccountsParams,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
@@ -99,6 +102,8 @@ import type {
   ListAdminFinanceSubscriptionsParams,
   ListAdminFinanceTopupsParams,
   ListAdminFinanceTransfersParams,
+  ListAdminOrganizationMemberships200,
+  ListAdminOrganizationMembershipsParams,
   ListAdminOrganizationRequestsParams,
   ListBranchesPaginatedParams,
   ListOrganizationChangeRequestsParams,
@@ -3287,6 +3292,172 @@ export const useUpdateBranchStatus = <TError = ErrorType<ApiErrorResponse>,
       return useMutation(getUpdateBranchStatusMutationOptions(options));
     }
 
+export const getGetAdminOrganizationBranchUrl = (organizationId: string,
+    branchId: string,) => {
+
+
+
+
+  return `/api/admin/organizations/${organizationId}/branches/${branchId}`
+}
+
+/**
+ * @summary Read one branch within the exact organization scope
+ */
+export const getAdminOrganizationBranch = async (organizationId: string,
+    branchId: string, options?: Parameters<typeof customFetch>[1]): Promise<GetAdminOrganizationBranch200> => {
+
+  return customFetch<GetAdminOrganizationBranch200>(getGetAdminOrganizationBranchUrl(organizationId,branchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminOrganizationBranchQueryKey = (organizationId: string,
+    branchId: string,) => {
+    return [
+    `/api/admin/organizations/${organizationId}/branches/${branchId}`
+    ] as const;
+    }
+
+
+export const getGetAdminOrganizationBranchQueryOptions = <TData = Awaited<ReturnType<typeof getAdminOrganizationBranch>>, TError = ErrorType<ApiErrorResponse>>(organizationId: string,
+    branchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationBranch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminOrganizationBranchQueryKey(organizationId,branchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminOrganizationBranch>>> = ({ signal }) => getAdminOrganizationBranch(organizationId,branchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && branchId !== null && branchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationBranch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminOrganizationBranchQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminOrganizationBranch>>>
+export type GetAdminOrganizationBranchQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read one branch within the exact organization scope
+ */
+
+export function useGetAdminOrganizationBranch<TData = Awaited<ReturnType<typeof getAdminOrganizationBranch>>, TError = ErrorType<ApiErrorResponse>>(
+ organizationId: string,
+    branchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationBranch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminOrganizationBranchQueryOptions(organizationId,branchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminOrganizationMembershipsUrl = (params: ListAdminOrganizationMembershipsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/organizations/memberships?${stringifiedParams}` : `/api/admin/organizations/memberships`
+}
+
+/**
+ * @summary List a page of memberships and branch scopes for one exact organization
+ */
+export const listAdminOrganizationMemberships = async (params: ListAdminOrganizationMembershipsParams, options?: Parameters<typeof customFetch>[1]): Promise<ListAdminOrganizationMemberships200> => {
+
+  return customFetch<ListAdminOrganizationMemberships200>(getListAdminOrganizationMembershipsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminOrganizationMembershipsQueryKey = (params?: ListAdminOrganizationMembershipsParams,) => {
+    return [
+    `/api/admin/organizations/memberships`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminOrganizationMembershipsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminOrganizationMemberships>>, TError = ErrorType<ApiErrorResponse>>(params: ListAdminOrganizationMembershipsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminOrganizationMemberships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminOrganizationMembershipsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminOrganizationMemberships>>> = ({ signal }) => listAdminOrganizationMemberships(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminOrganizationMemberships>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminOrganizationMembershipsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminOrganizationMemberships>>>
+export type ListAdminOrganizationMembershipsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary List a page of memberships and branch scopes for one exact organization
+ */
+
+export function useListAdminOrganizationMemberships<TData = Awaited<ReturnType<typeof listAdminOrganizationMemberships>>, TError = ErrorType<ApiErrorResponse>>(
+ params: ListAdminOrganizationMembershipsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminOrganizationMemberships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminOrganizationMembershipsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListMembershipsUrl = (organizationId: string,) => {
 
 
@@ -6128,6 +6299,90 @@ export function useListAdminFinanceAccounts<TData = Awaited<ReturnType<typeof li
 
 
 
+export const getGetAdminOrganizationFinanceAccountsUrl = (params: GetAdminOrganizationFinanceAccountsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/finance/organization-accounts?${stringifiedParams}` : `/api/admin/finance/organization-accounts`
+}
+
+/**
+ * @summary Read ledger-derived balances for one exact organization identity
+ */
+export const getAdminOrganizationFinanceAccounts = async (params: GetAdminOrganizationFinanceAccountsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+  return customFetch<AdminFinanceResult>(getGetAdminOrganizationFinanceAccountsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminOrganizationFinanceAccountsQueryKey = (params?: GetAdminOrganizationFinanceAccountsParams,) => {
+    return [
+    `/api/admin/finance/organization-accounts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminOrganizationFinanceAccountsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminOrganizationFinanceAccounts>>, TError = ErrorType<ApiErrorResponse>>(params: GetAdminOrganizationFinanceAccountsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationFinanceAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminOrganizationFinanceAccountsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminOrganizationFinanceAccounts>>> = ({ signal }) => getAdminOrganizationFinanceAccounts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationFinanceAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminOrganizationFinanceAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminOrganizationFinanceAccounts>>>
+export type GetAdminOrganizationFinanceAccountsQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read ledger-derived balances for one exact organization identity
+ */
+
+export function useGetAdminOrganizationFinanceAccounts<TData = Awaited<ReturnType<typeof getAdminOrganizationFinanceAccounts>>, TError = ErrorType<ApiErrorResponse>>(
+ params: GetAdminOrganizationFinanceAccountsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationFinanceAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminOrganizationFinanceAccountsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListAdminFinanceBankAccountsUrl = () => {
 
 
@@ -8062,6 +8317,90 @@ export function useGetAdminBillingCatalog<TData = Awaited<ReturnType<typeof getA
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAdminBillingCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminOrganizationBillingUrl = (params: GetAdminOrganizationBillingParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/billing/organization?${stringifiedParams}` : `/api/admin/billing/organization`
+}
+
+/**
+ * @summary Read paginated subscription records scoped to one exact organization
+ */
+export const getAdminOrganizationBilling = async (params: GetAdminOrganizationBillingParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFinanceResult> => {
+
+  return customFetch<AdminFinanceResult>(getGetAdminOrganizationBillingUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminOrganizationBillingQueryKey = (params?: GetAdminOrganizationBillingParams,) => {
+    return [
+    `/api/admin/billing/organization`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminOrganizationBillingQueryOptions = <TData = Awaited<ReturnType<typeof getAdminOrganizationBilling>>, TError = ErrorType<ApiErrorResponse>>(params: GetAdminOrganizationBillingParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationBilling>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminOrganizationBillingQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminOrganizationBilling>>> = ({ signal }) => getAdminOrganizationBilling(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationBilling>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminOrganizationBillingQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminOrganizationBilling>>>
+export type GetAdminOrganizationBillingQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read paginated subscription records scoped to one exact organization
+ */
+
+export function useGetAdminOrganizationBilling<TData = Awaited<ReturnType<typeof getAdminOrganizationBilling>>, TError = ErrorType<ApiErrorResponse>>(
+ params: GetAdminOrganizationBillingParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminOrganizationBilling>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminOrganizationBillingQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

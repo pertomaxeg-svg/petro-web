@@ -1201,6 +1201,116 @@ export const UpdateBranchStatusResponse = zod.object({
 
 
 /**
+ * @summary Read one branch within the exact organization scope
+ */
+export const GetAdminOrganizationBranchParams = zod.object({
+  "organizationId": zod.coerce.string().uuid(),
+  "branchId": zod.coerce.string().uuid()
+})
+
+export const getAdminOrganizationBranchResponseBranchHoursSunOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursSunCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursMonOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursMonCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursTueOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursTueCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursWedOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursWedCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursThuOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursThuCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursFriOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursFriCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursSatOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAdminOrganizationBranchResponseBranchHoursSatCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+
+export const GetAdminOrganizationBranchResponse = zod.object({
+  "branch": zod.object({
+  "id": zod.string().uuid(),
+  "organization_id": zod.string().uuid(),
+  "code": zod.string().nullable(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "governorate": zod.string().nullable(),
+  "latitude": zod.number().nullable(),
+  "longitude": zod.number().nullable(),
+  "hours": zod.object({
+  "sun": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSunOpenRegExp).optional(),
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSunCloseRegExp).optional()
+}).optional(),
+  "mon": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursMonOpenRegExp).optional(),
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursMonCloseRegExp).optional()
+}).optional(),
+  "tue": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursTueOpenRegExp).optional(),
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursTueCloseRegExp).optional()
+}).optional(),
+  "wed": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursWedOpenRegExp).optional(),
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursWedCloseRegExp).optional()
+}).optional(),
+  "thu": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursThuOpenRegExp).optional(),
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursThuCloseRegExp).optional()
+}).optional(),
+  "fri": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursFriOpenRegExp).optional(),
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursFriCloseRegExp).optional()
+}).optional(),
+  "sat": zod.object({
+  "closed": zod.boolean(),
+  "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSatOpenRegExp).optional(),
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSatCloseRegExp).optional()
+}).optional()
+}),
+  "contact_name": zod.string().nullable(),
+  "contact_phone": zod.string().nullable(),
+  "status": zod.enum(['pending', 'active', 'suspended']),
+  "approval_status": zod.enum(['pending', 'approved']),
+  "operational_status": zod.enum(['inactive', 'active', 'suspended']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "version": zod.number().int().min(1)
+}),
+  "organizationId": zod.string().uuid()
+})
+
+
+/**
+ * @summary List a page of memberships and branch scopes for one exact organization
+ */
+export const listAdminOrganizationMembershipsQueryPageDefault = 1;
+
+export const listAdminOrganizationMembershipsQueryPageSizeDefault = 25;
+export const listAdminOrganizationMembershipsQueryPageSizeMax = 100;
+
+
+
+export const ListAdminOrganizationMembershipsQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid(),
+  "page": zod.coerce.number().int().min(1).default(listAdminOrganizationMembershipsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminOrganizationMembershipsQueryPageSizeMax).default(listAdminOrganizationMembershipsQueryPageSizeDefault)
+})
+
+export const ListAdminOrganizationMembershipsResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int(),
+  "totalPages": zod.number().int()
+})
+
+
+/**
  * @summary List employees visible within the account's organization or branch scope
  */
 export const ListMembershipsParams = zod.object({
@@ -2288,6 +2398,25 @@ export const ListAdminFinanceAccountsResponse = zod.object({
 
 
 /**
+ * @summary Read ledger-derived balances for one exact organization identity
+ */
+export const getAdminOrganizationFinanceAccountsQueryPageDefault = 1;
+
+export const getAdminOrganizationFinanceAccountsQueryPageSizeDefault = 10;
+export const getAdminOrganizationFinanceAccountsQueryPageSizeMax = 100;
+
+
+
+export const GetAdminOrganizationFinanceAccountsQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid(),
+  "page": zod.coerce.number().int().min(1).default(getAdminOrganizationFinanceAccountsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminOrganizationFinanceAccountsQueryPageSizeMax).default(getAdminOrganizationFinanceAccountsQueryPageSizeDefault)
+})
+
+export const GetAdminOrganizationFinanceAccountsResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
  * @summary List masked platform receiving-account details and approval state
  */
 export const ListAdminFinanceBankAccountsResponse = zod.object({
@@ -2936,6 +3065,27 @@ export const GetAdminBillingCatalogResponse = zod.object({
   "createdAt": zod.coerce.date()
 }))
 })
+
+
+/**
+ * @summary Read paginated subscription records scoped to one exact organization
+ */
+export const getAdminOrganizationBillingQuerySectionDefault = `subscriptions`;
+export const getAdminOrganizationBillingQueryPageDefault = 1;
+
+export const getAdminOrganizationBillingQueryPageSizeDefault = 10;
+export const getAdminOrganizationBillingQueryPageSizeMax = 100;
+
+
+
+export const GetAdminOrganizationBillingQueryParams = zod.object({
+  "organizationId": zod.coerce.string().uuid(),
+  "section": zod.enum(['requests', 'subscriptions', 'priceOverrides']).default(getAdminOrganizationBillingQuerySectionDefault),
+  "page": zod.coerce.number().int().min(1).default(getAdminOrganizationBillingQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminOrganizationBillingQueryPageSizeMax).default(getAdminOrganizationBillingQueryPageSizeDefault)
+})
+
+export const GetAdminOrganizationBillingResponse = zod.record(zod.string(), zod.unknown())
 
 
 /**

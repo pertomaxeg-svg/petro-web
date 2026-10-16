@@ -197,6 +197,23 @@ function organizationIdFrom(req: Request): string | null {
   return typeof candidate === "string" && validId(candidate) ? candidate : null;
 }
 
+async function requireCentralOrganizationAccess(
+  session: SessionContext,
+  res: Response,
+): Promise<boolean> {
+  const { data, error } = await session.supabase.rpc("petro_access_context");
+  if (error || !isRecord(data)) {
+    fail(res, 503, "تعذر التحقق من صلاحية الإدارة المركزية.");
+    return false;
+  }
+  const roles = data["platform_roles"] ?? data["platformRoles"];
+  if (!Array.isArray(roles) || !roles.some((role) => role === "owner" || role === "operations")) {
+    fail(res, 403, "هذا السجل متاح لمستخدمي الإدارة المركزية المخوّلين فقط.");
+    return false;
+  }
+  return true;
+}
+
 router.get("/organizations", async (req, res): Promise<void> => {
   setNoStore(res);
   const session = await requireSession(req, res);
@@ -616,6 +633,131 @@ router.get("/organizations/:organizationId/memberships", async (req, res): Promi
       branchIds: branchesByMembership.get(membership.id) ?? [],
     })),
   });
+});
+
+router.get("/admin/organizations/memberships", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const rawOrganizationId = queryString(req, "organizationId");
+  const organizationId = rawOrganizationId && validId(rawOrganizationId) ? rawOrganizationId : null;
+  const page = pageQuery(req);
+  if (!organizationId || !page) {
+    fail(res, 400, "معرّف الجهة أو رقم الصفحة غير صالح.");
+    return;
+  }
+  if (!(await requireCentralOrganizationAccess(session, res))) return;
+
+  const { data: rowsData, error: rowsError, count } = await session.supabase
+    .from("petro_memberships")
+    .select("id,user_id,organization_id,role,scope,active", { count: "exact" })
+    .eq("organization_id", organizationId)
+    .order("role")
+    .range(page.from, page.to);
+  if (rowsError) {
+    apiError(res, rowsError);
+    return;
+  }
+  const rows = (rowsData ?? []) as Array<{
+    id: string;
+    user_id: string;
+    organization_id: string;
+    role: string;
+    scope: string;
+    active: boolean;
+  }>;
+  const membershipIds = rows.map((item) => item.id);
+  const userIds = [...new Set(rows.map((item) => item.user_id))];
+  const [branchResult, profileResult] = await Promise.all([
+    membershipIds.length
+      ? session.supabase
+        .from("petro_membership_branches")
+        .select("membership_id,branch_id")
+        .in("membership_id", membershipIds)
+      : Promise.resolve({ data: [], error: null }),
+    userIds.length
+      ? session.supabase
+        .from("petro_profiles")
+        .select("user_id,display_name,username,active,account_status")
+        .in("user_id", userIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (branchResult.error) {
+    apiError(res, branchResult.error);
+    return;
+  }
+  if (profileResult.error) {
+    apiError(res, profileResult.error);
+    return;
+  }
+  const branchIds = [...new Set((branchResult.data ?? []).map((item) => item.branch_id as string))];
+  const branchProfiles = branchIds.length
+    ? await session.supabase
+      .from("petro_branches")
+      .select("id,name,code")
+      .eq("organization_id", organizationId)
+      .in("id", branchIds)
+    : { data: [], error: null };
+  if (branchProfiles.error) {
+    apiError(res, branchProfiles.error);
+    return;
+  }
+
+  const profileByUser = new Map((profileResult.data ?? []).map((profile) => [profile.user_id, profile]));
+  const branchById = new Map((branchProfiles.data ?? []).map((branch) => [branch.id, branch]));
+  const branchesByMembership = new Map<string, Array<{ branchId: string; name: string; code: string | null }>>();
+  for (const link of branchResult.data ?? []) {
+    const branch = branchById.get(link.branch_id);
+    if (!branch) continue;
+    const list = branchesByMembership.get(link.membership_id) ?? [];
+    list.push({ branchId: branch.id, name: branch.name, code: branch.code });
+    branchesByMembership.set(link.membership_id, list);
+  }
+  const total = count ?? rows.length;
+  res.json({
+    items: rows.map((membership) => ({
+      id: membership.id,
+      userId: membership.user_id,
+      organizationId: membership.organization_id,
+      role: membership.role,
+      scope: membership.scope,
+      active: membership.active,
+      profile: profileByUser.get(membership.user_id) ?? null,
+      branches: branchesByMembership.get(membership.id) ?? [],
+    })),
+    page: page.page,
+    pageSize: page.pageSize,
+    total,
+    totalPages: Math.ceil(total / page.pageSize),
+  });
+});
+
+router.get("/admin/organizations/:organizationId/branches/:branchId", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const organizationId = organizationIdFrom(req);
+  const branchId = req.params["branchId"];
+  if (!organizationId || !validId(branchId)) {
+    fail(res, 400, "معرّف الجهة أو الفرع غير صالح.");
+    return;
+  }
+  if (!(await requireCentralOrganizationAccess(session, res))) return;
+  const { data, error } = await session.supabase
+    .from("petro_branches")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("id", branchId)
+    .maybeSingle();
+  if (error) {
+    apiError(res, error);
+    return;
+  }
+  if (!isRecord(data)) {
+    fail(res, 404, "هذا الفرع غير موجود ضمن الجهة المحددة.");
+    return;
+  }
+  res.json({ branch: data, organizationId });
 });
 
 router.post("/organizations/:organizationId/memberships", async (req, res): Promise<void> => {

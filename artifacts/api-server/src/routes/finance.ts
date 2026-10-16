@@ -157,6 +157,95 @@ router.get("/admin/finance/accounts", async (req, res): Promise<void> => {
   }, READ_ROLES);
 });
 
+router.get("/admin/finance/organization-accounts", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const rawOrganizationId = queryValue(req, "organizationId", 64);
+  const organizationId = typeof rawOrganizationId === "string" && validId(rawOrganizationId)
+    ? rawOrganizationId
+    : undefined;
+  const page = pageValue(req, "page", 1, 100000);
+  const pageSize = pageValue(req, "pageSize", 10, 100);
+  if (!organizationId || page === null || pageSize === null) {
+    fail(res, 400, "معرّف الجهة أو خيارات عرض الحسابات غير صالحة.");
+    return;
+  }
+  const session = await authorizedSession(req, res, READ_ROLES);
+  if (!session) return;
+  const { data: organization, error: organizationError } = await session.supabase
+    .from("petro_organizations")
+    .select("id,name,code")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (organizationError) {
+    mapFinanceError(res, organizationError);
+    return;
+  }
+  if (!isRecord(organization) || organization["id"] !== organizationId) {
+    fail(res, 404, "لم يتم العثور على الجهة المطلوبة.");
+    return;
+  }
+
+  const search = typeof organization["code"] === "string" && organization["code"].trim()
+    ? organization["code"].trim()
+    : String(organization["name"] ?? "");
+  const accounts: Record<string, unknown>[] = [];
+  let totalPages = 1;
+  for (let rpcPage = 1; rpcPage <= totalPages; rpcPage += 1) {
+    if (rpcPage > 1000) {
+      fail(res, 413, "يتجاوز عدد الحسابات حد العرض الآمن. استخدم كشف الحساب المفصل.");
+      return;
+    }
+    const { data, error } = await callFinanceRpc(session, "petro_finance_admin_accounts", {
+      p_search: search,
+      p_page: rpcPage,
+      p_page_size: 100,
+    });
+    if (error) {
+      mapFinanceError(res, error);
+      return;
+    }
+    if (!isRecord(data) || !Array.isArray(data["items"])) {
+      fail(res, 503, "تعذر قراءة حسابات الجهة من الدفتر المالي.");
+      return;
+    }
+    const scoped = data["items"].filter((item): item is Record<string, unknown> =>
+      isRecord(item) && item["organizationId"] === organizationId
+    );
+    accounts.push(...scoped);
+    const reportedPages = Number(data["totalPages"] ?? 1);
+    totalPages = Number.isSafeInteger(reportedPages) && reportedPages >= 1 ? reportedPages : 1;
+  }
+
+  const sumMinor = (key: string): string | null => {
+    let total = 0n;
+    for (const account of accounts) {
+      const amount = account[key];
+      const normalized = typeof amount === "number" ? String(amount) : amount;
+      if (typeof normalized !== "string" || !/^-?\d+$/.test(normalized)) return null;
+      total += BigInt(normalized);
+    }
+    return total.toString();
+  };
+  const ledgerBalanceMinor = sumMinor("ledgerBalanceMinor");
+  const reservedMinor = sumMinor("reservedMinor");
+  const availableMinor = sumMinor("availableMinor");
+  if (ledgerBalanceMinor === null || reservedMinor === null || availableMinor === null) {
+    fail(res, 503, "تعذر مطابقة أرصدة الجهة مع دفترها.");
+    return;
+  }
+  const offset = (page - 1) * pageSize;
+  res.json({
+    organizationId,
+    accountState: accounts.length ? "available" : "missing",
+    balancesMinor: { ledgerBalanceMinor, reservedMinor, availableMinor },
+    items: accounts.slice(offset, offset + pageSize),
+    page,
+    pageSize,
+    total: accounts.length,
+    totalPages: Math.ceil(accounts.length / pageSize),
+  });
+});
+
 router.get("/admin/finance/bank-accounts", (req, res) =>
   runRpc(req, res, "petro_finance_admin_bank_accounts", undefined, READ_ROLES));
 

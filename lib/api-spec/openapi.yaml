@@ -850,6 +850,61 @@ paths:
           $ref: "#/components/responses/ApiError"
         "409":
           $ref: "#/components/responses/ApiError"
+  /admin/organizations/{organizationId}/branches/{branchId}:
+    get:
+      operationId: getAdminOrganizationBranch
+      tags: [management]
+      summary: Read one branch within the exact organization scope
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+        - name: branchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Branch details scoped to its organization
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [branch, organizationId]
+                properties:
+                  branch: { $ref: "#/components/schemas/Branch" }
+                  organizationId: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
+  /admin/organizations/memberships:
+    get:
+      operationId: listAdminOrganizationMemberships
+      tags: [management]
+      summary: List a page of memberships and branch scopes for one exact organization
+      parameters:
+        - name: organizationId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        "200":
+          description: Paginated organization memberships
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [items, page, pageSize, total, totalPages]
+                properties:
+                  items: { type: array, items: { type: object, additionalProperties: true } }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+                  totalPages: { type: integer }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
   /organizations/{organizationId}/memberships:
     get:
       operationId: listMemberships
@@ -1545,6 +1600,27 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AdminFinancePage" }
         "403": { $ref: "#/components/responses/ApiError" }
+  /admin/finance/organization-accounts:
+    get:
+      operationId: getAdminOrganizationFinanceAccounts
+      tags: [management]
+      summary: Read ledger-derived balances for one exact organization identity
+      parameters:
+        - name: organizationId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+      responses:
+        "200":
+          description: Scoped account rows and derived balance summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
   /admin/finance/bank-accounts:
     get:
       operationId: listAdminFinanceBankAccounts
@@ -1927,6 +2003,31 @@ paths:
           $ref: "#/components/responses/ApiError"
         "503":
           $ref: "#/components/responses/ApiError"
+  /admin/billing/organization:
+    get:
+      operationId: getAdminOrganizationBilling
+      tags: [management]
+      summary: Read paginated subscription records scoped to one exact organization
+      parameters:
+        - name: organizationId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: section
+          in: query
+          schema: { type: string, enum: [requests, subscriptions, priceOverrides], default: subscriptions }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+      responses:
+        "200":
+          description: Organization-scoped requests, subscriptions and price overrides
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFinanceResult" }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
   /admin/billing/plans:
     post:
       operationId: createAdminBillingPlan

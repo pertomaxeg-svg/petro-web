@@ -197,6 +197,17 @@
 .fleet-create-steps li b{display:grid;flex:0 0 28px;place-items:center;width:28px;height:28px;border:1px solid #d2dbd3;border-radius:50%;background:#fff;color:#61756e;font:600 12px var(--app-font-mono)}
 .fleet-create-steps li.is-current{color:#235e53;font-weight:700}
 .fleet-create-steps li.is-current b,.fleet-create-steps li.is-done b{border-color:#2e7768;background:#2e7768;color:#fff}
+.fleet-dialog .fleet-field{gap:8px;color:#28413c;font-size:14px}
+.fleet-dialog .fleet-field input,.fleet-dialog .fleet-field textarea,.fleet-dialog .fleet-field select{min-height:44px;padding:10px 12px;border-radius:6px;color:#203b35;font-size:14px}
+.fleet-dialog .fleet-field input:focus-visible,.fleet-dialog .fleet-field textarea:focus-visible,.fleet-dialog .fleet-field select:focus-visible{outline:3px solid #a65e43;outline-offset:2px}
+.fleet-dialog .fleet-field small,.fleet-dialog .fleet-field-hint,.fleet-dialog .fleet-field-error{font-size:13px}
+.fleet-dialog .fleet-create-steps li{font-size:13px}
+.fleet-dialog .fleet-create-steps li b{flex-basis:30px;width:30px;height:30px;font-size:13px}
+.fleet-plate-correction{grid-column:1/-1;padding:14px 16px;border:1px solid #d4ddd7;border-radius:8px;background:#f7f8f3;color:#2b403b}
+.fleet-plate-correction summary{font-size:14px;font-weight:700;cursor:pointer}
+.fleet-plate-correction p{font-size:13px;line-height:1.7;color:#526660}
+.fleet-plate-correction>label{display:flex;align-items:center;gap:8px;font-size:13px}
+.fleet-plate-correction input[type=checkbox]{width:18px;height:18px;accent-color:#23695e}
 .fleet-create-optional,.fleet-create-review{grid-column:1/-1;padding:14px 16px;border:1px solid #dce3dc;background:#f7f8f2}
 .fleet-create-optional h3,.fleet-create-review h3{margin:0 0 6px;color:#2e5f54;font:700 15px var(--app-font-serif)}
 .fleet-create-optional>p,.fleet-create-review>p{margin:0 0 12px;color:#71817a;font-size:11px;line-height:1.8}
