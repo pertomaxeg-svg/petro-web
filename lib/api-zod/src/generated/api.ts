@@ -442,8 +442,9 @@ export const SignInBody = zod.object({
 })
 
 export const SignInResponse = zod.object({
-  "status": zod.string(),
-  "message": zod.string()
+  "status": zod.enum(['active', 'pending']),
+  "message": zod.string(),
+  "passwordChangeRequired": zod.boolean()
 })
 
 
@@ -497,6 +498,7 @@ export const GetAuthMeResponse = zod.object({
   "username": zod.string().nullish(),
   "loginIdentifierType": zod.enum(['username']).optional(),
   "state": zod.enum(['active', 'pending']),
+  "passwordChangeRequired": zod.boolean(),
   "accessContext": zod.unknown()
 })
 
@@ -900,8 +902,8 @@ export const CreateBranchBody = zod.object({
   "name": zod.string().min(createBranchBodyNameMin).max(createBranchBodyNameMax),
   "address": zod.string().max(createBranchBodyAddressMax),
   "governorate": zod.string().max(createBranchBodyGovernorateMax).nullish(),
-  "latitude": zod.number().min(createBranchBodyLatitudeMin).max(createBranchBodyLatitudeMax).nullish(),
-  "longitude": zod.number().min(createBranchBodyLongitudeMin).max(createBranchBodyLongitudeMax).nullish(),
+  "latitude": zod.number().min(createBranchBodyLatitudeMin).max(createBranchBodyLatitudeMax),
+  "longitude": zod.number().min(createBranchBodyLongitudeMin).max(createBranchBodyLongitudeMax),
   "hours": zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
@@ -1123,8 +1125,8 @@ export const UpdateBranchBody = zod.object({
   "name": zod.string().min(updateBranchBodyNameMin).max(updateBranchBodyNameMax),
   "address": zod.string().max(updateBranchBodyAddressMax),
   "governorate": zod.string().max(updateBranchBodyGovernorateMax).nullish(),
-  "latitude": zod.number().min(updateBranchBodyLatitudeMin).max(updateBranchBodyLatitudeMax).nullish(),
-  "longitude": zod.number().min(updateBranchBodyLongitudeMin).max(updateBranchBodyLongitudeMax).nullish(),
+  "latitude": zod.number().min(updateBranchBodyLatitudeMin).max(updateBranchBodyLatitudeMax),
+  "longitude": zod.number().min(updateBranchBodyLongitudeMin).max(updateBranchBodyLongitudeMax),
   "hours": zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
@@ -1438,6 +1440,42 @@ export const CreateInvitationResponse = zod.object({
 
 
 /**
+ * Requires central organization-management access. The password is sent only to Supabase Auth and is never returned or stored in organization records. Membership becomes usable after email confirmation and invitation acceptance.
+ * @summary Create an organization owner account and bind it to a one-time invitation
+ */
+export const CreateInitialOrganizationOwnerParams = zod.object({
+  "organizationId": zod.coerce.string().uuid()
+})
+
+export const createInitialOrganizationOwnerBodyUsernameMin = 3;
+export const createInitialOrganizationOwnerBodyUsernameMax = 32;
+
+
+export const createInitialOrganizationOwnerBodyUsernameRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9_.-]*$');
+export const createInitialOrganizationOwnerBodyDisplayNameMin = 2;
+export const createInitialOrganizationOwnerBodyDisplayNameMax = 120;
+
+export const createInitialOrganizationOwnerBodyEmailMax = 254;
+
+export const createInitialOrganizationOwnerBodyPasswordMin = 12;
+export const createInitialOrganizationOwnerBodyPasswordMax = 128;
+
+
+
+export const CreateInitialOrganizationOwnerBody = zod.object({
+  "username": zod.string().min(createInitialOrganizationOwnerBodyUsernameMin).max(createInitialOrganizationOwnerBodyUsernameMax).regex(createInitialOrganizationOwnerBodyUsernameRegExp),
+  "displayName": zod.string().min(createInitialOrganizationOwnerBodyDisplayNameMin).max(createInitialOrganizationOwnerBodyDisplayNameMax),
+  "email": zod.string().email().max(createInitialOrganizationOwnerBodyEmailMax),
+  "password": zod.string().min(createInitialOrganizationOwnerBodyPasswordMin).max(createInitialOrganizationOwnerBodyPasswordMax)
+})
+
+export const CreateInitialOrganizationOwnerResponse = zod.object({
+  "status": zod.enum(['confirmation_required']),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Accept a one-time invitation after verifying the registered email
  */
 export const acceptInvitationBodyTokenMin = 32;
@@ -1489,7 +1527,7 @@ export const SetUserStatusResponse = zod.object({
 
 
 /**
- * @summary List platform accounts and their active platform roles; owner only
+ * @summary List platform accounts, current role catalog, and active platform roles; owner only
  */
 export const listPlatformUsersQueryPageDefault = 1;
 
@@ -1528,10 +1566,57 @@ export const ListPlatformUsersResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "platformRoles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor']))
 })),
+  "roleCatalog": zod.array(zod.object({
+  "role": zod.enum(['owner', 'operations', 'finance', 'support', 'auditor']),
+  "label": zod.string(),
+  "scope": zod.enum(['platform']),
+  "permissions": zod.array(zod.object({
+  "code": zod.string(),
+  "label": zod.string()
+}))
+})),
   "page": zod.number().int().min(1),
   "pageSize": zod.number().int().min(1).max(listPlatformUsersResponsePageSizeMax),
   "total": zod.number().int().min(listPlatformUsersResponseTotalMin),
   "totalPages": zod.number().int().min(listPlatformUsersResponseTotalPagesMin)
+})
+
+
+/**
+ * @summary Create a platform account with a temporary password and assigned platform roles; owner only
+ */
+export const createPlatformUserBodyUsernameMin = 3;
+export const createPlatformUserBodyUsernameMax = 32;
+
+
+export const createPlatformUserBodyUsernameRegExp = new RegExp('^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}$');
+export const createPlatformUserBodyDisplayNameMin = 2;
+export const createPlatformUserBodyDisplayNameMax = 120;
+
+export const createPlatformUserBodyEmailMax = 254;
+
+export const createPlatformUserBodyPasswordMin = 12;
+export const createPlatformUserBodyPasswordMax = 128;
+
+export const createPlatformUserBodyRolesMax = 5;
+
+export const createPlatformUserBodyReasonMin = 5;
+export const createPlatformUserBodyReasonMax = 500;
+
+
+
+export const CreatePlatformUserBody = zod.object({
+  "username": zod.string().min(createPlatformUserBodyUsernameMin).max(createPlatformUserBodyUsernameMax).regex(createPlatformUserBodyUsernameRegExp),
+  "displayName": zod.string().min(createPlatformUserBodyDisplayNameMin).max(createPlatformUserBodyDisplayNameMax),
+  "email": zod.string().email().max(createPlatformUserBodyEmailMax),
+  "password": zod.string().min(createPlatformUserBodyPasswordMin).max(createPlatformUserBodyPasswordMax),
+  "roles": zod.array(zod.enum(['owner', 'operations', 'finance', 'support', 'auditor'])).min(1).max(createPlatformUserBodyRolesMax),
+  "reason": zod.string().min(createPlatformUserBodyReasonMin).max(createPlatformUserBodyReasonMax)
+})
+
+export const CreatePlatformUserResponse = zod.object({
+  "status": zod.enum(['confirmation_required', 'created_without_roles']),
+  "message": zod.string()
 })
 
 
@@ -3488,6 +3573,65 @@ export const GetCatalogReferenceDataResponse = zod.object({
 export const GetAdminCatalogCategoriesResponse = zod.object({
   "categories": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
   "units": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary Read a permission-scoped merchant inventory view
+ */
+export const getAdminInventoryQuerySearchMax = 100;
+
+export const getAdminInventoryQueryPageDefault = 1;
+export const getAdminInventoryQueryPageMax = 100000;
+
+export const getAdminInventoryQueryPageSizeDefault = 25;
+export const getAdminInventoryQueryPageSizeMax = 100;
+
+
+
+export const GetAdminInventoryQueryParams = zod.object({
+  "view": zod.enum(['organizations', 'locations', 'branches', 'items', 'balances', 'documents', 'movements', 'document', 'reconciliation']),
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "locationId": zod.coerce.string().uuid().optional(),
+  "documentId": zod.coerce.string().uuid().optional(),
+  "search": zod.coerce.string().max(getAdminInventoryQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getAdminInventoryQueryPageMax).default(getAdminInventoryQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminInventoryQueryPageSizeMax).default(getAdminInventoryQueryPageSizeDefault)
+})
+
+
+
+export const getAdminInventoryResponseTotalMin = 0;
+
+
+
+export const GetAdminInventoryResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "page": zod.number().int().min(1).optional(),
+  "pageSize": zod.number().int().min(1).optional(),
+  "total": zod.number().int().min(getAdminInventoryResponseTotalMin).optional(),
+  "consistent": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Create or review an audited stock command
+ */
+export const executeAdminInventoryCommandBodyIdempotencyKeyMin = 8;
+export const executeAdminInventoryCommandBodyIdempotencyKeyMax = 120;
+
+
+
+export const ExecuteAdminInventoryCommandBody = zod.object({
+  "action": zod.enum(['location.create', 'document.create', 'document.review', 'reservation.reserve', 'reservation.release', 'reservation.consume']),
+  "payload": zod.record(zod.string(), zod.unknown()),
+  "idempotencyKey": zod.string().min(executeAdminInventoryCommandBodyIdempotencyKeyMin).max(executeAdminInventoryCommandBodyIdempotencyKeyMax)
+})
+
+export const ExecuteAdminInventoryCommandResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string(),
+  "type": zod.string().optional()
 })
 
 

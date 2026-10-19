@@ -5,6 +5,51 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AdminInventoryQueryResultItemsItem = { [key: string]: unknown };
+
+export interface AdminInventoryQueryResult {
+  items: AdminInventoryQueryResultItemsItem[];
+  /** @minimum 1 */
+  page?: number;
+  /** @minimum 1 */
+  pageSize?: number;
+  /** @minimum 0 */
+  total?: number;
+  consistent?: boolean;
+  [key: string]: unknown;
+ }
+
+export type ExecuteAdminInventoryCommandAction = typeof ExecuteAdminInventoryCommandAction[keyof typeof ExecuteAdminInventoryCommandAction];
+
+
+export const ExecuteAdminInventoryCommandAction = {
+  locationcreate: 'location.create',
+  documentcreate: 'document.create',
+  documentreview: 'document.review',
+  reservationreserve: 'reservation.reserve',
+  reservationrelease: 'reservation.release',
+  reservationconsume: 'reservation.consume',
+} as const;
+
+export type ExecuteAdminInventoryCommandPayload = { [key: string]: unknown };
+
+export interface ExecuteAdminInventoryCommand {
+  action: ExecuteAdminInventoryCommandAction;
+  payload: ExecuteAdminInventoryCommandPayload;
+  /**
+     * @minLength 8
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
+export interface AdminInventoryCommandResult {
+  id: string;
+  status: string;
+  type?: string;
+  [key: string]: unknown;
+ }
+
 export type CatalogReferenceDataCategoriesItem = { [key: string]: unknown };
 
 export type CatalogReferenceDataUnitsItem = { [key: string]: unknown };
@@ -1008,6 +1053,20 @@ export interface AuthActionResult {
   message: string;
 }
 
+export type SignInResultStatus = typeof SignInResultStatus[keyof typeof SignInResultStatus];
+
+
+export const SignInResultStatus = {
+  active: 'active',
+  pending: 'pending',
+} as const;
+
+export interface SignInResult {
+  status: SignInResultStatus;
+  message: string;
+  passwordChangeRequired: boolean;
+}
+
 export interface RecoveryRequest {
   /**
      * Username or registered recovery email; never accepted for sign-in
@@ -1048,6 +1107,7 @@ export interface AuthMe {
   username?: string | null;
   loginIdentifierType?: AuthMeLoginIdentifierType;
   state: AuthMeState;
+  passwordChangeRequired: boolean;
   accessContext: unknown;
 }
 
@@ -1326,6 +1386,50 @@ export interface SetPlatformUserRolesRequest {
   reason: string;
 }
 
+export interface CreatePlatformUserRequest {
+  /**
+     * @minLength 3
+     * @maxLength 32
+     * @pattern ^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}$
+     */
+  username: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  displayName: string;
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+  /**
+     * @minItems 1
+     * @maxItems 5
+     */
+  roles: PlatformRole[];
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type CreatePlatformUserResultStatus = typeof CreatePlatformUserResultStatus[keyof typeof CreatePlatformUserResultStatus];
+
+
+export const CreatePlatformUserResultStatus = {
+  confirmation_required: 'confirmation_required',
+  created_without_roles: 'created_without_roles',
+} as const;
+
+export interface CreatePlatformUserResult {
+  status: CreatePlatformUserResultStatus;
+  message: string;
+}
+
 export type PlatformUserAccountStatus = typeof PlatformUserAccountStatus[keyof typeof PlatformUserAccountStatus];
 
 
@@ -1345,8 +1449,28 @@ export interface PlatformUser {
   platformRoles: PlatformRole[];
 }
 
+export type PlatformRoleOptionScope = typeof PlatformRoleOptionScope[keyof typeof PlatformRoleOptionScope];
+
+
+export const PlatformRoleOptionScope = {
+  platform: 'platform',
+} as const;
+
+export interface PlatformRolePermission {
+  code: string;
+  label: string;
+}
+
+export interface PlatformRoleOption {
+  role: PlatformRole;
+  label: string;
+  scope: PlatformRoleOptionScope;
+  permissions: PlatformRolePermission[];
+}
+
 export interface PlatformUserList {
   items: PlatformUser[];
+  roleCatalog: PlatformRoleOption[];
   /** @minimum 1 */
   page: number;
   /**
@@ -1358,25 +1482,6 @@ export interface PlatformUserList {
   total: number;
   /** @minimum 0 */
   totalPages: number;
-}
-
-export interface PlatformRolePermission {
-  code: string;
-  label: string;
-}
-
-export type PlatformRoleOptionScope = typeof PlatformRoleOptionScope[keyof typeof PlatformRoleOptionScope];
-
-
-export const PlatformRoleOptionScope = {
-  platform: 'platform',
-} as const;
-
-export interface PlatformRoleOption {
-  role: PlatformRole;
-  label: string;
-  scope: PlatformRoleOptionScope;
-  permissions: PlatformRolePermission[];
 }
 
 export type PlatformUserActivityAction = typeof PlatformUserActivityAction[keyof typeof PlatformUserActivityAction];
@@ -1560,6 +1665,48 @@ export interface CreateBranchRequest {
   /**
      * @minimum -90
      * @maximum 90
+     */
+  latitude: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  longitude: number;
+  hours: BranchHours;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone?: string | null;
+}
+
+export interface OrganizationJoinInitialBranchRequest {
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  /** @maxLength 500 */
+  address: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  governorate?: string | null;
+  /**
+     * @minimum -90
+     * @maximum 90
      * @nullable
      */
   latitude?: number | null;
@@ -1672,15 +1819,13 @@ export interface UpdateBranchRequest {
   /**
      * @minimum -90
      * @maximum 90
-     * @nullable
      */
-  latitude?: number | null;
+  latitude: number;
   /**
      * @minimum -180
      * @maximum 180
-     * @nullable
      */
-  longitude?: number | null;
+  longitude: number;
   hours: BranchHours;
   /**
      * @maxLength 160
@@ -1796,6 +1941,39 @@ export interface CreateInvitationRequest {
   branchIds: string[];
 }
 
+export interface CreateInitialOrganizationOwnerRequest {
+  /**
+     * @minLength 3
+     * @maxLength 32
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9_.-]*$
+     */
+  username: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  displayName: string;
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export type CreateInitialOrganizationOwnerResultStatus = typeof CreateInitialOrganizationOwnerResultStatus[keyof typeof CreateInitialOrganizationOwnerResultStatus];
+
+
+export const CreateInitialOrganizationOwnerResultStatus = {
+  confirmation_required: 'confirmation_required',
+} as const;
+
+export interface CreateInitialOrganizationOwnerResult {
+  status: CreateInitialOrganizationOwnerResultStatus;
+  message: string;
+}
+
 export interface Invitation {
   id: string;
   invited_email: string;
@@ -1841,14 +2019,14 @@ export interface CreateOrganizationJoinRequest {
      */
   applicantUsername?: string;
   organization: CreateOrganizationRequest;
-  initialBranch: CreateBranchRequest;
+  initialBranch: OrganizationJoinInitialBranchRequest;
 }
 
 export interface UpdateOrganizationJoinRequest {
   /** @minimum 1 */
   expectedVersion: number;
   organization: CreateOrganizationRequest;
-  initialBranch: CreateBranchRequest;
+  initialBranch: OrganizationJoinInitialBranchRequest;
 }
 
 export type OrganizationJoinRequestOrganizationData = { [key: string]: unknown };
@@ -3148,6 +3326,42 @@ export const GetAdminOrganizationBillingSection = {
   requests: 'requests',
   subscriptions: 'subscriptions',
   priceOverrides: 'priceOverrides',
+} as const;
+
+export type GetAdminInventoryParams = {
+view: GetAdminInventoryView;
+organizationId?: string;
+locationId?: string;
+documentId?: string;
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminInventoryView = typeof GetAdminInventoryView[keyof typeof GetAdminInventoryView];
+
+
+export const GetAdminInventoryView = {
+  organizations: 'organizations',
+  locations: 'locations',
+  branches: 'branches',
+  items: 'items',
+  balances: 'balances',
+  documents: 'documents',
+  movements: 'movements',
+  document: 'document',
+  reconciliation: 'reconciliation',
 } as const;
 
 export type ListAdminCatalogOrganizationsParams = {

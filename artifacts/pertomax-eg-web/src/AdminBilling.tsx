@@ -112,31 +112,120 @@ function ReasonField() {
   </label>;
 }
 
-function JsonArrayField({ name, title, value }: { name: string; title: string; value?: AdminPlanEntitlement[] | null }) {
-  const [items, setItems] = useState<AdminPlanEntitlement[]>(() => [...(value ?? [])]);
+type ConfigValueMode = "text" | "number" | "boolean" | "json";
+const getConfigValueMode = (value: unknown): ConfigValueMode => {
+  if (typeof value === "boolean") return "boolean";
+  if (typeof value === "number") return "number";
+  if (value !== null && typeof value === "object") return "json";
+  return "text";
+};
+const newConfigKey = () => `plan_item_${crypto.randomUUID().replaceAll("-", "")}`;
+
+function JsonValueField({ value, onChange, onValidityChange }: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  onValidityChange: (valid: boolean) => void;
+}) {
+  const [draft, setDraft] = useState(() => JSON.stringify(value, null, 2));
+  let validDraft = draft.trim().length > 0;
+  try {
+    if (validDraft) JSON.parse(draft);
+  } catch {
+    validDraft = false;
+  }
+  return <div className="ab-config-json">
+    <textarea aria-label="قيمة متقدمة بصيغة JSON" value={draft} aria-invalid={!validDraft} onChange={event => {
+      const next = event.target.value;
+      setDraft(next);
+      try {
+        if (!next.trim()) throw new Error("أدخل قيمة.");
+        onChange(JSON.parse(next));
+        onValidityChange(true);
+      } catch {
+        onValidityChange(false);
+      }
+    }} dir="ltr" spellCheck={false}/>
+    <small>للقيم المركبة فقط. اتركها كما هي إن لم تحتج تعديلًا متقدمًا.</small>
+  </div>;
+}
+
+function JsonArrayField({ name, title, value, collapsible = false }: {
+  name: string;
+  title: string;
+  value?: AdminPlanEntitlement[] | null;
+  collapsible?: boolean;
+}) {
+  const [items, setItems] = useState<AdminPlanEntitlement[]>(() =>
+    (value ?? []).map(item => ({ ...item, key: item.key || newConfigKey() })),
+  );
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([]);
+  const [open, setOpen] = useState(!collapsible || Boolean(value?.length));
   const update = (index: number, patch: Partial<AdminPlanEntitlement>) => {
     setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
   };
-  return <div className="ab-field ab-wide ab-config-editor">
-    <b>{title}</b>
-    <small>لا تُضاف مميزات افتراضية. ضع علامة الاعتماد فقط بعد قرار صريح، ويُرفض نشر نسخة ناقصة.</small>
-    <input type="hidden" name={name} value={JSON.stringify(items)}/>
-    {items.length === 0 && <p className="ab-config-empty">لا توجد عناصر محفوظة. أضف بندًا عند اعتماد ميزة أو إعداد.</p>}
-    <div className="ab-config-list">
-      {items.map((item, index) => <fieldset className="ab-config-item" key={`${name}-${index}`}>
-        <legend>{title} {index + 1}</legend>
-        <label>المفتاح<input required maxLength={64} value={item.key} onChange={event=>update(index,{key:event.target.value})} dir="ltr" placeholder="identifier"/></label>
-        <label>الاسم المعروض<input required maxLength={120} value={item.label} onChange={event=>update(index,{label:event.target.value})} placeholder="اسم واضح"/></label>
-        <label className="ab-config-value">القيمة<input value={displayValue(item.value)} onChange={event=>{
-          const raw=event.target.value;
-          try { update(index,{value:JSON.parse(raw)}); } catch { update(index,{value:raw}); }
-        }} dir="auto" placeholder="أدخل قيمة واضحة لهذا البند"/></label>
-        <label className="ab-config-approved"><input type="checkbox" checked={item.approved} onChange={event=>update(index,{approved:event.target.checked})}/>معتمد صراحةً</label>
-        <button type="button" className="ac-button ac-button-quiet" aria-label={`حذف ${title} ${index + 1}`} onClick={()=>setItems(current=>current.filter((_,itemIndex)=>itemIndex!==index))}>حذف البند</button>
-      </fieldset>)}
-    </div>
-    <button type="button" className="ac-button ac-button-quiet ab-config-add" onClick={()=>setItems(current=>[...current,{key:"",label:"",value:"",approved:false}])}><Plus size={14}/>إضافة بند</button>
-  </div>;
+  const addItem = () => {
+    setItems(current => [...current, { key: newConfigKey(), label: "", value: "", approved: false }]);
+    setOpen(true);
+  };
+  const content = <>
+    <input type="hidden" name={name} value={JSON.stringify(items)} data-testid={`value-${name}-json`}/>
+    <input type="hidden" name={`${name}Valid`} value={invalidKeys.length ? "false" : "true"}/>
+    {items.length === 0
+      ? <p className="ab-config-empty">لا توجد {name === "entitlements" ? "مميزات" : "إعدادات"} مسجلة. أضف ما اعتمدته فقط؛ لا نضيف مزايا افتراضية.</p>
+      : <div className="ab-config-list">
+        {items.map((item, index) => {
+          const mode = getConfigValueMode(item.value);
+          return <fieldset className="ab-config-item" key={`${name}-${item.key}`}>
+            <legend>{title} {index + 1}</legend>
+            <input type="hidden" value={item.key}/>
+            <label className="ab-config-label">الاسم الذي سيظهر
+              <input required maxLength={120} data-testid={`input-${name}-label-${index}`} value={item.label} onChange={event=>update(index,{label:event.target.value})} placeholder={name === "entitlements" ? "اكتب اسم الميزة" : "اكتب اسم الإعداد"}/>
+            </label>
+            <label className="ab-config-type">نوع القيمة
+              <select data-testid={`select-${name}-value-mode-${index}`} value={mode} onChange={event => {
+                const nextMode = event.target.value as ConfigValueMode;
+                const nextValue = nextMode === "boolean" ? false
+                  : nextMode === "number" ? (typeof item.value === "number" ? item.value : 0)
+                    : nextMode === "json" ? (item.value !== null && typeof item.value === "object" ? item.value : {})
+                      : (typeof item.value === "string" ? item.value : displayValue(item.value));
+                update(index, { value: nextValue });
+                setInvalidKeys(current => current.filter(key => key !== item.key));
+              }}>
+                <option value="text">نص</option><option value="number">رقم</option>
+                <option value="boolean">نعم / لا</option><option value="json">قيمة متقدمة</option>
+              </select>
+            </label>
+            <div className="ab-config-value">
+              {mode === "boolean"
+                ? <label className="ab-config-toggle"><input data-testid={`checkbox-${name}-value-${index}`} type="checkbox" checked={item.value === true} onChange={event=>update(index,{value:event.target.checked})}/>نعم، متاح</label>
+                : mode === "number"
+                  ? <label>القيمة الرقمية<input data-testid={`input-${name}-number-${index}`} type="number" step="any" value={String(item.value ?? "")} onChange={event=>update(index,{value:event.target.value === "" ? "" : Number(event.target.value)})}/></label>
+                  : mode === "json"
+                    ? <JsonValueField key={`${item.key}-json`} value={item.value} onChange={next=>update(index,{value:next})} onValidityChange={valid=>setInvalidKeys(current=>valid?current.filter(key=>key!==item.key):current.includes(item.key)?current:[...current,item.key])}/>
+                    : <label>القيمة<input data-testid={`input-${name}-text-${index}`} required value={typeof item.value === "string" ? item.value : displayValue(item.value)} onChange={event=>update(index,{value:event.target.value})} placeholder="اكتب القيمة"/></label>}
+            </div>
+            <label className="ab-config-approved">
+              <input data-testid={`checkbox-${name}-approved-${index}`} type="checkbox" checked={item.approved} onChange={event=>update(index,{approved:event.target.checked})}/>
+              معتمد للنشر
+            </label>
+            <button type="button" data-testid={`button-remove-${name}-${index}`} className="ab-config-remove" aria-label={`حذف ${title} ${index + 1}`} onClick={()=>{
+              setItems(current=>current.filter((_,itemIndex)=>itemIndex!==index));
+              setInvalidKeys(current=>current.filter(key=>key!==item.key));
+            }}>حذف</button>
+          </fieldset>;
+        })}
+      </div>}
+    <button type="button" data-testid={`button-add-${name}`} className="ac-button ac-button-quiet ab-config-add" onClick={addItem}><Plus size={15}/>{name === "entitlements" ? "إضافة ميزة" : "إضافة إعداد"}</button>
+  </>;
+  return collapsible
+    ? <details className="ab-config-details" data-testid={`details-${name}`} open={open} onToggle={event=>setOpen(event.currentTarget.open)}>
+        <summary><span><b>{title}</b><small>اختياري · {items.length.toLocaleString("ar-EG")} بند</small></span><ChevronDown size={16}/></summary>
+        {content}
+      </details>
+    : <section className="ab-field ab-wide ab-config-editor">
+        <div className="ab-config-heading"><span><b>{title}</b><small>اكتب الاسم والقيمة فقط؛ المفتاح التقني يُنشأ تلقائيًا.</small></span><span className="ab-config-count" data-testid={`count-${name}`}>{items.length.toLocaleString("ar-EG")} {name === "entitlements" ? "ميزة" : "إعداد"}</span></div>
+        {content}
+      </section>;
 }
 
 function parseArray(raw: FormDataEntryValue | null, label: string): AdminPlanEntitlement[] {
@@ -153,8 +242,9 @@ function parseArray(raw: FormDataEntryValue | null, label: string): AdminPlanEnt
     }
     const item = candidate as Record<string, unknown>;
     if (typeof item.key !== "string" || typeof item.label !== "string"
-      || !Object.hasOwn(item, "value") || typeof item.approved !== "boolean") {
-      throw new Error(`${label}: استخدم قائمة بعناصر لها key وlabel وvalue وapproved.`);
+        || !item.label.trim() || !Object.hasOwn(item, "value") || typeof item.approved !== "boolean"
+        || (typeof item.value === "string" && !item.value.trim())) {
+      throw new Error(`${label}: أكمل اسم كل بند وقيمته.`);
     }
   }
   return value as AdminPlanEntitlement[];
@@ -352,6 +442,9 @@ export function AdminPlansPage() {
     try {
       const effectiveAt = new Date(String(data.get("effectiveAt")));
       if (Number.isNaN(effectiveAt.valueOf())) throw new Error("تاريخ السريان غير صالح.");
+      if (data.get("entitlementsValid") === "false" || data.get("settingsValid") === "false") {
+        throw new Error("راجع القيمة المتقدمة غير المكتملة قبل الحفظ.");
+      }
       const entitlements = parseArray(data.get("entitlements"), "الاستحقاقات");
       const settings = parseArray(data.get("settings"), "الإعدادات");
       const audience = (versionPlan ?? editSelection!.plan).audience;
@@ -605,16 +698,22 @@ export function AdminPlansPage() {
         <ReasonField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "حفظ كمسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
-      {(versionPlan || editSelection) && <form className="ab-form-grid" onSubmit={submitVersion}>
-        <label className="ab-field">اسم الإصدار<input name="displayName" required defaultValue={editSelection?.version.displayName??versionPlan?.name??""}/></label>
-        <label className="ab-field">وصف الإصدار<input name="description" maxLength={1000} defaultValue={editSelection?.version.description??""}/></label>
-         <label className="ab-field">السعر السنوي (ج.م) · {(versionPlan?.audience??editSelection?.plan.audience) === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={(versionPlan?.audience??editSelection?.plan.audience) === "station" ? 0 : 0.01} step="0.01" required readOnly={(versionPlan?.audience??editSelection?.plan.audience) === "station"} defaultValue={editSelection ? editSelection.version.annualPriceMinor/100 : (versionPlan?.audience === "station" ? 0 : versionPlan?.audience === "company" ? (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100 : (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100)}/><small>{(versionPlan?.audience??editSelection?.plan.audience) === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الافتراضات أو الإصدار الحالي، ويمكن تعديلها لهذه النسخة."} · EGP سنويًا</small></label>
-        <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={localDateTime(new Date(editSelection?.version.effectiveAt??Date.now()+60_000))} required/></label>
-         <JsonArrayField key={`entitlements-${editSelection?.version.id??versionPlan?.id??"new"}`} name="entitlements" title="استحقاقات الخطة" value={editSelection?.version.entitlements}/>
-         <JsonArrayField key={`settings-${editSelection?.version.id??versionPlan?.id??"new"}`} name="settings" title="إعدادات الخطة" value={editSelection?.version.settings}/>
-         <p className="ab-form-note ab-wide">رسوم إصدار NFC مستقلة عن الاشتراك وتُضبط في مرجع الأسعار. وحدة الباقة سنوية، والاستحقاقات لا تُعتمد تلقائيًا.</p>
+       {(versionPlan || editSelection) && <form className="ab-form-grid ab-version-editor" onSubmit={submitVersion}>
+         <label className="ab-field">اسم النسخة<input data-testid="input-plan-version-name" name="displayName" required defaultValue={editSelection?.version.displayName??versionPlan?.name??""}/></label>
+         <label className="ab-field">وصف مختصر<input data-testid="input-plan-version-description" name="description" maxLength={1000} defaultValue={editSelection?.version.description??""}/></label>
+         <section className="ab-version-price ab-wide">
+           <div className="ab-version-price-copy"><span className="ab-price-icon"><Banknote size={19}/></span><span><b>السعر السنوي</b><small>يُحفظ لهذه النسخة فقط؛ لا يغيّر اشتراكًا سابقًا.</small></span></div>
+           <label className="ab-field">{(versionPlan?.audience??editSelection?.plan.audience) === "company" ? "السعر لكل مركبة" : "السعر لكل فرع"}
+             <span className="ab-price-input"><input data-testid="input-plan-version-price" name="price" type="number" min={(versionPlan?.audience??editSelection?.plan.audience) === "station" ? 0 : 0.01} step="0.01" required readOnly={(versionPlan?.audience??editSelection?.plan.audience) === "station"} defaultValue={editSelection ? editSelection.version.annualPriceMinor/100 : (versionPlan?.audience === "station" ? 0 : versionPlan?.audience === "provider" ? (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100 : (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100)}/><span>ج.م</span></span>
+           </label>
+           <label className="ab-field">تاريخ السريان<input data-testid="input-plan-version-effective-at" name="effectiveAt" type="datetime-local" defaultValue={localDateTime(new Date(editSelection?.version.effectiveAt??Date.now()+60_000))} required/></label>
+           {(versionPlan?.audience??editSelection?.plan.audience) === "station" && <p className="ab-price-station">المحطات مجانية، ولا يقبل سعرًا خاصًا.</p>}
+         </section>
+         <JsonArrayField key={`entitlements-${editSelection?.version.id??versionPlan?.id??"new"}`} name="entitlements" title="مميزات الباقة" value={editSelection?.version.entitlements}/>
+         <JsonArrayField key={`settings-${editSelection?.version.id??versionPlan?.id??"new"}`} name="settings" title="إعدادات إضافية" value={editSelection?.version.settings} collapsible/>
+         <p className="ab-form-note ab-wide"><ShieldAlert size={15}/>لا تظهر أي ميزة للمشترك قبل اعتمادها صراحةً. رسوم إصدار NFC منفصلة عن الاشتراك وتُضبط من مرجع الأسعار.</p>
         <ReasonField/><FormFeedback error={formError}/>
-        <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : editSelection?"حفظ تعديلات المسودة":"حفظ إصدار مسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
+         <div className="ab-form-actions"><button data-testid="button-save-plan-version" className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : editSelection?"حفظ تعديلات المسودة":"حفظ إصدار مسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
       {stopPlan && <form className="ab-form-grid" onSubmit={submitStop}>
         <label className="ab-field ab-wide">إيقاف استقبال الطلبات الجديدة من<input name="stopNewAt" type="datetime-local"/></label>

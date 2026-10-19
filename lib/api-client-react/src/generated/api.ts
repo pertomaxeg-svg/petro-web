@@ -43,6 +43,8 @@ import type {
   AdminFleetStockReservations,
   AdminFleetVerifyPairRequest,
   AdminFleetVerifyPairResult,
+  AdminInventoryCommandResult,
+  AdminInventoryQueryResult,
   AdminOrganizationRequestList,
   AdminPlanInput,
   AdminPlanStopInput,
@@ -80,14 +82,19 @@ import type {
   CreateAdminFinanceTransfer,
   CreateBranchRequest,
   CreateDocumentUploadIntent,
+  CreateInitialOrganizationOwnerRequest,
+  CreateInitialOrganizationOwnerResult,
   CreateInvitationRequest,
   CreateOrganizationChangeRequest,
   CreateOrganizationJoinRequest,
   CreateOrganizationRequest,
+  CreatePlatformUserRequest,
+  CreatePlatformUserResult,
   CreatedResult,
   DocumentDownload,
   DocumentList,
   DocumentUploadIntent,
+  ExecuteAdminInventoryCommand,
   ExpectedVersionRequest,
   FinanceReasonAction,
   FinanceVersionedReasonAction,
@@ -100,6 +107,7 @@ import type {
   GetAdminFleetStockOptionsParams,
   GetAdminFleetStockReservationsParams,
   GetAdminFleetSubscriptionOptionsParams,
+  GetAdminInventoryParams,
   GetAdminOrganizationBillingParams,
   GetAdminOrganizationBranch200,
   GetAdminOrganizationFinanceAccountsParams,
@@ -146,6 +154,7 @@ import type {
   SetMembershipRequest,
   SetPlatformUserRolesRequest,
   SignInRequest,
+  SignInResult,
   SignUpRequest,
   SignUpResult,
   StatusRequest,
@@ -1613,7 +1622,7 @@ export const getSignInUrl = () => {
 /**
  * @summary Sign in with username and password only
  */
-export const signIn = async (signInRequest: SignInRequest, options?: Parameters<typeof customFetch>[1]): Promise<AuthActionResult> => {
+export const signIn = async (signInRequest: SignInRequest, options?: Parameters<typeof customFetch>[1]): Promise<SignInResult> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -1629,7 +1638,7 @@ export const signIn = async (signInRequest: SignInRequest, options?: Parameters<
     }
     return headers;
   };
-return customFetch<AuthActionResult>(getSignInUrl(),
+return customFetch<SignInResult>(getSignInUrl(),
   {
     ...options,
     method: 'POST',
@@ -3797,6 +3806,96 @@ export const useCreateInvitation = <TError = ErrorType<ApiErrorResponse>,
       return useMutation(getCreateInvitationMutationOptions(options));
     }
 
+export const getCreateInitialOrganizationOwnerUrl = (organizationId: string,) => {
+
+
+
+
+  return `/api/organizations/${organizationId}/initial-owner`
+}
+
+/**
+ * Requires central organization-management access. The password is sent only to Supabase Auth and is never returned or stored in organization records. Membership becomes usable after email confirmation and invitation acceptance.
+ * @summary Create an organization owner account and bind it to a one-time invitation
+ */
+export const createInitialOrganizationOwner = async (organizationId: string,
+    createInitialOrganizationOwnerRequest: CreateInitialOrganizationOwnerRequest, options?: Parameters<typeof customFetch>[1]): Promise<CreateInitialOrganizationOwnerResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreateInitialOrganizationOwnerResult>(getCreateInitialOrganizationOwnerUrl(organizationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createInitialOrganizationOwnerRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateInitialOrganizationOwnerMutationKey = () => ['createInitialOrganizationOwner'] as const;
+
+export const getCreateInitialOrganizationOwnerMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInitialOrganizationOwner>>, TError,CreateInitialOrganizationOwnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createInitialOrganizationOwner>>, TError,CreateInitialOrganizationOwnerMutationVariables, TContext> => {
+
+const mutationKey = getCreateInitialOrganizationOwnerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createInitialOrganizationOwner>>, CreateInitialOrganizationOwnerMutationVariables> = (props) => {
+          const {organizationId,data} = props ?? {};
+
+          return  createInitialOrganizationOwner(organizationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateInitialOrganizationOwnerMutationResult = NonNullable<Awaited<ReturnType<typeof createInitialOrganizationOwner>>>
+    export type CreateInitialOrganizationOwnerMutationBody = BodyType<CreateInitialOrganizationOwnerRequest>
+    export type CreateInitialOrganizationOwnerMutationError = ErrorType<ApiErrorResponse>
+    export type CreateInitialOrganizationOwnerMutationVariables = {organizationId: string;data: BodyType<CreateInitialOrganizationOwnerRequest>}
+
+    /**
+ * @summary Create an organization owner account and bind it to a one-time invitation
+ */
+export const useCreateInitialOrganizationOwner = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInitialOrganizationOwner>>, TError,CreateInitialOrganizationOwnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createInitialOrganizationOwner>>,
+        TError,
+        CreateInitialOrganizationOwnerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateInitialOrganizationOwnerMutationOptions(options));
+    }
+
 export const getAcceptInvitationUrl = () => {
 
 
@@ -4064,7 +4163,7 @@ export const getListPlatformUsersUrl = (params?: ListPlatformUsersParams,) => {
 }
 
 /**
- * @summary List platform accounts and their active platform roles; owner only
+ * @summary List platform accounts, current role catalog, and active platform roles; owner only
  */
 export const listPlatformUsers = async (params?: ListPlatformUsersParams, options?: Parameters<typeof customFetch>[1]): Promise<PlatformUserList> => {
 
@@ -4111,7 +4210,7 @@ export type ListPlatformUsersQueryError = ErrorType<ApiErrorResponse>
 
 
 /**
- * @summary List platform accounts and their active platform roles; owner only
+ * @summary List platform accounts, current role catalog, and active platform roles; owner only
  */
 
 export function useListPlatformUsers<TData = Awaited<ReturnType<typeof listPlatformUsers>>, TError = ErrorType<ApiErrorResponse>>(
@@ -4131,6 +4230,94 @@ export function useListPlatformUsers<TData = Awaited<ReturnType<typeof listPlatf
 
 
 
+
+export const getCreatePlatformUserUrl = () => {
+
+
+
+
+  return `/api/admin/platform-users`
+}
+
+/**
+ * @summary Create a platform account with a temporary password and assigned platform roles; owner only
+ */
+export const createPlatformUser = async (createPlatformUserRequest: CreatePlatformUserRequest, options?: Parameters<typeof customFetch>[1]): Promise<CreatePlatformUserResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatePlatformUserResult>(getCreatePlatformUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createPlatformUserRequest)
+  }
+);}
+
+
+
+
+
+export const getCreatePlatformUserMutationKey = () => ['createPlatformUser'] as const;
+
+export const getCreatePlatformUserMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformUser>>, TError,CreatePlatformUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlatformUser>>, TError,CreatePlatformUserMutationVariables, TContext> => {
+
+const mutationKey = getCreatePlatformUserMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlatformUser>>, CreatePlatformUserMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPlatformUser(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlatformUserMutationResult = NonNullable<Awaited<ReturnType<typeof createPlatformUser>>>
+    export type CreatePlatformUserMutationBody = BodyType<CreatePlatformUserRequest>
+    export type CreatePlatformUserMutationError = ErrorType<ApiErrorResponse>
+    export type CreatePlatformUserMutationVariables = {data: BodyType<CreatePlatformUserRequest>}
+
+    /**
+ * @summary Create a platform account with a temporary password and assigned platform roles; owner only
+ */
+export const useCreatePlatformUser = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformUser>>, TError,CreatePlatformUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlatformUser>>,
+        TError,
+        CreatePlatformUserMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePlatformUserMutationOptions(options));
+    }
 
 export const getGetPlatformUserUrl = (userId: string,) => {
 
@@ -9415,6 +9602,178 @@ export function useGetAdminCatalogCategories<TData = Awaited<ReturnType<typeof g
 
 
 
+
+export const getGetAdminInventoryUrl = (params: GetAdminInventoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/inventory?${stringifiedParams}` : `/api/admin/inventory`
+}
+
+/**
+ * @summary Read a permission-scoped merchant inventory view
+ */
+export const getAdminInventory = async (params: GetAdminInventoryParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminInventoryQueryResult> => {
+
+  return customFetch<AdminInventoryQueryResult>(getGetAdminInventoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminInventoryQueryKey = (params?: GetAdminInventoryParams,) => {
+    return [
+    `/api/admin/inventory`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminInventoryQueryOptions = <TData = Awaited<ReturnType<typeof getAdminInventory>>, TError = ErrorType<ApiErrorResponse>>(params: GetAdminInventoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminInventoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminInventory>>> = ({ signal }) => getAdminInventory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminInventory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminInventoryQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminInventory>>>
+export type GetAdminInventoryQueryError = ErrorType<ApiErrorResponse>
+
+
+/**
+ * @summary Read a permission-scoped merchant inventory view
+ */
+
+export function useGetAdminInventory<TData = Awaited<ReturnType<typeof getAdminInventory>>, TError = ErrorType<ApiErrorResponse>>(
+ params: GetAdminInventoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminInventoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExecuteAdminInventoryCommandUrl = () => {
+
+
+
+
+  return `/api/admin/inventory`
+}
+
+/**
+ * @summary Create or review an audited stock command
+ */
+export const executeAdminInventoryCommand = async (executeAdminInventoryCommandBody: ExecuteAdminInventoryCommand, options?: Parameters<typeof customFetch>[1]): Promise<AdminInventoryCommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminInventoryCommandResult>(getExecuteAdminInventoryCommandUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(executeAdminInventoryCommandBody)
+  }
+);}
+
+
+
+
+
+export const getExecuteAdminInventoryCommandMutationKey = () => ['executeAdminInventoryCommand'] as const;
+
+export const getExecuteAdminInventoryCommandMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAdminInventoryCommand>>, TError,ExecuteAdminInventoryCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof executeAdminInventoryCommand>>, TError,ExecuteAdminInventoryCommandMutationVariables, TContext> => {
+
+const mutationKey = getExecuteAdminInventoryCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeAdminInventoryCommand>>, ExecuteAdminInventoryCommandMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  executeAdminInventoryCommand(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteAdminInventoryCommandMutationResult = NonNullable<Awaited<ReturnType<typeof executeAdminInventoryCommand>>>
+    export type ExecuteAdminInventoryCommandMutationBody = BodyType<ExecuteAdminInventoryCommand>
+    export type ExecuteAdminInventoryCommandMutationError = ErrorType<ApiErrorResponse>
+    export type ExecuteAdminInventoryCommandMutationVariables = {data: BodyType<ExecuteAdminInventoryCommand>}
+
+    /**
+ * @summary Create or review an audited stock command
+ */
+export const useExecuteAdminInventoryCommand = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAdminInventoryCommand>>, TError,ExecuteAdminInventoryCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof executeAdminInventoryCommand>>,
+        TError,
+        ExecuteAdminInventoryCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExecuteAdminInventoryCommandMutationOptions(options));
+    }
 
 export const getListAdminCatalogOrganizationsUrl = (params?: ListAdminCatalogOrganizationsParams,) => {
   const normalizedParams = new URLSearchParams();

@@ -1,16 +1,21 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash, randomBytes } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
+import { pool } from "@workspace/db";
+import { passwordChangeRequired } from "../lib/platformPasswordGate";
 import {
   ApproveBranchBody,
   ApproveOrganizationBody,
   CreateBranchBody,
+  CreateInitialOrganizationOwnerBody,
   CreateOrganizationBody,
+  CreatePlatformUserBody,
   UpdateBranchBody,
   UpdateBranchStatusBody,
   UpdateOrganizationBody,
   UpdateOrganizationStatusBody,
 } from "@workspace/api-zod";
-import { createSupabaseServerClient, isRecord, readString, readStringArray, setNoStore } from "../lib/supabaseServer";
+import { assertApprovedSupabaseConfig, createSupabaseServerClient, isRecord, readString, readStringArray, setNoStore } from "../lib/supabaseServer";
 
 const router: IRouter = Router();
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -120,6 +125,13 @@ export async function requireSession(
       fail(res, 403, "الحساب بانتظار اعتماد الصلاحيات.");
       return null;
     }
+    if (requireActive) {
+      const mustChangePassword = await passwordChangeRequired(authData.user.id);
+      if (mustChangePassword) {
+        fail(res, 428, "يجب تغيير كلمة المرور المؤقتة قبل استخدام أقسام المنصة.");
+        return null;
+      }
+    }
 
     return { supabase, userId: authData.user.id };
   } catch {
@@ -195,6 +207,40 @@ function pageResponse<T>(items: T[], page: number, pageSize: number, count: numb
 function organizationIdFrom(req: Request): string | null {
   const candidate = req.params["organizationId"];
   return typeof candidate === "string" && validId(candidate) ? candidate : null;
+}
+
+function sameOriginAuthConfirmationUrl(req: Request, next: string): string | null {
+  const origin = req.get("origin");
+  const referer = req.get("referer");
+  if (!origin || !referer) return null;
+
+  try {
+    const originUrl = new URL(origin);
+    const refererUrl = new URL(referer);
+    if (refererUrl.origin !== originUrl.origin) return null;
+
+    const routeStart = refererUrl.pathname.match(
+      /^(.*?)(?:\/(?:admin\/organizations|workspace\/organizations|admin|workspace|sign-in|sign-up|reset-password)(?:\/|$))/,
+    );
+    if (!routeStart) return null;
+
+    const callback = new URL(`${routeStart[1]}/api/auth/callback`, originUrl.origin);
+    callback.searchParams.set("next", next);
+    return callback.toString();
+  } catch {
+    return null;
+  }
+}
+
+function initialOwnerConfirmationUrl(req: Request, invitationToken: string): string | null {
+  return sameOriginAuthConfirmationUrl(
+    req,
+    `/accept-invitation?token=${encodeURIComponent(invitationToken)}`,
+  );
+}
+
+function platformUserConfirmationUrl(req: Request): string | null {
+  return sameOriginAuthConfirmationUrl(req, "/reset-password?update=1&temporary=1");
 }
 
 async function requireCentralOrganizationAccess(
@@ -886,6 +932,137 @@ router.post("/organizations/:organizationId/invitations", async (req, res): Prom
   });
 });
 
+router.post("/organizations/:organizationId/initial-owner", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const organizationId = organizationIdFrom(req);
+  const parsed = CreateInitialOrganizationOwnerBody.safeParse(req.body);
+  if (!organizationId || !parsed.success) {
+    fail(res, 400, "تحقق من اسم المستخدم والاسم الكامل والبريد وكلمة المرور.");
+    return;
+  }
+  if (!(await requireCentralOrganizationAccess(session, res))) return;
+
+  const input = parsed.data;
+  const username = input.username.trim().toLowerCase();
+  const displayName = input.displayName.trim();
+  const email = input.email.trim().toLowerCase();
+  if (displayName.toLowerCase() === email) {
+    fail(res, 400, "أدخل اسمًا كاملًا مختلفًا عن البريد الإلكتروني.");
+    return;
+  }
+
+  const { data: organization, error: organizationError } = await session.supabase
+    .from("petro_organizations")
+    .select("id")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (organizationError) {
+    apiError(res, organizationError);
+    return;
+  }
+  if (!organization) {
+    fail(res, 404, "لم يتم العثور على الجهة.");
+    return;
+  }
+
+  try {
+    const existing = await pool.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM auth.users u
+         LEFT JOIN public.petro_profiles p ON p.user_id = u.id
+         WHERE lower(u.email) = lower($1)
+            OR lower(p.username) = lower($2)
+       ) AS exists`,
+      [email, username],
+    );
+    if (existing.rows[0]?.exists) {
+      fail(res, 409, "اسم المستخدم أو البريد مرتبط بحساب موجود بالفعل. لم تُغيّر كلمة مروره.");
+      return;
+    }
+  } catch {
+    fail(res, 503, "تعذر التحقق من توفر اسم المستخدم والبريد. لم يُنشأ الحساب.");
+    return;
+  }
+
+  const invitationToken = randomBytes(32).toString("base64url");
+  const invitationTokenHash = createHash("sha256").update(invitationToken).digest("hex");
+  const confirmationUrl = initialOwnerConfirmationUrl(req, invitationToken);
+  if (!confirmationUrl) {
+    fail(res, 400, "تعذر تجهيز رابط تأكيد آمن. افتح النموذج من لوحة الإدارة ثم حاول مجددًا.");
+    return;
+  }
+
+  const { data: invitationId, error: invitationError } = await session.supabase.rpc(
+    "petro_create_invitation",
+    {
+      p_organization_id: organizationId,
+      p_email: email,
+      p_role: "organization_owner",
+      p_scope: "organization",
+      p_branch_ids: [],
+      p_token_hash: invitationTokenHash,
+    },
+  );
+  if (invitationError || typeof invitationId !== "string") {
+    apiError(res, invitationError);
+    return;
+  }
+
+  const revokeInvitation = async () => {
+    const { error } = await session.supabase.rpc("petro_revoke_invitation", {
+      p_invitation_id: invitationId,
+    });
+    if (error) {
+      req.log.warn({ organizationId }, "Could not revoke invitation after account setup failed");
+    }
+  };
+
+  try {
+    const { url, publicKey } = assertApprovedSupabaseConfig();
+    const authClient = createClient(url, publicKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+    const { data, error } = await authClient.auth.signUp({
+      email,
+      password: input.password,
+      options: {
+        emailRedirectTo: confirmationUrl,
+        data: {
+          login_identifier_type: "username",
+          username,
+          display_name: displayName,
+        },
+      },
+    });
+
+    if (error || !data.user || (data.user.identities && data.user.identities.length === 0)) {
+      await revokeInvitation();
+      if (data.user?.identities?.length === 0 || error?.code === "user_already_exists") {
+        fail(res, 409, "اسم المستخدم أو البريد مستخدم بالفعل. لم تُنشأ دعوة أو يُغيّر حساب موجود.");
+      } else {
+        fail(res, 503, "تعذر إنشاء الحساب. لم تُحفظ كلمة المرور ولم تُفعّل عضوية الجهة؛ أعد المحاولة.");
+      }
+      return;
+    }
+
+    res.status(201).json({
+      status: "confirmation_required",
+      message: "تم إنشاء الحساب وإعداد دعوة مالك الجهة. يلزم تأكيد البريد وقبول الدعوة قبل تفعيل صلاحياته.",
+    });
+  } catch {
+    await revokeInvitation();
+    fail(res, 503, "تعذر إنشاء الحساب. لم تُحفظ كلمة المرور ولم تُفعّل عضوية الجهة؛ أعد المحاولة.");
+  }
+});
+
 router.post("/invitations/accept", async (req, res): Promise<void> => {
   setNoStore(res);
   const session = await requireSession(req, res, false);
@@ -1009,11 +1186,169 @@ router.get("/admin/platform-users", async (req, res): Promise<void> => {
       createdAt: row.created_at,
       platformRoles: row.platform_roles,
     })),
+    roleCatalog: PLATFORM_ROLE_CATALOG,
     page: page.page,
     pageSize: page.pageSize,
     total,
     totalPages: Math.ceil(total / page.pageSize),
   });
+});
+
+router.post("/admin/platform-users", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const parsed = CreatePlatformUserBody.safeParse(req.body);
+  if (!parsed.success) {
+    fail(res, 400, "أكمل اسم المستخدم والاسم والبريد وكلمة المرور المؤقتة والدور وسبب الإضافة.");
+    return;
+  }
+
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const { data: accessContext, error: contextError } =
+    await session.supabase.rpc("petro_access_context");
+  if (contextError) {
+    apiError(res, contextError);
+    return;
+  }
+  const accessRecord = isRecord(accessContext) ? accessContext : {};
+  const assignedRoles = accessRecord["platform_roles"] ?? accessRecord["platformRoles"];
+  if (
+    !Array.isArray(assignedRoles) ||
+    !assignedRoles.some((role) => typeof role === "string" && role.toLowerCase() === "owner")
+  ) {
+    fail(res, 403, "إنشاء مستخدمي المنصة متاح لمالك المنصة فقط.");
+    return;
+  }
+
+  const username = parsed.data.username.trim().normalize("NFKC").toLowerCase();
+  const displayName = parsed.data.displayName.trim();
+  const email = parsed.data.email.trim().toLowerCase();
+  const password = parsed.data.password;
+  const reason = parsed.data.reason.trim();
+  const roles = [...new Set(parsed.data.roles)];
+  if (
+    !/^[a-z0-9][a-z0-9_.-]{2,31}$/.test(username) ||
+    displayName.length < 2 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    password.length < 12 ||
+    roles.length < 1 ||
+    roles.some((role) => !PLATFORM_ROLES.has(role)) ||
+    reason.length < 5
+  ) {
+    fail(res, 400, "تحقق من اسم المستخدم والبريد والدور وسبب الإضافة.");
+    return;
+  }
+
+  try {
+    const existing = await pool.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM auth.users u
+         LEFT JOIN public.petro_profiles p ON p.user_id = u.id
+         WHERE lower(u.email) = lower($1)
+            OR lower(p.username) = lower($2)
+       ) AS exists`,
+      [email, username],
+    );
+    if (existing.rows[0]?.exists) {
+      fail(res, 409, "اسم المستخدم أو البريد مرتبط بحساب موجود بالفعل. لم تتغير كلمة مروره.");
+      return;
+    }
+  } catch {
+    fail(res, 503, "تعذر التحقق من توفر اسم المستخدم والبريد. لم يُنشأ الحساب.");
+    return;
+  }
+
+  try {
+    const readiness = await pool.query<{ ready: boolean }>(
+      `SELECT
+         EXISTS (
+           SELECT 1
+           FROM pg_catalog.pg_attribute
+           WHERE attrelid = 'public.petro_profiles'::regclass
+             AND attname = 'password_change_required'
+             AND NOT attisdropped
+         )
+         AND to_regprocedure(
+           'public.petro_admin_create_platform_user_access(uuid,text[],text)'
+         ) IS NOT NULL AS ready`,
+    );
+    if (!readiness.rows[0]?.ready) {
+      fail(res, 503, "إدارة الحسابات المؤقتة غير مفعلة على قاعدة البيانات بعد. لم يُنشأ الحساب.");
+      return;
+    }
+  } catch {
+    fail(res, 503, "تعذر التحقق من جاهزية قاعدة البيانات. لم يُنشأ الحساب.");
+    return;
+  }
+
+  const confirmationUrl = platformUserConfirmationUrl(req);
+  if (!confirmationUrl) {
+    fail(res, 400, "تعذر تجهيز رابط تأكيد آمن. افتح النموذج من لوحة الإدارة ثم حاول مجددًا.");
+    return;
+  }
+
+  try {
+    const { url, publicKey } = assertApprovedSupabaseConfig();
+    const authClient = createClient(url, publicKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+    const { data, error } = await authClient.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: confirmationUrl,
+        data: {
+          login_identifier_type: "username",
+          username,
+          display_name: displayName,
+        },
+      },
+    });
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      fail(res, 409, "اسم المستخدم أو البريد مرتبط بحساب موجود بالفعل. لم تتغير كلمة مروره.");
+      return;
+    }
+    if (error || !data.user?.id) {
+      fail(res, 503, "تعذر إنشاء الحساب أو إرسال رابط التأكيد. لم تُمنح أي صلاحيات.");
+      return;
+    }
+    if (data.session) await authClient.auth.signOut({ scope: "local" });
+
+    const { error: roleError } = await session.supabase.rpc(
+      "petro_admin_create_platform_user_access",
+      {
+        p_user_id: data.user.id,
+        p_roles: roles,
+        p_reason: reason,
+      },
+    );
+    if (roleError) {
+      req.log.warn(
+        { userId: data.user.id, code: roleError.code },
+        "Platform account was created without assigned platform roles",
+      );
+      res.status(202).json({
+        status: "created_without_roles",
+        message:
+          "أُنشئ الحساب دون صلاحيات لأن تعيين الدور لم يكتمل. لا تعاود إنشاء الحساب؛ أكمل تأكيد البريد ثم أسند الدور من ملف المستخدم.",
+      });
+      return;
+    }
+
+    res.status(201).json({
+      status: "confirmation_required",
+      message:
+        "أُنشئ الحساب وأُسندت الأدوار. يجب تأكيد البريد وتغيير كلمة المرور المؤقتة، ثم تفعيل الحساب من ملفه إذا ظل بانتظار الاعتماد. سلّم كلمة المرور عبر قناة آمنة منفصلة؛ لا تُرسلها مع رابط التأكيد.",
+    });
+  } catch {
+    fail(res, 503, "تعذر إنشاء الحساب بأمان. لم يتم عرض كلمة المرور أو تسجيلها.");
+  }
 });
 
 router.get("/admin/platform-users/:userId", async (req, res): Promise<void> => {

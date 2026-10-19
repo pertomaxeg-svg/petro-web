@@ -6,6 +6,10 @@
 .central-admin .co-detail-title h1{margin:6px 0}
 .central-admin .co-code{font-size:12px}
 .central-admin .co-button{font-size:13px!important;min-height:42px}
+.central-admin .co-button:not(.co-secondary):not(.co-danger){background:#17664f!important;border:1px solid #12543f!important;color:#fff!important;font-weight:750;box-shadow:0 2px 5px #163e301a}
+.central-admin .co-button:not(.co-secondary):not(.co-danger):hover:not(:disabled){background:#104d3b!important;border-color:#0d4636!important}
+.central-admin .co-button:not(.co-secondary):not(.co-danger):focus-visible{outline:3px solid #d28a45;outline-offset:2px}
+.central-admin .co-button:not(.co-secondary):not(.co-danger):disabled{opacity:.62;cursor:not-allowed}
 .central-admin .co-filterbar label,.central-admin .co-search input{font-size:13px}
 .central-admin .co-table-scroll{max-width:100%;overflow-x:auto}
 .central-admin .co-table-scroll table{min-width:760px;font-size:13px}
@@ -15,3 +19,19 @@
 .central-admin .co-branches-head p{font-size:13px}
 .central-admin .co-memberships .co-branches-head{margin-bottom:14px}
 @media(max-width:760px){.central-admin .co-table-scroll table{min-width:700px}.central-admin .co-detail-hero{align-items:flex-start;flex-wrap:wrap}.central-admin .co-detail-buttons{width:100%;flex-wrap:wrap}.central-admin .co-linked-records{grid-template-columns:1fr}}
+
+.central-admin .co-organization-create-form .co-form-section{min-width:0;border:0;padding:0;margin:0 0 20px}
+.central-admin .co-organization-create-form .co-form-section legend{padding:0;margin-bottom:12px;color:#20332e;font-size:16px;font-weight:750}
+.central-admin .co-organization-create-form .co-form-section:disabled{opacity:.72}
+.central-admin .co-organization-create-form .co-form-section .co-fields label{font-size:13px;color:#34433e}
+.central-admin .co-organization-create-form .co-fields input,
+.central-admin .co-organization-create-form .co-fields select,
+.central-admin .co-organization-create-form .co-fields textarea{min-height:42px;height:auto;padding:9px 11px;font-size:14px;border-color:#c7d0cb;border-radius:6px}
+.central-admin .co-organization-create-form .co-fields textarea{min-height:82px;resize:vertical;line-height:1.7}
+.central-admin .co-organization-create-form .co-fields small{font-size:11px;color:#56655f;line-height:1.6}
+.central-admin .co-organization-create-form .co-form-help{margin:0;color:#46574f;font-size:12px;line-height:1.7}
+.central-admin .co-organization-create-form .co-form-section .co-form-help{margin:0 0 12px}
+.central-admin .co-organization-create-form .co-fields input:focus,
+.central-admin .co-organization-create-form .co-fields select:focus,
+.central-admin .co-organization-create-form .co-fields textarea:focus{border-color:#176b55;box-shadow:0 0 0 3px #176b5522}
+@media(max-width:650px){.central-admin .co-organization-create-form .co-form-section legend{font-size:15px}.central-admin .co-organization-create-form .co-fields label{font-size:12px}}

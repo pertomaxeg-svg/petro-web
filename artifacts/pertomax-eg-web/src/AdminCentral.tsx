@@ -2,18 +2,19 @@ import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent, type Reac
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import "./AdminCentral.css";
-import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronDown, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, Package, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, Users, X, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Building2, Check, ChevronDown, ChevronLeft, CircleAlert, Clock3, CreditCard, FileSearch, LockKeyhole, Menu, Package, PanelRightClose, RefreshCw, Search, ShieldCheck, UserRound, UserPlus, Users, X, Truck } from "lucide-react";
 import {
   getGetAuthMeQueryKey, getGetPlatformUserQueryKey, getListAdminOrganizationRequestsQueryKey,
   getGetPlatformUserMembershipsQueryKey, getListOrganizationsQueryKey, getListPlatformUsersQueryKey,
   useGetAuthMe, useGetPlatformUser, useGetPlatformUserMemberships,
-  useListAdminOrganizationRequests, useListOrganizations, useListPlatformUsers, useSetPlatformUserRoles,
+  useListAdminOrganizationRequests, useListOrganizations, useListPlatformUsers, useCreatePlatformUser, useSetPlatformUserRoles,
   useSetUserStatus, useSignOut,
 } from "@workspace/api-client-react";
 import type { PlatformRole, PlatformUser } from "@workspace/api-client-react";
 const AdminFinancePage = lazy(() => import("./admin-finance/AdminFinancePage").then(module => ({ default: module.AdminFinancePage })));
 const FleetAdminPage = lazy(() => import("./FleetAdmin").then(module => ({ default: module.FleetAdminPage })));
 const CatalogAdminPage = lazy(() => import("./CatalogAdmin").then(module => ({ default: module.CatalogAdminPage })));
+const AdminInventoryPage = lazy(() => import("./inventory/AdminInventoryPage").then(module => ({ default: module.AdminInventoryPage })));
 
 const roles: PlatformRole[] = ["owner", "operations", "finance", "support", "auditor"];
 const roleFallback: Record<PlatformRole, string> = { owner: "مالك المنصة", operations: "العمليات", finance: "المالية", support: "الدعم", auditor: "مراجع" };
@@ -37,8 +38,13 @@ function AdminGate({ children, allowedRoles = ["owner"] }: {
   allowedRoles?: PlatformRole[];
 }) {
   const me = useGetAuthMe({ query: { queryKey: getGetAuthMeQueryKey(), retry: false, staleTime: 20_000 } });
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    if (me.data?.passwordChangeRequired) setLocation("/reset-password?update=1&temporary=1");
+  }, [me.data?.passwordChangeRequired, setLocation]);
   if (me.isLoading) return <main className="ac-page" dir="rtl"><div className="ac-loading"><i/><i/><i/></div></main>;
   if (me.isError || !me.data) return <main className="ac-guard" dir="rtl"><div className="ac-guard-mark"><LockKeyhole/></div><h1>يلزم تسجيل الدخول</h1><p>تتطلب الإدارة المركزية جلسة موثّقة بصلاحية منصة مخوّلة.</p><Link className="ac-button" href="/sign-in">تسجيل الدخول <ArrowLeft size={16}/></Link></main>;
+  if (me.data.passwordChangeRequired) return <main className="ac-guard" dir="rtl"><div className="ac-guard-mark"><LockKeyhole/></div><h1>غيّر كلمة المرور المؤقتة</h1><p>لن تُفتح أقسام الإدارة قبل تعيين كلمة مرور جديدة.</p><Link className="ac-button" href="/reset-password?update=1&temporary=1">تغيير كلمة المرور <ArrowLeft size={16}/></Link></main>;
   const userRoles = platformRoles(me.data.accessContext);
   if (me.data.state !== "active" || !allowedRoles.some((role) => userRoles.includes(role))) return <main className="ac-guard" dir="rtl"><div className="ac-guard-mark"><ShieldCheck/></div><h1>هذه المساحة غير متاحة</h1><p>لا يملك الحساب الحالي تفويض المنصة المطلوب لهذا القسم.</p><Link className="ac-button ac-button-quiet" href="/workspace">العودة إلى مساحة العمل <ArrowLeft size={16}/></Link></main>;
   return <AdminShell name={me.data.displayName} userRoles={userRoles}>{children(me.data.displayName, me.data.id, userRoles)}</AdminShell>;
@@ -57,6 +63,12 @@ export function FinanceAdminFrame() {
 export function FleetAdminFrame() {
   return <AdminGate allowedRoles={["owner", "operations", "auditor"]}>
     {(_name, _userId, roles) => <Suspense fallback={<main className="ac-page" dir="rtl"><div className="ac-loading"><i/><i/><i/></div></main>}><FleetAdminPage canMutate={roles.some(role => role === "owner" || role === "operations")} isOwner={roles.includes("owner")}/></Suspense>}
+  </AdminGate>;
+}
+
+export function InventoryAdminFrame() {
+  return <AdminGate allowedRoles={["owner", "operations", "finance", "auditor"]}>
+    {(_name, _userId, roles) => <Suspense fallback={<main className="ac-page" dir="rtl"><div className="ac-loading"><i/><i/><i/></div></main>}><AdminInventoryPage canManageInventory={roles.some(role => role === "owner" || role === "operations")}/></Suspense>}
   </AdminGate>;
 }
 
@@ -87,10 +99,10 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
   const isOwner = userRoles.includes("owner");
   const canSeeFinance = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
   const isFleet = path.startsWith("/admin/fleet");
-  const active = path === "/admin" ? "overview" : isFleet ? "fleet" : path.startsWith("/admin/catalog") ? "catalog" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
+  const active = path === "/admin" ? "overview" : isFleet ? "fleet" : path.startsWith("/admin/catalog") ? "catalog" : path.startsWith("/admin/inventory") ? "inventory" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
   const fleetLabels: Record<string, string> = { "/admin/fleet": "الشركات والأسطول", "/admin/fleet/vehicles": "المركبات", "/admin/fleet/drivers": "السائقون", "/admin/fleet/policies": "سياسات الأسطول", "/admin/fleet/coverage": "تغطية المركبات", "/admin/fleet/credentials": "رموز تعريف المركبات", "/admin/fleet/documents": "مستندات المركبات", "/admin/fleet/odometer": "قراءات العداد", "/admin/fleet/maintenance": "سجلات الصيانة", "/admin/fleet/imports": "استيراد بيانات الأسطول" };
   const fleetTitle = isFleet ? path.match(/\/branches\/[^/]+$/) ? "مركبات الفرع" : path.match(/\/companies\/[^/]+$/) ? "الشركة والفروع" : path.startsWith("/admin/fleet/companies/") ? "الشركة والأسطول" : fleetLabels[path] ?? "إدارة الأسطول" : "";
-  const pageTitle = isFleet ? fleetTitle : active === "catalog" ? "الكتالوج والخدمات" : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const pageTitle = isFleet ? fleetTitle : active === "catalog" ? "الكتالوج والخدمات" : active === "inventory" ? "مخزون منتجات التجار" : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
   const fleetLinks = [
     ["/admin/fleet", "الشركات والأسطول"],
@@ -127,6 +139,7 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
     {canSeeFinance && <>
       <span className="ac-nav-group ac-nav-group-spaced">المالية والتحصيل</span>
       <Link href="/admin/finance" onClick={()=>setDrawerOpen(false)} className={active === "finance" ? "selected" : ""}><span className="ac-nav-icon"><Banknote size={17}/></span><span className="ac-nav-label">الدفتر المالي</span></Link>
+      <Link href="/admin/inventory" onClick={()=>setDrawerOpen(false)} className={active === "inventory" ? "selected" : ""}><span className="ac-nav-icon"><Package size={17}/></span><span className="ac-nav-label">مخزون المنتجات</span></Link>
     </>}
     {(isOwner || userRoles.includes("operations") || userRoles.includes("auditor")) && <>
       <span className="ac-nav-group ac-nav-group-spaced">إدارة الأسطول</span>
@@ -208,10 +221,24 @@ function DirectoryData() {
   const [status, setStatus] = useState("");
   const [role, setRole] = useState("");
   const [page, setPage] = useState(1);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createNotice, setCreateNotice] = useState<{ kind: "success" | "warning"; text: string } | null>(null);
+  const cache = useQueryClient();
   const params = useMemo(() => ({ page, pageSize: 12, ...(search.trim().length >= 2 ? { search: search.trim() } : {}), ...(status ? { accountStatus: status as "pending"|"active"|"suspended" } : {}), ...(role ? { role: role as PlatformRole } : {}) }), [page, search, status, role]);
   const query = useListPlatformUsers(params, { query: { queryKey: getListPlatformUsersQueryKey(params), retry: false, refetchOnMount: "always" } });
   return <div className="ac-page-enter">
-    <div className="ac-heading-row"><div><span className="ac-eyebrow">تفويض المنصة <i/></span><h1>مستخدمو المنصة</h1><p>دليل الحسابات وأدوارها النشطة على مستوى المنصة فقط.</p></div><span className="ac-total-stamp"><b>{query.data?.total?.toLocaleString("ar-EG") ?? "—"}</b><small>حساب</small></span></div>
+    <div className="ac-heading-row"><div><span className="ac-eyebrow">تفويض المنصة <i/></span><h1>مستخدمو المنصة</h1><p>إنشاء الحسابات وتحديد الأدوار المركزية المصرّح بها.</p></div><div className="ac-heading-actions"><button className="ac-button ac-button-primary" onClick={()=>{setCreateOpen(!createOpen);setCreateNotice(null)}} aria-expanded={createOpen}><UserPlus size={16}/>{createOpen?"إغلاق النموذج":"إضافة مستخدم للمنصة"}</button><span className="ac-total-stamp"><b>{query.data?.total?.toLocaleString("ar-EG") ?? "—"}</b><small>حساب</small></span></div></div>
+    {createNotice&&<div className={`ac-inline-notice ac-inline-notice-${createNotice.kind}`} role={createNotice.kind==="warning"?"alert":"status"}>{createNotice.kind==="warning"?<CircleAlert size={17}/>:<Check size={17}/>}<span>{createNotice.text}</span></div>}
+    {createOpen&&<PlatformUserCreateForm
+      roleCatalog={query.data?.roleCatalog ?? []}
+      loadingRoles={query.isLoading}
+      onCancel={()=>setCreateOpen(false)}
+      onCreated={async result=>{
+        setCreateOpen(false);
+        setCreateNotice({kind:result.status==="confirmation_required"?"success":"warning",text:result.message});
+        await cache.invalidateQueries({queryKey:getListPlatformUsersQueryKey()});
+      }}
+    />}
     <section className="ac-directory-tools">
       <label className="ac-search"><Search size={18}/><input value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} placeholder="ابحث بالاسم أو اسم المستخدم" aria-label="البحث عن مستخدم"/></label>
       <label className="ac-filter">حالة الحساب<select value={status} onChange={e=>{setStatus(e.target.value);setPage(1)}}><option value="">كل الحالات</option><option value="pending">بانتظار التفعيل</option><option value="active">نشط</option><option value="suspended">موقوف</option></select></label>
@@ -227,6 +254,92 @@ function DirectoryData() {
     </section>
     <p className="ac-scope-note"><LockKeyhole size={14}/> هذا الدليل يعرض أدوار المنصة فقط؛ العضويات ونطاقات الفروع لا تُعدّل من هنا.</p>
   </div>;
+}
+
+type PlatformRoleOption = {
+  role: PlatformRole;
+  label: string;
+  scope: string;
+  permissions: Array<{ code: string; label: string }>;
+};
+type PlatformUserCreateResult = {
+  status: "confirmation_required" | "created_without_roles";
+  message: string;
+};
+function PlatformUserCreateForm({
+  roleCatalog,
+  loadingRoles,
+  onCancel,
+  onCreated,
+}: {
+  roleCatalog: PlatformRoleOption[];
+  loadingRoles: boolean;
+  onCancel: () => void;
+  onCreated: (result: PlatformUserCreateResult) => Promise<void>;
+}) {
+  const create = useCreatePlatformUser();
+  const [selectedRoles, setSelectedRoles] = useState<PlatformRole[]>([]);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const selectedPermissions = [...new Map(
+    roleCatalog
+      .filter(option => selectedRoles.includes(option.role))
+      .flatMap(option => option.permissions)
+      .map(permission => [permission.code, permission]),
+  ).values()];
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    const data = new FormData(event.currentTarget);
+    const roles = selectedRoles;
+    if (!roles.length) {
+      setError("اختر دورًا واحدًا على الأقل.");
+      return;
+    }
+    try {
+      const result = await create.mutateAsync({
+        data: {
+          username: String(data.get("username")).trim().toLowerCase(),
+          displayName: String(data.get("displayName")).trim(),
+          email: String(data.get("email")).trim().toLowerCase(),
+          password,
+          roles,
+          reason: String(data.get("reason")).trim(),
+        },
+      });
+      setPassword("");
+      await onCreated(result);
+    } catch (cause) {
+      setPassword("");
+      setError(apiMessage(cause));
+    }
+  }
+
+  return <section className="ac-panel ac-create-platform-user" aria-labelledby="ac-create-user-title">
+    <div className="ac-panel-head"><div><span className="ac-eyebrow">حساب وصلاحيات</span><h2 id="ac-create-user-title">إنشاء مستخدم منصة</h2><p>لا يُمنح الحساب دخولًا قبل تأكيد بريده وتغيير كلمة المرور المؤقتة.</p></div></div>
+    <form className="ac-create-user-form" onSubmit={submit}>
+      <div className="ac-create-user-fields">
+        <label>الاسم الظاهر <b aria-hidden="true">*</b><input name="displayName" required minLength={2} maxLength={120} autoComplete="name" autoFocus placeholder="اسم المستخدم كما سيظهر في السجل"/></label>
+        <label>اسم المستخدم <b aria-hidden="true">*</b><input name="username" required minLength={3} maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_.-]{2,31}" autoComplete="username" placeholder="مثال: ahmed.ops"/><small>3–32 خانة؛ أحرف لاتينية وأرقام ونقطة أو شرطة سفلية.</small></label>
+        <label>البريد الإلكتروني <b aria-hidden="true">*</b><input name="email" type="email" required maxLength={254} autoComplete="email" placeholder="name@example.com"/><small>سيُرسل إليه رابط تأكيد الحساب فقط.</small></label>
+        <label>كلمة مرور مؤقتة <b aria-hidden="true">*</b><input name="temporaryPassword" type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={event=>setPassword(event.target.value)} placeholder="12 خانة على الأقل"/><small>لا تُرسل مع رابط التأكيد؛ سلّمها عبر قناة آمنة منفصلة، وسيُطلب تغييرها عند الدخول الأول.</small></label>
+      </div>
+      <fieldset className="ac-role-picker">
+        <legend>الأدوار والأقسام المتاحة <b aria-hidden="true">*</b></legend>
+        <p>اختر دورًا أو أكثر. الأقسام أدناه مأخوذة من صلاحيات الأدوار الفعلية؛ لا توجد صلاحيات حرة لكل إجراء في النظام الحالي.</p>
+        {loadingRoles?<div className="ac-role-loading" role="status">جارٍ تحميل الأدوار المتاحة…</div>:roleCatalog.length===0?<div className="ac-role-loading" role="alert">تعذر تحميل الأدوار. أغلق النموذج وأعد تحميل دليل المستخدمين.</div>:
+          <div className="ac-role-options">{roleCatalog.map(option=><label className={`ac-role-option ${selectedRoles.includes(option.role)?"is-selected":""}`} key={option.role}>
+            <input type="checkbox" checked={selectedRoles.includes(option.role)} onChange={event=>setSelectedRoles(current=>event.target.checked?[...current,option.role]:current.filter(item=>item!==option.role))}/>
+            <span className="ac-role-option-body"><b>{option.label}</b>{option.permissions.length?<span className="ac-permission-list">{option.permissions.map(permission=><small key={permission.code}>{permission.label}</small>)}</span>:<small className="ac-role-no-sections">لا يمنح أقسامًا تشغيلية حاليًا.</small>}</span>
+          </label>)}</div>}
+        {selectedPermissions.length>0&&<div className="ac-selected-permissions"><b>الأقسام التي ستُسند لهذا الحساب</b><ul>{selectedPermissions.map(permission=><li key={permission.code}>{permission.label}</li>)}</ul></div>}
+      </fieldset>
+      <label className="ac-create-user-reason">سبب إنشاء الحساب وتفويضه <b aria-hidden="true">*</b><textarea name="reason" required minLength={5} maxLength={500} rows={3} placeholder="مثال: مسؤول متابعة طلبات الجهات خلال فترة التشغيل الحالية."/></label>
+      {error&&<div className="ac-inline-notice ac-inline-notice-warning" role="alert"><CircleAlert size={17}/><span>{error}</span></div>}
+      <div className="ac-create-user-actions"><button className="ac-button ac-button-primary" type="submit" disabled={create.isPending||loadingRoles||!roleCatalog.length}>{create.isPending?"جارٍ إنشاء الحساب…":"إنشاء الحساب وإسناد الأدوار"}</button><button className="ac-button ac-button-quiet" type="button" onClick={onCancel} disabled={create.isPending}>إلغاء</button></div>
+    </form>
+  </section>;
 }
 function PlatformUserRow({ user }: { user: PlatformUser }) {
   return <tr><td><Link href={`/admin/platform-users/${encodeURIComponent(user.userId)}`} className="ac-user-cell"><span className="ac-user-avatar">{user.displayName.trim().slice(0,1) || "م"}</span><span><b>{user.displayName}</b><small dir="ltr">@{user.username}</small></span></Link></td><td><div className="ac-role-tags">{user.platformRoles.length ? user.platformRoles.map(r=><span className={`ac-role-tag role-${r}`} key={r}>{roleFallback[r]}</span>) : <span className="ac-no-role">بلا دور منصة</span>}</div></td><td><span className={`ac-status ac-status-${user.accountStatus}`}><i/>{statusLabel[user.accountStatus]}</span></td><td>{dateText(user.createdAt).split("،")[0]}</td><td><Link className="ac-row-link" href={`/admin/platform-users/${encodeURIComponent(user.userId)}`}>عرض السجل <ArrowLeft size={14}/></Link></td></tr>;

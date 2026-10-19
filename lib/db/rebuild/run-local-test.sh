@@ -329,6 +329,28 @@ if ! cmp -s "$tmp_dir/default-acl-before-0019.txt" "$tmp_dir/default-acl-after-0
   diff -u "$tmp_dir/default-acl-before-0019.txt" "$tmp_dir/default-acl-after-0019.txt" >&2 || true
   exit 1
 fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0020.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0020_platform_user_temporary_passwords.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0020.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0020.txt" "$tmp_dir/default-acl-after-0020.txt"; then
+  echo "0020 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0020.txt" "$tmp_dir/default-acl-after-0020.txt" >&2 || true
+  exit 1
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0021.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0021_inventory_and_plan_draft_repair.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0021.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0021.txt" "$tmp_dir/default-acl-after-0021.txt"; then
+  echo "0021 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0021.txt" "$tmp_dir/default-acl-after-0021.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/inventory-smoke-test.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/platform-user-provisioning-smoke-test.sql" >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
 DO $branch_hours_0018$
 BEGIN
@@ -373,6 +395,8 @@ echo "0006 organization requests, document metadata/private-storage RLS policies
 echo "0007 confirmed pending self-service, beneficiary immutability, private attachment isolation, withdrawal, completion, review, resubmission, one-time approval and central on-behalf regression tests passed."
 echo "0010/0011 plan authoring, editable defaults, draft/version immutability, provider price schedules, scope/overlap checks, paid pending state, free stations, and branch expiry isolation passed with synthetic fixtures."
 echo "0008 platform-user directory, role/status audit, owner-only authorization, mandatory reasons, self-change denial, inactive-account guard, and legacy-RPC compatibility passed."
+echo "0020 temporary password reset gate, owner-only initial role assignment, pending-account confirmation, role history, idempotent retry, and narrow function grants passed with synthetic users."
+echo "0021 merchant inventory smoke passed with local synthetic records: role and branch isolation, immutable product stock ledger, exact fractional quantity, idempotency, receipt/transfer/return/damage, reservation/release/consume, insufficient-stock atomic rejection, and reconciliation."
 echo "0012/0013 finance ledger, receipt detail, reservation capture, unallocated receipts, top-up approvals, same-organization transfers, subscription collection holds, exact-piaster balances, idempotency, reversal, and read-only reconciliation passed with local synthetic fixtures."
 echo "0014/0015 fleet integration used real disposable PostgreSQL policy, coverage, reservation and finance-ledger contracts; no fake Supabase transport was used for this integration."
 echo "0017 catalog/fuel pricing checks passed in the disposable PostgreSQL cluster: merchant ownership, branch scope, central-role review, exact EGP minor-unit price, Cairo validity, idempotency, optimistic conflicts, service attributes, and direct-table/RPC grants."
