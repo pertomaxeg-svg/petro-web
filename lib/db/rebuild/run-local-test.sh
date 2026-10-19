@@ -311,6 +311,35 @@ if ! cmp -s "$tmp_dir/default-acl-before-0017.txt" "$tmp_dir/default-acl-after-0
   diff -u "$tmp_dir/default-acl-before-0017.txt" "$tmp_dir/default-acl-after-0017.txt" >&2 || true
   exit 1
 fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0018.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0018_catalog_contract_guards.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0018.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0018.txt" "$tmp_dir/default-acl-after-0018.txt"; then
+  echo "0018 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0018.txt" "$tmp_dir/default-acl-after-0018.txt" >&2 || true
+  exit 1
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0019.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0019_wash_variant_update_guard.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0019.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0019.txt" "$tmp_dir/default-acl-after-0019.txt"; then
+  echo "0019 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0019.txt" "$tmp_dir/default-acl-after-0019.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
+DO $branch_hours_0018$
+BEGIN
+  IF NOT petro_private.petro_valid_branch_hours('{"sun":{"closed":false,"open24Hours":true},"mon":{"closed":true}}'::jsonb)
+     OR petro_private.petro_valid_branch_hours('{"sun":{"closed":false,"open24Hours":true,"open":"09:00"}}'::jsonb)
+     OR petro_private.petro_valid_branch_hours('{"sun":{"closed":false,"open24Hours":false}}'::jsonb) THEN
+    RAISE EXCEPTION '0018 branch-hours contract validation failed';
+  END IF;
+END
+$branch_hours_0018$;
+SQL
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/catalog-services-smoke-test.sql" >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
@@ -347,6 +376,8 @@ echo "0008 platform-user directory, role/status audit, owner-only authorization,
 echo "0012/0013 finance ledger, receipt detail, reservation capture, unallocated receipts, top-up approvals, same-organization transfers, subscription collection holds, exact-piaster balances, idempotency, reversal, and read-only reconciliation passed with local synthetic fixtures."
 echo "0014/0015 fleet integration used real disposable PostgreSQL policy, coverage, reservation and finance-ledger contracts; no fake Supabase transport was used for this integration."
 echo "0017 catalog/fuel pricing checks passed in the disposable PostgreSQL cluster: merchant ownership, branch scope, central-role review, exact EGP minor-unit price, Cairo validity, idempotency, optimistic conflicts, service attributes, and direct-table/RPC grants."
-echo "The 0008, billing, finance, fleet, and catalog API routers passed isolated HTTP/PostgreSQL integration tests with synthetic users and local PostgreSQL behind the test Supabase transport; catalog paths passed 21 positive, replay, role-gate, cross-organization, and unavailable-price assertions. Organization-profile reads passed 47 assertions; fleet routes passed 36; finance concurrency checks passed. 0009 was not run and remains deferred."
-echo "0004/0005/0006/0007/0008/0010/0011/0017 local migrations changed no default ACL in any schema; the test fixture modeled the approved 24 ACL scopes. Storage behavior was simulated locally; no live Storage service was used."
+echo "The 0008, billing, finance, fleet, and catalog API routers passed isolated HTTP/PostgreSQL integration tests with synthetic users and local PostgreSQL behind the test Supabase transport; catalog coverage includes positive role reads, Arabic reference names and units, price-unavailable handling, replay, role gates, cross-organization isolation, and incompatible fuel-unit rejection. Organization-profile reads passed 47 assertions; fleet routes passed 36; finance concurrency checks passed. 0009 was not run and remains deferred."
+echo "0004/0005/0006/0007/0008/0010/0011/0017/0018/0019 local migrations changed no default ACL in any schema; the test fixture modeled the approved 24 ACL scopes. Storage behavior was simulated locally; no live Storage service was used."
+echo "0018 fuel-unit guards, wash variants, and optional per-day 24-hour branch hours passed disposable PostgreSQL tests."
+echo "0019 wash variant updates retained type, vehicle, size, and service unit in disposable PostgreSQL tests."
 echo "Only a temporary local PostgreSQL cluster and local HTTP test server were used; no project Secrets or external network connections were used."

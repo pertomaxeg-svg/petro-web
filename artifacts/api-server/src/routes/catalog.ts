@@ -20,6 +20,7 @@ const IMAGE_LIMIT = 5 * 1024 * 1024;
 
 type Session = NonNullable<Awaited<ReturnType<typeof requireSession>>>;
 type RpcResult = { data: unknown; error: { code?: string; message?: string } | null };
+type ExecuteCatalogCommand = typeof ExecuteCatalogCommandBody._output;
 
 function fail(res: Response, status: number, message: string): void {
   res.status(status).json({ message });
@@ -59,6 +60,54 @@ function asRecord(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
 
+function normalizeCatalogAdminCategories(value: unknown): Record<string, unknown> | null {
+  const result = asRecord(value);
+  if (!Array.isArray(result.categories) || !Array.isArray(result.units)) return null;
+
+  const categories: Record<string, unknown>[] = result.categories.map((entry): Record<string, unknown> => {
+    const category = asRecord(entry);
+    return {
+      ...category,
+      nameAr: category.nameAr ?? category.name_ar,
+      serviceGroup: category.serviceGroup ?? category.service_group,
+      allowedItemKinds: category.allowedItemKinds ?? category.allowed_item_kinds,
+      active: category.active ?? category.is_active,
+    };
+  });
+  const units: Record<string, unknown>[] = result.units.map((entry): Record<string, unknown> => {
+    const unit = asRecord(entry);
+    return {
+      ...unit,
+      nameAr: unit.nameAr ?? unit.name_ar,
+      quantityScale: unit.quantityScale ?? unit.quantity_scale,
+      active: unit.active ?? unit.is_active,
+    };
+  });
+
+  if (categories.some((item) =>
+    typeof item.code !== "string" || typeof item.nameAr !== "string"
+    || typeof item.serviceGroup !== "string" || !Array.isArray(item.allowedItemKinds)
+  ) || units.some((item) =>
+    typeof item.code !== "string" || typeof item.nameAr !== "string"
+    || typeof item.quantityScale !== "number"
+  )) return null;
+
+  return { ...result, categories, units };
+}
+
+function validateFuelTypeUnitCommand(body: ExecuteCatalogCommand): string | null {
+  if (body.action !== "fuel.type.create" && body.action !== "fuel.type.update") return null;
+  const family = body.payload.vehicleFuelFamily;
+  const unitCode = body.payload.unitCode;
+  if (family !== "gasoline" && family !== "diesel") {
+    return "لم تُعتمد وحدة متوافقة لعائلة الوقود هذه بعد؛ لا يمكن حفظها بوحدة مخمّنة.";
+  }
+  if (unitCode !== "litre") {
+    return "وحدة البنزين والسولار المعتمدة هي اللتر فقط.";
+  }
+  return null;
+}
+
 function imageSignatureMatches(contentType: string, bytes: Buffer): boolean {
   if (contentType === "image/png") {
     return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
@@ -90,7 +139,9 @@ router.get("/admin/catalog/categories", async (req, res) => {
   if (!session) return;
   const { data, error } = await rpc(session, "petro_catalog_admin_categories");
   if (error) return mapCatalogError(res, error);
-  res.json(asRecord(data));
+  const normalized = normalizeCatalogAdminCategories(data);
+  if (!normalized) return fail(res, 502, "بيانات التصنيفات ووحدات القياس غير مكتملة؛ أُوقف العرض بدل إظهار أسماء ناقصة.");
+  res.json(normalized);
 });
 
 router.get("/admin/catalog/organizations", async (req, res) => {
@@ -178,6 +229,15 @@ router.post("/catalog/commands", async (req, res) => {
   if (!session) return;
   const parsed = ExecuteCatalogCommandBody.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, "بيانات الإجراء أو سبب التغيير غير مكتملة.");
+  if (parsed.data.action === "fuel.type.create" || parsed.data.action === "fuel.type.update") {
+    const { data: access, error: accessError } = await rpc(session, "petro_catalog_admin_fuel_list", {
+      p_search: null, p_page: 1, p_page_size: 1,
+    });
+    if (accessError) return mapCatalogError(res, accessError);
+    if (asRecord(access).canManage !== true) return fail(res, 403, "ليست لديك صلاحية إدارة تعريف الوقود.");
+  }
+  const fuelUnitError = validateFuelTypeUnitCommand(parsed.data);
+  if (fuelUnitError) return fail(res, 400, fuelUnitError);
   const { data, error } = await rpc(session, "petro_catalog_command", {
     p_action: parsed.data.action,
     p_payload: parsed.data.payload,

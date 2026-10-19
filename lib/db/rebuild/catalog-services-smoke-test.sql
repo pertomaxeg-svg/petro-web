@@ -156,17 +156,44 @@ BEGIN
   response:=public.petro_catalog_command('item.create',
     jsonb_build_object('organizationId',station_id,'categoryId',category_id,'kind','service',
       'name','غسيل تجريبي معزول','description','اختبار محلي فقط','internalCode','LOCAL-WASH-1',
-      'unitCode','service','attributes',jsonb_build_object('vehicleTypes',jsonb_build_array('نوع اختبار'),'durationMinutes',20,'included','غسيل خارجي')),
+       'unitCode','service','attributes',jsonb_build_object('washMode','exterior','vehicleType','سيارة اختبار',
+         'vehicleSize','متوسطة','vehicleTypes',jsonb_build_array('نوع اختبار'),'durationMinutes',20,
+         'included','غسيل خارجي','addOns',jsonb_build_array('تلميع اختباري'))),
     'إنشاء سجل كتالوج محلي للاختبار','catalog-item-create-key-000001');
   item_id:=(response->>'id')::uuid;
   IF response->>'status'<>'draft' THEN RAISE EXCEPTION 'merchant item was not saved as draft'; END IF;
+  response:=public.petro_catalog_command('item.update',
+    jsonb_build_object('itemId',item_id,'expectedVersion',1,'name','غسيل تجريبي معدل',
+      'unitCode','service','attributes',jsonb_build_object('washMode','exterior',
+        'vehicleType','سيارة اختبار','vehicleSize','متوسطة','included','غسيل خارجي')),
+    'اختبار تحديث نسخة الغسيل المحلية','catalog-wash-valid-update-0001');
+  IF (response->>'version')::integer<>2 THEN RAISE EXCEPTION 'valid wash update did not create version two'; END IF;
+  BEGIN
+    PERFORM public.petro_catalog_command('item.update',
+      jsonb_build_object('itemId',item_id,'expectedVersion',2,'name','غسيل بلا فئة',
+        'unitCode','piece','attributes',jsonb_build_object('included','غسيل فقط')),
+      'اختبار منع حذف خصائص الغسيل','catalog-wash-invalid-update-0001');
+    RAISE EXCEPTION 'wash update removed its type, vehicle, size or service unit';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
   IF (public.petro_catalog_command('item.create',
       jsonb_build_object('organizationId',station_id,'categoryId',category_id,'kind','service',
         'name','غسيل تجريبي معزول','description','اختبار محلي فقط','internalCode','LOCAL-WASH-1',
-        'unitCode','service','attributes',jsonb_build_object('vehicleTypes',jsonb_build_array('نوع اختبار'),'durationMinutes',20,'included','غسيل خارجي')),
+        'unitCode','service','attributes',jsonb_build_object('washMode','exterior','vehicleType','سيارة اختبار',
+          'vehicleSize','متوسطة','vehicleTypes',jsonb_build_array('نوع اختبار'),'durationMinutes',20,
+          'included','غسيل خارجي','addOns',jsonb_build_array('تلميع اختباري'))),
       'إنشاء سجل كتالوج محلي للاختبار','catalog-item-create-key-000001')->>'replayed')::boolean IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'same idempotency key did not return the original result';
   END IF;
+  BEGIN
+    PERFORM public.petro_catalog_command('item.create',
+      jsonb_build_object('organizationId',station_id,'categoryId',category_id,'kind','service',
+        'name','غسيل بلا نوع أو حجم','unitCode','service',
+        'attributes',jsonb_build_object('included','غسيل فقط')),
+      'رفض خدمة غسيل غير محددة محليًا','catalog-wash-variant-invalid-0001');
+    RAISE EXCEPTION 'wash item without wash mode/type/size was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
   BEGIN
     PERFORM public.petro_catalog_command('item.create',
       jsonb_build_object('organizationId',station_id,'categoryId',category_id,'kind','service',
@@ -211,12 +238,12 @@ BEGIN
   EXCEPTION WHEN serialization_failure THEN NULL;
   END;
   response:=public.petro_catalog_command('item.review',
-    jsonb_build_object('itemId',fixture.item_id,'reviewStatus','approved','expectedVersion',1),
+    jsonb_build_object('itemId',fixture.item_id,'reviewStatus','approved','expectedVersion',2),
     'مراجعة محلية للاختبار','catalog-review-ok-key-000001');
   IF response->>'reviewStatus'<>'approved' THEN RAISE EXCEPTION 'central review did not approve item'; END IF;
   BEGIN
     PERFORM public.petro_catalog_command('item.status',
-      jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',2),
+      jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',3),
       'محاولة تفعيل مركزي دون ملكية','catalog-central-item-activation-denied');
     RAISE EXCEPTION 'central reviewer activated merchant item';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
@@ -232,7 +259,7 @@ DECLARE fixture record; response jsonb;
 BEGIN
   SELECT * INTO fixture FROM pg_temp.catalog_test_ids;
   response:=public.petro_catalog_command('item.status',
-    jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',2),
+    jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',3),
     'تفعيل محلي بعد المراجعة','catalog-item-active-key-000001');
   IF response->>'status'<>'active' THEN RAISE EXCEPTION 'approved merchant item did not activate'; END IF;
 END
@@ -246,7 +273,7 @@ DECLARE fixture record; response jsonb;
 BEGIN
   SELECT * INTO fixture FROM pg_temp.catalog_test_ids;
   response:=public.petro_catalog_command('item.status',
-    jsonb_build_object('itemId',fixture.item_id,'status','suspended','expectedVersion',3),
+    jsonb_build_object('itemId',fixture.item_id,'status','suspended','expectedVersion',4),
     'إيقاف مركزي موثق في اختبار معزول','catalog-central-suspend-key-00001');
   IF response->>'status'<>'suspended' THEN RAISE EXCEPTION 'central suspension failed'; END IF;
 END
@@ -261,7 +288,7 @@ BEGIN
   SELECT * INTO fixture FROM pg_temp.catalog_test_ids;
   BEGIN
     PERFORM public.petro_catalog_command('item.status',
-      jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',4),
+      jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',5),
       'محاولة تفعيل بعد إيقاف مركزي','catalog-merchant-lift-denied-01');
     RAISE EXCEPTION 'merchant bypassed central suspension';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
@@ -277,7 +304,7 @@ DECLARE fixture record; response jsonb;
 BEGIN
   SELECT * INTO fixture FROM pg_temp.catalog_test_ids;
   response:=public.petro_catalog_command('item.status',
-    jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',4),
+    jsonb_build_object('itemId',fixture.item_id,'status','active','expectedVersion',5),
     'رفع إيقاف مركزي بعد المراجعة في اختبار معزول','catalog-central-lift-key-00001');
   IF response->>'status'<>'active' THEN RAISE EXCEPTION 'authorized central suspension lift failed'; END IF;
 END
@@ -434,6 +461,22 @@ BEGIN
   IF response->>'available'<>'true' OR quantity_text IS NULL THEN
     RAISE EXCEPTION 'amount-to-quantity fuel preview failed';
   END IF;
+  BEGIN
+    PERFORM public.petro_catalog_command('fuel.type.create',
+      jsonb_build_object('code','gasoline_piece_test','nameAr','وقود بوحدة خاطئة',
+        'vehicleFuelFamily','gasoline','unitCode','piece'),
+      'اختبار منع وحدة غير متوافقة','catalog-fuel-unit-invalid-0001');
+    RAISE EXCEPTION 'gasoline fuel type with piece unit was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.petro_catalog_command('fuel.type.create',
+      jsonb_build_object('code','natural_gas_unmapped_test','nameAr','غاز بلا وحدة معتمدة',
+        'vehicleFuelFamily','natural_gas','unitCode','litre'),
+      'اختبار منع التخمين بوحدة الغاز','catalog-fuel-unit-unmapped-0001');
+    RAISE EXCEPTION 'fuel family without explicit unit mapping was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
 
   IF (public.petro_catalog_item_detail(fixture.item_id)->'images') IS NULL THEN
     RAISE EXCEPTION 'item image metadata response is malformed';

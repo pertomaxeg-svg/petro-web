@@ -1525,6 +1525,7 @@ export interface BranchDayHours {
   open?: string;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
   close?: string;
+  open24Hours?: boolean;
 }
 
 export interface BranchHours {

@@ -798,37 +798,44 @@ export const ListBranchesResponse = zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesResponseItemsItemHoursSunOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesResponseItemsItemHoursSunCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursSunCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "mon": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesResponseItemsItemHoursMonOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesResponseItemsItemHoursMonCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursMonCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "tue": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesResponseItemsItemHoursTueOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesResponseItemsItemHoursTueCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursTueCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "wed": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesResponseItemsItemHoursWedOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesResponseItemsItemHoursWedCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursWedCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "thu": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesResponseItemsItemHoursThuOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesResponseItemsItemHoursThuCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursThuCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "fri": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesResponseItemsItemHoursFriOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesResponseItemsItemHoursFriCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursFriCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "sat": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesResponseItemsItemHoursSatOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesResponseItemsItemHoursSatCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesResponseItemsItemHoursSatCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional()
 }),
   "contact_name": zod.string().nullable(),
@@ -899,37 +906,44 @@ export const CreateBranchBody = zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createBranchBodyHoursSunOpenRegExp).optional(),
-  "close": zod.string().regex(createBranchBodyHoursSunCloseRegExp).optional()
+  "close": zod.string().regex(createBranchBodyHoursSunCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "mon": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createBranchBodyHoursMonOpenRegExp).optional(),
-  "close": zod.string().regex(createBranchBodyHoursMonCloseRegExp).optional()
+  "close": zod.string().regex(createBranchBodyHoursMonCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "tue": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createBranchBodyHoursTueOpenRegExp).optional(),
-  "close": zod.string().regex(createBranchBodyHoursTueCloseRegExp).optional()
+  "close": zod.string().regex(createBranchBodyHoursTueCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "wed": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createBranchBodyHoursWedOpenRegExp).optional(),
-  "close": zod.string().regex(createBranchBodyHoursWedCloseRegExp).optional()
+  "close": zod.string().regex(createBranchBodyHoursWedCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "thu": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createBranchBodyHoursThuOpenRegExp).optional(),
-  "close": zod.string().regex(createBranchBodyHoursThuCloseRegExp).optional()
+  "close": zod.string().regex(createBranchBodyHoursThuCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "fri": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createBranchBodyHoursFriOpenRegExp).optional(),
-  "close": zod.string().regex(createBranchBodyHoursFriCloseRegExp).optional()
+  "close": zod.string().regex(createBranchBodyHoursFriCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "sat": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createBranchBodyHoursSatOpenRegExp).optional(),
-  "close": zod.string().regex(createBranchBodyHoursSatCloseRegExp).optional()
+  "close": zod.string().regex(createBranchBodyHoursSatCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional()
 }),
   "contactName": zod.string().max(createBranchBodyContactNameMax).nullish(),
@@ -997,37 +1011,44 @@ export const ListBranchesPaginatedResponse = zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSunOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSunCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSunCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "mon": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursMonOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursMonCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursMonCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "tue": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursTueOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursTueCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursTueCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "wed": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursWedOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursWedCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursWedCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "thu": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursThuOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursThuCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursThuCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "fri": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursFriOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursFriCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursFriCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "sat": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSatOpenRegExp).optional(),
-  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSatCloseRegExp).optional()
+  "close": zod.string().regex(listBranchesPaginatedResponseItemsItemHoursSatCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional()
 }),
   "contact_name": zod.string().nullable(),
@@ -1108,37 +1129,44 @@ export const UpdateBranchBody = zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateBranchBodyHoursSunOpenRegExp).optional(),
-  "close": zod.string().regex(updateBranchBodyHoursSunCloseRegExp).optional()
+  "close": zod.string().regex(updateBranchBodyHoursSunCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "mon": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateBranchBodyHoursMonOpenRegExp).optional(),
-  "close": zod.string().regex(updateBranchBodyHoursMonCloseRegExp).optional()
+  "close": zod.string().regex(updateBranchBodyHoursMonCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "tue": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateBranchBodyHoursTueOpenRegExp).optional(),
-  "close": zod.string().regex(updateBranchBodyHoursTueCloseRegExp).optional()
+  "close": zod.string().regex(updateBranchBodyHoursTueCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "wed": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateBranchBodyHoursWedOpenRegExp).optional(),
-  "close": zod.string().regex(updateBranchBodyHoursWedCloseRegExp).optional()
+  "close": zod.string().regex(updateBranchBodyHoursWedCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "thu": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateBranchBodyHoursThuOpenRegExp).optional(),
-  "close": zod.string().regex(updateBranchBodyHoursThuCloseRegExp).optional()
+  "close": zod.string().regex(updateBranchBodyHoursThuCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "fri": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateBranchBodyHoursFriOpenRegExp).optional(),
-  "close": zod.string().regex(updateBranchBodyHoursFriCloseRegExp).optional()
+  "close": zod.string().regex(updateBranchBodyHoursFriCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "sat": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateBranchBodyHoursSatOpenRegExp).optional(),
-  "close": zod.string().regex(updateBranchBodyHoursSatCloseRegExp).optional()
+  "close": zod.string().regex(updateBranchBodyHoursSatCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional()
 }),
   "contactName": zod.string().max(updateBranchBodyContactNameMax).nullish(),
@@ -1239,37 +1267,44 @@ export const GetAdminOrganizationBranchResponse = zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSunOpenRegExp).optional(),
-  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSunCloseRegExp).optional()
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSunCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "mon": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursMonOpenRegExp).optional(),
-  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursMonCloseRegExp).optional()
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursMonCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "tue": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursTueOpenRegExp).optional(),
-  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursTueCloseRegExp).optional()
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursTueCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "wed": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursWedOpenRegExp).optional(),
-  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursWedCloseRegExp).optional()
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursWedCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "thu": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursThuOpenRegExp).optional(),
-  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursThuCloseRegExp).optional()
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursThuCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "fri": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursFriOpenRegExp).optional(),
-  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursFriCloseRegExp).optional()
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursFriCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "sat": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSatOpenRegExp).optional(),
-  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSatCloseRegExp).optional()
+  "close": zod.string().regex(getAdminOrganizationBranchResponseBranchHoursSatCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional()
 }),
   "contact_name": zod.string().nullable(),
@@ -1713,37 +1748,44 @@ export const CreateOrganizationJoinRequestBody = zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSunOpenRegExp).optional(),
-  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp).optional()
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "mon": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursMonOpenRegExp).optional(),
-  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp).optional()
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "tue": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursTueOpenRegExp).optional(),
-  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp).optional()
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "wed": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursWedOpenRegExp).optional(),
-  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp).optional()
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "thu": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursThuOpenRegExp).optional(),
-  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp).optional()
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "fri": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursFriOpenRegExp).optional(),
-  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp).optional()
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "sat": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSatOpenRegExp).optional(),
-  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp).optional()
+  "close": zod.string().regex(createOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional()
 }),
   "contactName": zod.string().max(createOrganizationJoinRequestBodyInitialBranchContactNameMax).nullish(),
@@ -1869,37 +1911,44 @@ export const UpdateOrganizationJoinRequestBody = zod.object({
   "sun": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSunOpenRegExp).optional(),
-  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp).optional()
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSunCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "mon": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursMonOpenRegExp).optional(),
-  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp).optional()
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursMonCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "tue": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursTueOpenRegExp).optional(),
-  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp).optional()
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursTueCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "wed": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursWedOpenRegExp).optional(),
-  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp).optional()
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursWedCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "thu": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursThuOpenRegExp).optional(),
-  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp).optional()
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursThuCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "fri": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursFriOpenRegExp).optional(),
-  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp).optional()
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursFriCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional(),
   "sat": zod.object({
   "closed": zod.boolean(),
   "open": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSatOpenRegExp).optional(),
-  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp).optional()
+  "close": zod.string().regex(updateOrganizationJoinRequestBodyInitialBranchHoursSatCloseRegExp).optional(),
+  "open24Hours": zod.boolean().optional()
 }).optional()
 }),
   "contactName": zod.string().max(updateOrganizationJoinRequestBodyInitialBranchContactNameMax).nullish(),
