@@ -11,6 +11,7 @@ export type ExecuteAdminInventoryCommandAction = typeof ExecuteAdminInventoryCom
 
 export const ExecuteAdminInventoryCommandAction = {
   locationcreate: 'location.create',
+  reorderset: 'reorder.set',
   documentcreate: 'document.create',
   documentreview: 'document.review',
   reservationreserve: 'reservation.reserve',

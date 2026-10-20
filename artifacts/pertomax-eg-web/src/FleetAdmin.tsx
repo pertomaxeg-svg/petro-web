@@ -134,7 +134,7 @@ const labels: Record<string, string> = {
   id: "السجل", organizationName: "الشركة", organization: "الشركة", branchName: "الفرع",
   plateOriginal: "رقم اللوحة", plateStandard: "اللوحة المعيارية", plateStandardCorrection: "تصحيح اللوحة المعيارية", plateNormalized: "اللوحة الموحّدة", category: "الفئة", type: "النوع",
   vehicleType: "نوع المركبة", modelYear: "سنة الصنع", brand: "الصانع", model: "الطراز", year: "سنة الصنع", chassisNumber: "رقم الشاسيه", internalCode: "الكود الداخلي",
-  fuelType: "الوقود", status: "الحالة", coverage: "التغطية", eligibility: "الأهلية", activeCredentials: "الرموز النشطة",
+  fuelType: "فئة الوقود", status: "الحالة", coverage: "التغطية", eligibility: "الأهلية", activeCredentials: "الرموز النشطة",
   version: "نسخة السجل", expectedVersion: "نسخة السجل الحالية", organizationId: "الشركة", branchId: "الفرع",
   isCovered: "تغطية سارية", activeCredentialCount: "الرموز النشطة", activeLinkCount: "الروابط النشطة",
   driverCode: "كود السائق", fullName: "اسم السائق", phone: "الهاتف", vehicleId: "المركبة", driverId: "السائق",
@@ -671,7 +671,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       return;
     }
     const requiredFieldsByAction: Record<string, string[]> = {
-      "vehicle.update": ["expectedVersion"], "vehicle.status": ["expectedVersion"],
+      "vehicle.update": ["expectedVersion"], "vehicle.move": ["expectedVersion"], "vehicle.status": ["expectedVersion"],
       "driver.update": ["expectedVersion"], "driver.status": ["expectedVersion"],
       "driver.link.create": ["startsAt"], "odometer.record": ["readingKm", "recordedAt", "source"],
     };
@@ -1125,7 +1125,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
                 : field === "vehicleType" ? "تظهر اقتراحات من سجلات الشركة؛ أدخل نوع المركبة كما يرد في مستنداتها."
                   : field === "brand" ? "ابحث بين أسماء الصانع المسجلة للشركة أو أدخل الاسم كما يظهر في المستند."
                     : field === "model" ? "ابحث بين طرازات الشركة المسجلة أو أدخل الطراز كما في المستند."
-                      : field === "fuelType" ? "اختر نوع الوقود المسجل في وثائق المركبة."
+                      : field === "fuelType" ? "هذه فئة وقود المركبة (بنزين أو سولار أو غاز). درجة البنزين 80 أو 92 أو 95 تُحدد عند تسجيل التعبئة مستقبلًا."
                         : undefined;
           const companyValueOptions = ["category", "vehicleType", "brand", "model"].includes(field)
             ? [...new Set(formCompanyVehicles.map(record => String(record[field] ?? "").trim()).filter(Boolean))].slice(0, 30)
@@ -1135,12 +1135,15 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           const choices: Record<string, Array<[string, string]>> = {
             status: [["active", "نشط"], ["suspended", "موقوف"], ["inactive", "غير نشط"]],
             scope: [["branch", "نطاق فرع"], ["vehicle", "نطاق مركبة"]],
-            fuelType: [["gasoline", "بنزين"], ["petrol", "بنزين (قيمة مسجلة)"], ["diesel", "سولار"], ["natural_gas", "غاز طبيعي"]],
+            fuelType: [["gasoline", "بنزين"], ["diesel", "سولار"], ["natural_gas", "غاز طبيعي"]],
             credentialType: [["qr", "QR"], ["nfc", "NFC"]],
             requestType: [["issue", "إصدار"], ["replace", "استبدال"]],
             maintenanceType: [["oil", "زيت"], ["parts", "قطع غيار"], ["battery", "بطارية"], ["filters", "فلاتر"], ["tires", "إطارات"], ["other", "أخرى"]],
             decision: command === "odometer.review" ? [["accepted", "مقبول"], ["rejected", "مرفوض"]] : [],
           };
+          const fieldChoices = field === "fuelType" && String(normalizedDefault) === "petrol"
+            ? [...(choices[field] ?? []), ["petrol", "بنزين محفوظ سابقًا"] as [string, string]]
+            : choices[field] ?? [];
           if (field === "waive") return isOwner ? wrap(<Field label="إعفاء معتمد — لمالك المنصة فقط"><input type="checkbox" name="waive" value="true"/></Field>) : null;
           const referenceKind = referenceKinds[field];
           if (referenceKind) {
@@ -1177,11 +1180,11 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
               if (field === "requestId" && command === "tag_stock.reserve") selectedReserveRequestRef.current = { id: value, vehicleId: option?.vehicleId ?? "", label: option?.label ?? "طلب الإصدار المحدد" };
             }}/>);
           }
-          if (choices[field]?.length) {
+          if (fieldChoices.length) {
             const controlled = field === "scope" || field === "credentialType";
-            return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><select {...selectCommon} {...(controlled ? { value: field === "scope" ? policyScope : vehicleCredentialChoice } : { defaultValue: String(normalizedDefault ?? "") })} onChange={event => { clearWizardError(field); if (field === "scope") setPolicyScope(event.target.value); else if (field === "credentialType") setVehicleCredentialChoice(event.target.value); }}>{field === "fuelType" && <option value="">اختر الوقود كما في مستند المركبة</option>}{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{choices[field].map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && nfcIssuePriceMinor === null}>{field === "credentialType" && value === "nfc" ? `NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : label}</option>)}</select>{field === "credentialType" && <small>سعر إصدار الشريحة منفصل عن الاشتراك؛ الطلب لا يثبت التحصيل أو التركيب أو التفعيل.</small>}</Field>);
+            return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><select {...selectCommon} {...(controlled ? { value: field === "scope" ? policyScope : vehicleCredentialChoice } : { defaultValue: String(normalizedDefault ?? "") })} onChange={event => { clearWizardError(field); if (field === "scope") setPolicyScope(event.target.value); else if (field === "credentialType") setVehicleCredentialChoice(event.target.value); }}>{field === "fuelType" && <option value="">اختر فئة الوقود من مستند المركبة</option>}{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{fieldChoices.map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && nfcIssuePriceMinor === null}>{field === "credentialType" && value === "nfc" ? `NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : label}</option>)}</select>{field === "credentialType" && <small>سعر إصدار الشريحة منفصل عن الاشتراك؛ الطلب لا يثبت التحصيل أو التركيب أو التفعيل.</small>}</Field>);
           }
-          if (field === "expectedVersion") return wrap(<Field label={labels[field]}><input {...common} type="number" min="1" value={formReferences.expectedVersion ?? String(defaultValue ?? "")} onChange={event => setFormReferences(current => ({ ...current, expectedVersion: event.target.value }))}/></Field>);
+          if (field === "expectedVersion") return wrap(<input type="hidden" name={field} value={formReferences.expectedVersion ?? String(defaultValue ?? "")} data-testid="fleet-current-record-version"/>);
           if (field === "pinCode") return wrap(<Field label={labels[field]}><input {...common} type="password" inputMode="numeric" autoComplete="new-password" pattern="[0-9]{4}" maxLength={4}/></Field>);
           if (field === "allowedWeekdays") return wrap(<fieldset className="fleet-weekday-picker"><legend>{labels[field]}</legend><p>الأيام غير المحددة تمنع الاستخدام.</p><div>{[["1","الاثنين"],["2","الثلاثاء"],["3","الأربعاء"],["4","الخميس"],["5","الجمعة"],["6","السبت"],["7","الأحد"]].map(([day, name]) => <label key={day}><input data-testid={`fleet-weekday-${day}`} type="checkbox" checked={formWeekdays.includes(day)} onChange={event => setFormWeekdays(current => event.target.checked ? [...current, day].sort() : current.filter(item => item !== day))}/>{name}</label>)}</div></fieldset>);
           if (field === "allowedMerchantOrganizationIds") return wrap(<FleetReferencePicker kind="organization" label={labels[field]} value="" multiple selectedValues={String(formReferences[field] ?? "").split(",").filter(Boolean)} onValuesChange={values => setFormReferences(current => ({ ...current, [field]: values.join(",") }))}/>);

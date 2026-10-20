@@ -7,6 +7,8 @@
  */
 export type AdminInventoryQueryResultItemsItem = { [key: string]: unknown };
 
+export type AdminInventoryQueryResultSummary = { [key: string]: unknown };
+
 export interface AdminInventoryQueryResult {
   items: AdminInventoryQueryResultItemsItem[];
   /** @minimum 1 */
@@ -16,6 +18,7 @@ export interface AdminInventoryQueryResult {
   /** @minimum 0 */
   total?: number;
   consistent?: boolean;
+  summary?: AdminInventoryQueryResultSummary;
   [key: string]: unknown;
  }
 
@@ -24,6 +27,7 @@ export type ExecuteAdminInventoryCommandAction = typeof ExecuteAdminInventoryCom
 
 export const ExecuteAdminInventoryCommandAction = {
   locationcreate: 'location.create',
+  reorderset: 'reorder.set',
   documentcreate: 'document.create',
   documentreview: 'document.review',
   reservationreserve: 'reservation.reserve',
@@ -3337,6 +3341,9 @@ documentId?: string;
  * @maxLength 100
  */
 search?: string;
+status?: GetAdminInventoryStatus;
+sortBy?: GetAdminInventorySortBy;
+sortDirection?: GetAdminInventorySortDirection;
 /**
  * @minimum 1
  * @maximum 100000
@@ -3358,10 +3365,47 @@ export const GetAdminInventoryView = {
   branches: 'branches',
   items: 'items',
   balances: 'balances',
+  summary: 'summary',
+  alerts: 'alerts',
+  return_sources: 'return_sources',
   documents: 'documents',
+  transfers: 'transfers',
+  counts: 'counts',
   movements: 'movements',
   document: 'document',
   reconciliation: 'reconciliation',
+} as const;
+
+export type GetAdminInventoryStatus = typeof GetAdminInventoryStatus[keyof typeof GetAdminInventoryStatus];
+
+
+export const GetAdminInventoryStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type GetAdminInventorySortBy = typeof GetAdminInventorySortBy[keyof typeof GetAdminInventorySortBy];
+
+
+export const GetAdminInventorySortBy = {
+  name: 'name',
+  available: 'available',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt',
+  status: 'status',
+  type: 'type',
+  occurredAt: 'occurredAt',
+  itemName: 'itemName',
+  kind: 'kind',
+} as const;
+
+export type GetAdminInventorySortDirection = typeof GetAdminInventorySortDirection[keyof typeof GetAdminInventorySortDirection];
+
+
+export const GetAdminInventorySortDirection = {
+  asc: 'asc',
+  desc: 'desc',
 } as const;
 
 export type ListAdminCatalogOrganizationsParams = {

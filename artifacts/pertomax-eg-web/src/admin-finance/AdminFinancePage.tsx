@@ -45,9 +45,13 @@ const currency = (value: unknown) => {
   if (value === undefined || value === null || value === "") return "—";
   try {
     const minor = BigInt(String(value));
-    const egp = minor / 100n;
-    const piasters = (minor % 100n).toString().padStart(2, "0");
-    return `${new Intl.NumberFormat("ar-EG").format(egp)}.${piasters} ج.م`;
+    const absolute = minor < 0n ? -minor : minor;
+    const egp = new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(absolute / 100n);
+    const piasters = absolute % 100n;
+    const fraction = piasters
+      ? `٫${new Intl.NumberFormat("ar-EG", { minimumIntegerDigits: 2, maximumFractionDigits: 0 }).format(piasters)}`
+      : "";
+    return `${minor < 0n ? "−" : ""}${egp}${fraction} ج.م`;
   } catch { return "—"; }
 };
 const parseMinor = (input: string): number | null => {
@@ -62,7 +66,7 @@ const parseMinor = (input: string): number | null => {
     return value > 0n && value <= 1_000_000_000_000n ? Number(value) : null;
   } catch { return null; }
 };
-const dateText = (value: unknown) => typeof value === "string" && value ? new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+const dateText = (value: unknown) => typeof value === "string" && value ? new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" }).format(new Date(value)) : "—";
 const label: Record<string, string> = {
   active: "نشط", approved: "معتمد", attached: "مرفق", bank_receipt: "إيصال بنكي", cancelled: "ملغى",
   company: "شركة", provider: "مقدّم خدمة", station: "محطة",
@@ -79,6 +83,31 @@ const label: Record<string, string> = {
 const statusName = (value: unknown) => {
   const key = String(value ?? "");
   return label[key] ?? (key ? key.replaceAll("_", " ") : "غير محدد");
+};
+const financeFieldLabels: Record<string, string> = {
+  accountName: "الحساب", accountKind: "نوع الحساب", actorName: "المسؤول",
+  availableMinor: "الرصيد المتاح", bankReference: "مرجع التحويل البنكي",
+  branchName: "الفرع", collectedAt: "وقت التحصيل", collectionStatus: "حالة التحصيل",
+  createdAt: "وقت الإنشاء", creditMinor: "دائن", debitMinor: "مدين",
+  differenceMinor: "الفرق", entryType: "نوع القيد", effectiveAt: "وقت السريان",
+  isBalanced: "القيد متوازن", journalEntryId: "مرجع القيد",
+  ledgerBalanceMinor: "الرصيد الدفتري", organizationName: "الجهة",
+  reason: "السبب", reference: "المرجع", reservedMinor: "الرصيد المحجوز",
+  reversedBy: "القيد العكسي", sourceType: "مصدر القيد", status: "الحالة",
+  updatedAt: "وقت آخر تحديث",
+};
+const financeFieldLabel = (key: string) => {
+  const camel = key.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
+  return financeFieldLabels[camel] ?? "تفاصيل إضافية";
+};
+const financeDetailValue = (key: string, value: unknown) => {
+  if (value === undefined || value === null || value === "") return "—";
+  if (typeof value === "boolean") return value ? "نعم" : "لا";
+  if (/(?:minor|amount|debit|credit|balance|reserved|available|difference)/i.test(key)
+    && (typeof value === "number" || typeof value === "string")) return currency(value);
+  if (/(?:at|_at|date|_date|time|_time)$/i.test(key) && typeof value === "string") return dateText(value);
+  if (typeof value === "object") return Array.isArray(value) ? `${value.length.toLocaleString("ar-EG")} عناصر` : "تفاصيل محفوظة";
+  return statusName(value);
 };
 const apiStatus = (error: unknown) => {
   const e = error as { status?: number; response?: { status?: number } };
@@ -630,13 +659,13 @@ function JournalTable({ items, page, total, pages, onPage, canReverse, onDetail,
 }
 function JournalDetail({ detail, loading, error, onClose }: { detail: unknown; loading: boolean; error: unknown; onClose: () => void }) {
   const row = detail as Row | undefined;
-  return <div className="af-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className="af-dialog" role="dialog" aria-modal="true" aria-labelledby="af-journal-detail"><header className="af-dialog-head"><div><span className="af-kicker">دفتر القيود · تفاصيل محفوظة</span><h2 id="af-journal-detail">القيد المحاسبي</h2></div><button className="af-icon-button" onClick={onClose} aria-label="إغلاق"><X size={18}/></button></header>{loading ? <Skeletons/> : error ? <StateMessage title="تعذر تحميل تفاصيل القيد" error>{errorText(error)}</StateMessage> : <div className="af-detail-grid">{Object.entries(row ?? {}).filter(([key]) => !/secret|token|url|accountIdentifier/i.test(key)).map(([key, value]) => <div key={key}><small>{key.replaceAll(/([A-Z])/g, " $1")}</small><b>{typeof value === "string" && /minor|amount|debit|credit/i.test(key) ? currency(value) : typeof value === "object" ? JSON.stringify(value) : String(value ?? "—")}</b></div>)}</div>}</section></div>;
+  return <div className="af-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section className="af-dialog" role="dialog" aria-modal="true" aria-labelledby="af-journal-detail"><header className="af-dialog-head"><div><span className="af-kicker">دفتر القيود · تفاصيل محفوظة</span><h2 id="af-journal-detail">القيد المحاسبي</h2></div><button className="af-icon-button" onClick={onClose} aria-label="إغلاق"><X size={18}/></button></header>{loading ? <Skeletons/> : error ? <StateMessage title="تعذر تحميل تفاصيل القيد" error>{errorText(error)}</StateMessage> : <div className="af-detail-grid">{Object.entries(row ?? {}).filter(([key]) => !/(^id$|Id$|_id$|secret|token|url|accountIdentifier)/i.test(key)).map(([key, value]) => <div key={key}><small>{financeFieldLabel(key)}</small><b>{financeDetailValue(key, value)}</b></div>)}</div>}</section></div>;
 }
 function Reconciliation({ data }: { data: unknown }) {
   const root = data && typeof data === "object" && !Array.isArray(data) ? data as Row : {};
   const metrics = Object.entries(root).filter(([key]) => key !== "issues");
   const issues = rows(get(root, "issues"));
-  return <section className="af-panel af-recon"><header className="af-panel-title"><div><span className="af-kicker">قراءة فقط</span><h3>مؤشرات المطابقة</h3></div><Status value={get(root, "status")}/></header>{metrics.length === 0 ? <Empty title="لا توجد نتائج مطابقة" detail="لم يُرجع الخادم عناصر في هذا العرض."/> : <div className="af-recon-grid">{metrics.map(([key, value]) => <article key={key}><small>{key.replaceAll(/([A-Z])/g, " $1").replaceAll("_", " ")}</small><b>{/minor|amount/i.test(key) ? currency(value) : typeof value === "string" && !/^\d+$/.test(value) ? statusName(value) : String(value ?? "—")}</b></article>)}</div>}{issues.length > 0 && <div className="af-table-scroll"><table><thead><tr><th>الحساب</th><th>نوع الحساب</th><th>الرصيد الدفتري</th><th>محجوز</th><th>متاح</th></tr></thead><tbody>{issues.map((issue, index) => <tr key={String(get(issue, "accountId", "account_id") ?? index)}><td>{text(get(issue, "accountName", "account_name"))}</td><td>{statusName(get(issue, "accountKind", "account_kind"))}</td><td className="af-money">{currency(get(issue, "ledgerBalanceMinor", "ledger_balance_minor"))}</td><td className="af-money">{currency(get(issue, "reservedMinor", "reserved_minor"))}</td><td className="af-money">{currency(get(issue, "availableMinor", "available_minor"))}</td></tr>)}</tbody></table></div>}<p className="af-muted">لا تنشئ هذه الشاشة قيدًا ولا تغيّر الرصيد.</p></section>;
+  return <section className="af-panel af-recon"><header className="af-panel-title"><div><span className="af-kicker">قراءة فقط</span><h3>مؤشرات المطابقة</h3></div><Status value={get(root, "status")}/></header>{metrics.length === 0 ? <Empty title="لا توجد نتائج مطابقة" detail="لم يُرجع الخادم عناصر في هذا العرض."/> : <div className="af-recon-grid">{metrics.map(([key, value]) => <article key={key}><small>{financeFieldLabel(key)}</small><b>{financeDetailValue(key, value)}</b></article>)}</div>}{issues.length > 0 && <div className="af-table-scroll"><table><thead><tr><th>الحساب</th><th>نوع الحساب</th><th>الرصيد الدفتري</th><th>محجوز</th><th>متاح</th></tr></thead><tbody>{issues.map((issue, index) => <tr key={String(get(issue, "accountId", "account_id") ?? index)}><td>{text(get(issue, "accountName", "account_name"))}</td><td>{statusName(get(issue, "accountKind", "account_kind"))}</td><td className="af-money">{currency(get(issue, "ledgerBalanceMinor", "ledger_balance_minor"))}</td><td className="af-money">{currency(get(issue, "reservedMinor", "reserved_minor"))}</td><td className="af-money">{currency(get(issue, "availableMinor", "available_minor"))}</td></tr>)}</tbody></table></div>}<p className="af-muted">لا تنشئ هذه الشاشة قيدًا ولا تغيّر الرصيد.</p></section>;
 }
 
 function decimalInput(value: unknown) {
@@ -679,7 +708,12 @@ function ActionDialog({
   const scopeLabel = (branch: Row | null) => {
     const account = scopeAccount(branch ? String(get(branch, "id", "branchId", "branch_id")) : null);
     const name = branch ? text(get(branch, "name", "branchName", "branch_name")) : "الحساب الرئيسي";
-    return `${name} · متاح ${currency(get(account, "availableMinor", "available_minor") ?? "0")}`;
+    if (!organizationId) return "اختر الجهة أولًا";
+    if (!account) return `${name} · الحساب غير مهيأ`;
+    const available = get(account, "availableMinor", "available_minor");
+    return available == null
+      ? `${name} · الرصيد غير متاح`
+      : `${name} · المتاح ${currency(available)}`;
   };
   const targetIsSubscription = allocationType === "subscription";
   const isSelectedReceipt = !!selected && (
@@ -756,8 +790,8 @@ function ActionDialog({
           {uploadOnly && <button type="button" className="af-button" disabled={busy || !file} onClick={onRetryEvidence}><Upload size={15}/>رفع / إعادة محاولة المستند دون تسجيل المال مجددًا</button>}
         </>}
         {kind === "transfer" && <>
-          <Field title="من الحساب / الفرع"><select name="sourceBranchId"><option value="">{scopeLabel(null)}</option>{branches.map(row => <option key={String(get(row, "id", "branchId"))} value={String(get(row, "id", "branchId"))}>{scopeLabel(row)}</option>)}</select></Field>
-          <Field title="إلى الحساب / الفرع"><select name="targetBranchId"><option value="">{scopeLabel(null)}</option>{branches.map(row => <option key={String(get(row, "id", "branchId"))} value={String(get(row, "id", "branchId"))}>{scopeLabel(row)}</option>)}</select></Field>
+          <Field title="من الحساب / الفرع"><select name="sourceBranchId" disabled={!organizationId}><option value="" disabled={!scopeAccount(null)}>{scopeLabel(null)}</option>{branches.map(row => {const branchIdValue=String(get(row,"id","branchId","branch_id"));return <option key={branchIdValue} value={branchIdValue} disabled={!scopeAccount(branchIdValue)}>{scopeLabel(row)}</option>;})}</select></Field>
+          <Field title="إلى الحساب / الفرع"><select name="targetBranchId" disabled={!organizationId}><option value="" disabled={!scopeAccount(null)}>{scopeLabel(null)}</option>{branches.map(row => {const branchIdValue=String(get(row,"id","branchId","branch_id"));return <option key={branchIdValue} value={branchIdValue} disabled={!scopeAccount(branchIdValue)}>{scopeLabel(row)}</option>;})}</select></Field>
           <Field title="المبلغ (جنيه)"><input name="amount" type="text" inputMode="decimal" dir="ltr" required placeholder="0.00"/></Field>
           <Field title="مرجع التحويل"><input name="reference" required minLength={2} maxLength={160} dir="ltr"/></Field>
           <p className="af-hint af-wide">المصدر والوجهة فروع من الجهة المختارة فقط؛ القيمة الفارغة تمثل الحساب الرئيسي. تُرسل معرّفات الفروع، لا معرّفات الحسابات المالية.</p>

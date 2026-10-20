@@ -5,6 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GetAdminInventorySortBy } from './getAdminInventorySortBy';
+import type { GetAdminInventorySortDirection } from './getAdminInventorySortDirection';
+import type { GetAdminInventoryStatus } from './getAdminInventoryStatus';
 import type { GetAdminInventoryView } from './getAdminInventoryView';
 
 export type GetAdminInventoryParams = {
@@ -16,6 +19,9 @@ documentId?: string;
  * @maxLength 100
  */
 search?: string;
+status?: GetAdminInventoryStatus;
+sortBy?: GetAdminInventorySortBy;
+sortDirection?: GetAdminInventorySortDirection;
 /**
  * @minimum 1
  * @maximum 100000

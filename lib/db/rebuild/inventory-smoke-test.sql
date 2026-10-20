@@ -100,6 +100,8 @@ BEGIN
   IF has_table_privilege('anon','public.petro_inventory_balances','SELECT')
      OR has_table_privilege('authenticated','public.petro_inventory_balances','SELECT')
      OR has_table_privilege('service_role','public.petro_inventory_balances','SELECT')
+     OR has_table_privilege('authenticated','public.petro_inventory_reorder_rules','SELECT')
+     OR has_table_privilege('authenticated','public.petro_inventory_reorder_rules','INSERT')
      OR has_table_privilege('authenticated','public.petro_inventory_movements','UPDATE')
      OR has_function_privilege('anon','public.petro_inventory_admin_query(text,jsonb)','EXECUTE')
      OR has_function_privilege('service_role','public.petro_inventory_admin_query(text,jsonb)','EXECUTE')
@@ -114,6 +116,7 @@ SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000000921';
 DO $inventory_owner$
 DECLARE
   ids record; response jsonb; replay jsonb; doc_id uuid; reservation_id uuid;
+  issue_movement bigint; opening_location uuid; count_doc uuid; summary_result jsonb;
   source_location uuid; target_location uuid; quarantine_location uuid; damaged_location uuid;
   before_total numeric; after_total numeric; balance jsonb; item uuid; query_result jsonb;
 BEGIN
@@ -140,6 +143,28 @@ BEGIN
   damaged_location:=(response->>'id')::uuid;
   UPDATE pg_temp.inventory_test_ids SET quarantine_id=quarantine_location,damaged_id=damaged_location;
 
+  response:=public.petro_inventory_admin_command('location.create',
+    jsonb_build_object('organizationId',ids.merchant_id,'branchId',ids.branch_one,'name','مخزن رصيد افتتاحي','kind','sellable','reason','إنشاء موقع افتتاحي محلي'),
+    'inventory-location-opening-01');
+  opening_location:=(response->>'id')::uuid;
+  doc_id:=(public.petro_inventory_admin_command('document.create',
+    jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',opening_location,'type','opening',
+      'reason','رصيد افتتاحي اختبار محلي','lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','8.250000'))),
+    'inventory-opening-create-01')->>'id')::uuid;
+  PERFORM public.petro_inventory_admin_command('document.review',
+    jsonb_build_object('documentId',doc_id,'decision','approve','reason','اعتماد رصيد افتتاحي محلي'),
+    'inventory-opening-approve-01');
+  BEGIN
+    PERFORM public.petro_inventory_admin_command('document.create',
+      jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',opening_location,'type','opening',
+        'reason','محاولة رصيد افتتاحي مكرر','lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','1.000000'))),
+      'inventory-opening-duplicate-01');
+    RAISE EXCEPTION 'inventory allowed a duplicate opening balance';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  balance:=public.petro_inventory_admin_query('balances',jsonb_build_object('locationId',opening_location))->'items'->0;
+  IF (balance->>'onHand')::numeric<>8.25 THEN RAISE EXCEPTION 'opening balance was not posted once'; END IF;
+
   doc_id:=(public.petro_inventory_admin_command('document.create',
     jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',source_location,'type','receipt',
       'reason','استلام اختبار محلي','lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','10.500000'))),
@@ -152,6 +177,14 @@ BEGIN
     RAISE EXCEPTION 'receipt balance did not match ledger';
   END IF;
   before_total:=(balance->>'onHand')::numeric;
+  BEGIN
+    PERFORM public.petro_inventory_admin_command('document.create',
+      jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',source_location,'type','opening',
+        'reason','محاولة رصيد افتتاحي بعد حركة فعلية','lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','1.000000'))),
+      'inventory-opening-after-movement-denied-01');
+    RAISE EXCEPTION 'inventory allowed opening balance after a recorded movement';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
 
   response:=public.petro_inventory_admin_command('reservation.reserve',
     jsonb_build_object('organizationId',ids.merchant_id,'locationId',source_location,'itemId',item,
@@ -231,9 +264,29 @@ BEGIN
   END IF;
 
   doc_id:=(public.petro_inventory_admin_command('document.create',
+    jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',source_location,'type','issue',
+      'reason','صرف سابق لربط مرتجع محلي','lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','1.000000'))),
+    'inventory-issue-create-return-source-01')->>'id')::uuid;
+  PERFORM public.petro_inventory_admin_command('document.review',
+    jsonb_build_object('documentId',doc_id,'decision','approve','reason','اعتماد صرف سابق محلي'),
+    'inventory-issue-approve-return-source-01');
+  query_result:=public.petro_inventory_admin_query('movements',jsonb_build_object('locationId',source_location,'page',1,'pageSize',100));
+  SELECT (entry->>'id')::bigint INTO issue_movement
+  FROM jsonb_array_elements(query_result->'items') entry
+  WHERE entry->>'documentId'=doc_id::text AND entry->>'kind'='issue';
+  BEGIN
+    PERFORM public.petro_inventory_admin_command('document.create',
+      jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',source_location,
+        'targetLocationId',quarantine_location,'type','return','reason','مرتجع أكبر من الصرف الأصلي',
+        'lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','1.100000','sourceMovementId',issue_movement))),
+      'inventory-return-over-original-01');
+    RAISE EXCEPTION 'inventory allowed return quantity above original issue';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  doc_id:=(public.petro_inventory_admin_command('document.create',
     jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',source_location,
       'targetLocationId',quarantine_location,'type','return','reason','مرتجع اختبار معزول',
-      'lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','1.000000'))),
+      'lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','1.000000','sourceMovementId',issue_movement))),
     'inventory-return-create-0001')->>'id')::uuid;
   PERFORM public.petro_inventory_admin_command('document.review',
     jsonb_build_object('documentId',doc_id,'decision','approve','reason','اعتماد مرتجع معزول'),
@@ -247,9 +300,44 @@ BEGIN
     jsonb_build_object('documentId',doc_id,'decision','approve','reason','اعتماد تالف معزول'),
     'inventory-damage-approve-01');
 
+  count_doc:=(public.petro_inventory_admin_command('document.create',
+    jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',source_location,'type','count',
+      'reason','جرد محلي بلقطة إصدار الرصيد','lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','3.500000'))),
+    'inventory-count-snapshot-01')->>'id')::uuid;
+  doc_id:=(public.petro_inventory_admin_command('document.create',
+    jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',source_location,'type','receipt',
+      'reason','استلام بعد لقطة الجرد','lines',jsonb_build_array(jsonb_build_object('itemId',item,'quantity','1.000000'))),
+    'inventory-receipt-after-count-01')->>'id')::uuid;
+  PERFORM public.petro_inventory_admin_command('document.review',
+    jsonb_build_object('documentId',doc_id,'decision','approve','reason','اعتماد استلام بعد لقطة الجرد'),
+    'inventory-receipt-after-count-approve-01');
+  BEGIN
+    PERFORM public.petro_inventory_admin_command('document.review',
+      jsonb_build_object('documentId',count_doc,'decision','approve','reason','محاولة اعتماد لقطة قديمة'),
+      'inventory-count-stale-approve-01');
+    RAISE EXCEPTION 'inventory approved a count after the balance version changed';
+  EXCEPTION WHEN serialization_failure THEN NULL;
+  END;
+  IF public.petro_inventory_admin_query('document',jsonb_build_object('documentId',count_doc))
+      #>> '{document,status}'<>'pending' THEN
+    RAISE EXCEPTION 'stale count approval did not remain pending for recount';
+  END IF;
+  PERFORM public.petro_inventory_admin_command('reorder.set',
+    jsonb_build_object('organizationId',ids.merchant_id,'locationId',source_location,'itemId',item,'reorderLevel','5','reason','حد تنبيه اختبار محلي'),
+    'inventory-reorder-rule-001');
+  query_result:=public.petro_inventory_admin_query('alerts',jsonb_build_object('locationId',source_location));
+  IF query_result #>> '{items,0,status}'<>'low' THEN RAISE EXCEPTION 'low stock threshold did not produce an alert'; END IF;
+  summary_result:=public.petro_inventory_admin_query('summary',jsonb_build_object('locationId',source_location))->'summary';
+  IF (summary_result->>'lowStockItems')::integer<>1 THEN RAISE EXCEPTION 'inventory summary low stock count is incorrect'; END IF;
+  PERFORM public.petro_inventory_admin_command('reorder.set',
+    jsonb_build_object('organizationId',ids.merchant_id,'locationId',source_location,'itemId',item,'reorderLevel','0','reason','تنبيه النفاد فقط للاختبار'),
+    'inventory-reorder-rule-zero-01');
+  query_result:=public.petro_inventory_admin_query('alerts',jsonb_build_object('locationId',source_location));
+  IF jsonb_array_length(query_result->'items')<>0 THEN RAISE EXCEPTION 'zero threshold alerted before stockout'; END IF;
+
   balance:=public.petro_inventory_admin_query('balances',jsonb_build_object('locationId',source_location))->'items'->0;
   after_total:=(balance->>'onHand')::numeric;
-  IF after_total<>before_total-2-3-1 THEN RAISE EXCEPTION 'movement totals did not reconcile'; END IF;
+  IF after_total<>before_total-2-3-1-1+1 THEN RAISE EXCEPTION 'movement totals did not reconcile'; END IF;
   query_result:=public.petro_inventory_admin_query('reconciliation',jsonb_build_object('organizationId',ids.merchant_id));
   IF query_result->>'consistent'<>'true' THEN RAISE EXCEPTION 'inventory ledger and derived balances disagree'; END IF;
   BEGIN
@@ -297,9 +385,13 @@ DECLARE ids record; response jsonb; worker_doc uuid; scoped jsonb;
 BEGIN
   SELECT * INTO STRICT ids FROM pg_temp.inventory_test_ids;
   scoped:=public.petro_inventory_admin_query('locations',jsonb_build_object('organizationId',ids.merchant_id));
-  IF jsonb_array_length(scoped->'items')<>3 THEN
+  IF jsonb_array_length(scoped->'items')<>4 THEN
     RAISE EXCEPTION 'branch manager could not see only their scoped locations';
   END IF;
+  PERFORM public.petro_inventory_admin_command('reorder.set',
+    jsonb_build_object('organizationId',ids.merchant_id,'locationId',ids.sellable_one,'itemId',ids.item_id,
+      'reorderLevel','4','reason','حد تنبيه يضبطه مدير الفرع'),
+    'inventory-manager-reorder-rule-01');
   BEGIN
     PERFORM public.petro_inventory_admin_command('location.create',
       jsonb_build_object('organizationId',ids.merchant_id,'branchId',ids.branch_two,'name','مخزن خارج النطاق','kind','sellable','reason','محاولة محلية خارج نطاق الفرع'),
@@ -312,6 +404,14 @@ BEGIN
     jsonb_build_object('organizationId',ids.merchant_id,'sourceLocationId',ids.sellable_one,'type','receipt',
       'reason','طلب استلام أنشأه عامل محلي','lines',jsonb_build_array(jsonb_build_object('itemId',ids.item_id,'quantity','1.000000'))),
     'inventory-worker-document-01')->>'id')::uuid;
+  BEGIN
+    PERFORM public.petro_inventory_admin_command('reorder.set',
+      jsonb_build_object('organizationId',ids.merchant_id,'locationId',ids.sellable_one,'itemId',ids.item_id,
+        'reorderLevel','1','reason','محاولة تعديل حد من عامل'),
+      'inventory-worker-reorder-denied-01');
+    RAISE EXCEPTION 'worker changed an inventory reorder rule';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
   BEGIN
     PERFORM public.petro_inventory_admin_command('document.review',
       jsonb_build_object('documentId',worker_doc,'decision','approve','reason','محاولة اعتماد عامل محلي'),

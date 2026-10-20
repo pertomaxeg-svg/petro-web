@@ -3581,6 +3581,7 @@ export const GetAdminCatalogCategoriesResponse = zod.object({
  */
 export const getAdminInventoryQuerySearchMax = 100;
 
+export const getAdminInventoryQuerySortDirectionDefault = `desc`;
 export const getAdminInventoryQueryPageDefault = 1;
 export const getAdminInventoryQueryPageMax = 100000;
 
@@ -3590,11 +3591,14 @@ export const getAdminInventoryQueryPageSizeMax = 100;
 
 
 export const GetAdminInventoryQueryParams = zod.object({
-  "view": zod.enum(['organizations', 'locations', 'branches', 'items', 'balances', 'documents', 'movements', 'document', 'reconciliation']),
+  "view": zod.enum(['organizations', 'locations', 'branches', 'items', 'balances', 'summary', 'alerts', 'return_sources', 'documents', 'transfers', 'counts', 'movements', 'document', 'reconciliation']),
   "organizationId": zod.coerce.string().uuid().optional(),
   "locationId": zod.coerce.string().uuid().optional(),
   "documentId": zod.coerce.string().uuid().optional(),
   "search": zod.coerce.string().max(getAdminInventoryQuerySearchMax).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).optional(),
+  "sortBy": zod.enum(['name', 'available', 'updatedAt', 'createdAt', 'status', 'type', 'occurredAt', 'itemName', 'kind']).optional(),
+  "sortDirection": zod.enum(['asc', 'desc']).default(getAdminInventoryQuerySortDirectionDefault),
   "page": zod.coerce.number().int().min(1).max(getAdminInventoryQueryPageMax).default(getAdminInventoryQueryPageDefault),
   "pageSize": zod.coerce.number().int().min(1).max(getAdminInventoryQueryPageSizeMax).default(getAdminInventoryQueryPageSizeDefault)
 })
@@ -3610,7 +3614,8 @@ export const GetAdminInventoryResponse = zod.object({
   "page": zod.number().int().min(1).optional(),
   "pageSize": zod.number().int().min(1).optional(),
   "total": zod.number().int().min(getAdminInventoryResponseTotalMin).optional(),
-  "consistent": zod.boolean().optional()
+  "consistent": zod.boolean().optional(),
+  "summary": zod.record(zod.string(), zod.unknown()).optional()
 })
 
 
@@ -3623,7 +3628,7 @@ export const executeAdminInventoryCommandBodyIdempotencyKeyMax = 120;
 
 
 export const ExecuteAdminInventoryCommandBody = zod.object({
-  "action": zod.enum(['location.create', 'document.create', 'document.review', 'reservation.reserve', 'reservation.release', 'reservation.consume']),
+  "action": zod.enum(['location.create', 'reorder.set', 'document.create', 'document.review', 'reservation.reserve', 'reservation.release', 'reservation.consume']),
   "payload": zod.record(zod.string(), zod.unknown()),
   "idempotencyKey": zod.string().min(executeAdminInventoryCommandBodyIdempotencyKeyMin).max(executeAdminInventoryCommandBodyIdempotencyKeyMax)
 })

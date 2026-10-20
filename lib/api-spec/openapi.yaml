@@ -2344,11 +2344,14 @@ paths:
       tags: [management]
       summary: Read a permission-scoped merchant inventory view
       parameters:
-        - { name: view, in: query, required: true, schema: { type: string, enum: [organizations, locations, branches, items, balances, documents, movements, document, reconciliation] } }
+        - { name: view, in: query, required: true, schema: { type: string, enum: [organizations, locations, branches, items, balances, summary, alerts, return_sources, documents, transfers, counts, movements, document, reconciliation] } }
         - { name: organizationId, in: query, schema: { type: string, format: uuid } }
         - { name: locationId, in: query, schema: { type: string, format: uuid } }
         - { name: documentId, in: query, schema: { type: string, format: uuid } }
         - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] } }
+        - { name: sortBy, in: query, schema: { type: string, enum: [name, available, updatedAt, createdAt, status, type, occurredAt, itemName, kind] } }
+        - { name: sortDirection, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
         - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
       responses:
@@ -2552,6 +2555,7 @@ components:
         pageSize: { type: integer, minimum: 1 }
         total: { type: integer, minimum: 0 }
         consistent: { type: boolean }
+        summary: { type: object, additionalProperties: true }
       required: [items]
     ExecuteAdminInventoryCommand:
       type: object
@@ -2559,7 +2563,7 @@ components:
       properties:
         action:
           type: string
-          enum: [location.create, document.create, document.review, reservation.reserve, reservation.release, reservation.consume]
+          enum: [location.create, reorder.set, document.create, document.review, reservation.reserve, reservation.release, reservation.consume]
         payload: { type: object, additionalProperties: true }
         idempotencyKey: { type: string, minLength: 8, maxLength: 120 }
       required: [action, payload, idempotencyKey]

@@ -158,12 +158,31 @@ CREATE TABLE public.petro_inventory_balances (
 CREATE INDEX petro_inventory_balances_item_idx
   ON public.petro_inventory_balances(organization_id, item_id, location_id);
 
+CREATE TABLE public.petro_inventory_reorder_rules (
+  organization_id uuid NOT NULL,
+  location_id uuid NOT NULL,
+  item_id uuid NOT NULL,
+  reorder_level numeric(20,6) NOT NULL CHECK (reorder_level >= 0),
+  reason text NOT NULL CHECK (char_length(btrim(reason)) BETWEEN 5 AND 500),
+  created_by uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  updated_by uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT petro_inventory_reorder_rules_pk PRIMARY KEY (location_id,item_id),
+  FOREIGN KEY (location_id,organization_id)
+    REFERENCES public.petro_inventory_locations(id,organization_id) ON DELETE RESTRICT,
+  FOREIGN KEY (item_id,organization_id)
+    REFERENCES public.petro_catalog_items(id,organization_id) ON DELETE RESTRICT
+);
+CREATE INDEX petro_inventory_reorder_rules_org_idx
+  ON public.petro_inventory_reorder_rules(organization_id,location_id);
+
 CREATE TABLE public.petro_inventory_documents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES public.petro_organizations(id) ON DELETE RESTRICT,
   source_location_id uuid NOT NULL REFERENCES public.petro_inventory_locations(id) ON DELETE RESTRICT,
   target_location_id uuid REFERENCES public.petro_inventory_locations(id) ON DELETE RESTRICT,
-  document_type text NOT NULL CHECK (document_type IN ('receipt','issue','return','damage','transfer','count','adjustment')),
+  document_type text NOT NULL CHECK (document_type IN ('opening','receipt','issue','return','damage','transfer','count','adjustment')),
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
   reason text NOT NULL CHECK (char_length(btrim(reason)) BETWEEN 5 AND 500),
   idempotency_key text NOT NULL CHECK (idempotency_key ~ '^[A-Za-z0-9._:-]{8,120}$'),
@@ -191,6 +210,9 @@ CREATE TABLE public.petro_inventory_document_lines (
   organization_id uuid NOT NULL,
   item_id uuid NOT NULL,
   quantity numeric(20,6) NOT NULL,
+  expected_quantity numeric(20,6),
+  expected_version bigint,
+  related_movement_id bigint,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (document_id, item_id),
   FOREIGN KEY (item_id, organization_id)
@@ -198,6 +220,9 @@ CREATE TABLE public.petro_inventory_document_lines (
 );
 CREATE INDEX petro_inventory_document_lines_item_idx
   ON public.petro_inventory_document_lines(organization_id, item_id, document_id);
+CREATE INDEX petro_inventory_document_lines_related_movement_idx
+  ON public.petro_inventory_document_lines(related_movement_id,document_id)
+  WHERE related_movement_id IS NOT NULL;
 
 CREATE TABLE public.petro_inventory_reservations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -227,7 +252,7 @@ CREATE TABLE public.petro_inventory_movements (
   document_id uuid REFERENCES public.petro_inventory_documents(id) ON DELETE RESTRICT,
   reservation_id uuid REFERENCES public.petro_inventory_reservations(id) ON DELETE RESTRICT,
   movement_kind text NOT NULL CHECK (movement_kind IN (
-    'receipt','issue','return','damage_out','damage_in','transfer_out','transfer_in',
+     'opening','receipt','issue','return','damage_out','damage_in','transfer_out','transfer_in',
     'count_adjustment','adjustment','reserve','release','consume'
   )),
   on_hand_delta numeric(20,6) NOT NULL DEFAULT 0,
@@ -238,6 +263,9 @@ CREATE TABLE public.petro_inventory_movements (
   CHECK (on_hand_delta <> 0 OR reserved_delta <> 0),
   CHECK ((document_id IS NOT NULL) <> (reservation_id IS NOT NULL))
 );
+ALTER TABLE public.petro_inventory_document_lines
+  ADD CONSTRAINT petro_inventory_document_lines_related_movement_fk
+  FOREIGN KEY (related_movement_id) REFERENCES public.petro_inventory_movements(id) ON DELETE RESTRICT;
 CREATE INDEX petro_inventory_movements_item_time_idx
   ON public.petro_inventory_movements(organization_id, item_id, occurred_at DESC, id DESC);
 CREATE INDEX petro_inventory_movements_location_time_idx
@@ -323,8 +351,9 @@ AS $$
     JOIN public.petro_catalog_categories c ON c.id=i.category_id
     JOIN public.petro_catalog_units u ON u.code=i.unit_code
     WHERE i.id=p_item_id AND i.organization_id=p_organization_id
-      AND i.item_kind='product' AND NOT i.central_suspended
-      AND c.domain_kind='catalog' AND c.service_group<>'fuel'
+      AND i.item_kind='product' AND i.display_status='active'
+      AND i.review_status='approved' AND NOT i.central_suspended
+      AND c.active AND c.domain_kind='catalog' AND c.service_group<>'fuel'
       AND (p_allow_zero OR p_quantity<>0)
       AND p_quantity IS NOT NULL
       AND abs(p_quantity) < 1000000000000
@@ -371,8 +400,11 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $$
 <<inventory_query>>
 DECLARE org_id uuid; location_id uuid; document_id uuid; page_num integer; page_size integer;
-        search_text text; result jsonb;
+        search_text text; result jsonb; sort_by text; sort_direction text; status_filter text;
 BEGIN
+  sort_by:=coalesce(nullif(p_payload->>'sortBy',''),'name');
+  sort_direction:=CASE WHEN p_payload->>'sortDirection'='asc' THEN 'asc' ELSE 'desc' END;
+  status_filter:=nullif(p_payload->>'status','');
   IF p_action='organizations' THEN
     IF NOT petro_private.user_active() OR NOT petro_private.catalog_is_admin(false) THEN
       RAISE EXCEPTION 'not authorized' USING ERRCODE='42501';
@@ -493,7 +525,7 @@ BEGIN
     page_size:=greatest(1,least(coalesce((p_payload->>'pageSize')::integer,25),100));
     search_text:=nullif(btrim(p_payload->>'search'),'');
     SELECT jsonb_build_object(
-      'items',coalesce(jsonb_agg(row_data ORDER BY row_data->>'name'),'[]'::jsonb),
+      'items',coalesce(jsonb_agg(row_data ORDER BY row_order),'[]'::jsonb),
       'page',page_num,'pageSize',page_size,
       'total',(SELECT count(*) FROM public.petro_inventory_balances b
         JOIN public.petro_catalog_items i ON i.id=b.item_id AND i.organization_id=b.organization_id
@@ -505,18 +537,135 @@ BEGIN
       SELECT jsonb_build_object(
         'itemId',i.id,'name',i.name,'internalCode',i.internal_code,'unitCode',i.unit_code,
         'categoryCode',c.code,'categoryName',c.name_ar,'onHand',b.on_hand::text,'reserved',b.reserved::text,
-        'available',(b.on_hand-b.reserved)::text,'version',b.version,'updatedAt',b.updated_at
-      ) row_data
+        'available',(b.on_hand-b.reserved)::text,'version',b.version,'updatedAt',b.updated_at,
+        'reorderLevel',r.reorder_level::text,
+        'reorderStatus',CASE WHEN r.item_id IS NULL THEN NULL
+          WHEN b.on_hand-b.reserved<=0 THEN 'empty'
+          WHEN b.on_hand-b.reserved<=r.reorder_level THEN 'low' ELSE 'normal' END
+      ) row_data,
+        row_number() OVER (ORDER BY
+          CASE WHEN sort_by='name' AND sort_direction='asc' THEN i.name END ASC,
+          CASE WHEN sort_by='name' AND sort_direction='desc' THEN i.name END DESC,
+          CASE WHEN sort_by='available' AND sort_direction='asc' THEN b.on_hand-b.reserved END ASC,
+          CASE WHEN sort_by='available' AND sort_direction='desc' THEN b.on_hand-b.reserved END DESC,
+          CASE WHEN sort_by='updatedAt' AND sort_direction='asc' THEN b.updated_at END ASC,
+          CASE WHEN sort_by='updatedAt' AND sort_direction='desc' THEN b.updated_at END DESC,
+          i.name,i.id) AS row_order
       FROM public.petro_inventory_balances b
       JOIN public.petro_catalog_items i ON i.id=b.item_id AND i.organization_id=b.organization_id
       JOIN public.petro_catalog_categories c ON c.id=i.category_id
+      LEFT JOIN public.petro_inventory_reorder_rules r
+        ON r.location_id=b.location_id AND r.item_id=b.item_id
       WHERE b.location_id=inventory_query.location_id
         AND (search_text IS NULL OR i.name ILIKE '%'||search_text||'%'
           OR coalesce(i.internal_code,'') ILIKE '%'||search_text||'%')
-      ORDER BY i.name,i.id OFFSET (page_num-1)*page_size LIMIT page_size
+      ORDER BY
+        CASE WHEN sort_by='name' AND sort_direction='asc' THEN i.name END ASC,
+        CASE WHEN sort_by='name' AND sort_direction='desc' THEN i.name END DESC,
+        CASE WHEN sort_by='available' AND sort_direction='asc' THEN b.on_hand-b.reserved END ASC,
+        CASE WHEN sort_by='available' AND sort_direction='desc' THEN b.on_hand-b.reserved END DESC,
+        CASE WHEN sort_by='updatedAt' AND sort_direction='asc' THEN b.updated_at END ASC,
+        CASE WHEN sort_by='updatedAt' AND sort_direction='desc' THEN b.updated_at END DESC,
+        i.name,i.id OFFSET (page_num-1)*page_size LIMIT page_size
     ) rows_page;
     RETURN coalesce(result,jsonb_build_object('items','[]'::jsonb,'page',page_num,'pageSize',page_size,'total',0));
-  ELSIF p_action='documents' OR p_action='movements' THEN
+  ELSIF p_action IN ('summary','alerts','return_sources') THEN
+    location_id:=(p_payload->>'locationId')::uuid;
+    SELECT l.organization_id INTO org_id FROM public.petro_inventory_locations l WHERE l.id=location_id AND l.active;
+    IF org_id IS NULL OR NOT petro_private.inventory_can_read(org_id,
+      (SELECT l.branch_id FROM public.petro_inventory_locations l WHERE l.id=location_id)) THEN
+      RAISE EXCEPTION 'not authorized' USING ERRCODE='42501';
+    END IF;
+    page_num:=greatest(1,least(coalesce((p_payload->>'page')::integer,1),100000));
+    page_size:=greatest(1,least(coalesce((p_payload->>'pageSize')::integer,25),100));
+    search_text:=nullif(btrim(p_payload->>'search'),'');
+    IF p_action='summary' THEN
+      SELECT jsonb_build_object(
+        'locationId',l.id,'locationName',l.name,'branchName',b.name,
+        'trackedItems',(SELECT count(*) FROM public.petro_inventory_balances x WHERE x.location_id=l.id),
+        'reservedItems',(SELECT count(*) FROM public.petro_inventory_balances x WHERE x.location_id=l.id AND x.reserved>0),
+        'pendingDocuments',(SELECT count(*) FROM public.petro_inventory_documents d
+          WHERE d.status='pending' AND (d.source_location_id=l.id OR d.target_location_id=l.id)),
+        'lowStockItems',(SELECT count(*) FROM public.petro_inventory_reorder_rules r
+          JOIN public.petro_inventory_balances x ON x.location_id=r.location_id AND x.item_id=r.item_id
+          WHERE r.location_id=l.id AND x.on_hand-x.reserved>0 AND x.on_hand-x.reserved<=r.reorder_level),
+        'emptyStockItems',(SELECT count(*) FROM public.petro_inventory_reorder_rules r
+          LEFT JOIN public.petro_inventory_balances x ON x.location_id=r.location_id AND x.item_id=r.item_id
+          WHERE r.location_id=l.id AND coalesce(x.on_hand-x.reserved,0)<=0)
+      ) INTO result
+      FROM public.petro_inventory_locations l
+      JOIN public.petro_branches b ON b.id=l.branch_id
+      WHERE l.id=location_id;
+      RETURN jsonb_build_object('items','[]'::jsonb,'summary',result);
+    ELSIF p_action='alerts' THEN
+      SELECT jsonb_build_object(
+        'items',coalesce(jsonb_agg(row_data ORDER BY available_quantity ASC,item_name),'[]'::jsonb),
+        'page',page_num,'pageSize',page_size,
+        'total',(SELECT count(*) FROM public.petro_inventory_reorder_rules r
+          JOIN public.petro_catalog_items i ON i.id=r.item_id
+          LEFT JOIN public.petro_inventory_balances x ON x.location_id=r.location_id AND x.item_id=r.item_id
+          WHERE r.location_id=inventory_query.location_id
+            AND coalesce(x.on_hand-x.reserved,0)<=r.reorder_level
+            AND (search_text IS NULL OR i.name ILIKE '%'||search_text||'%' OR coalesce(i.internal_code,'') ILIKE '%'||search_text||'%'))
+      ) INTO result
+      FROM (
+        SELECT jsonb_build_object(
+          'itemId',i.id,'name',i.name,'internalCode',i.internal_code,'unitCode',i.unit_code,
+          'onHand',coalesce(x.on_hand,0)::text,'reserved',coalesce(x.reserved,0)::text,
+          'available',coalesce(x.on_hand-x.reserved,0)::text,'reorderLevel',r.reorder_level::text,
+          'status',CASE WHEN coalesce(x.on_hand-x.reserved,0)<=0 THEN 'empty' ELSE 'low' END,
+          'reason',r.reason,'updatedAt',r.updated_at,'branchName',b.name
+        ) row_data,coalesce(x.on_hand-x.reserved,0) available_quantity,i.name item_name
+        FROM public.petro_inventory_reorder_rules r
+        JOIN public.petro_catalog_items i ON i.id=r.item_id AND i.organization_id=r.organization_id
+        JOIN public.petro_inventory_locations l ON l.id=r.location_id
+        JOIN public.petro_branches b ON b.id=l.branch_id
+        LEFT JOIN public.petro_inventory_balances x ON x.location_id=r.location_id AND x.item_id=r.item_id
+        WHERE r.location_id=inventory_query.location_id
+          AND coalesce(x.on_hand-x.reserved,0)<=r.reorder_level
+          AND (search_text IS NULL OR i.name ILIKE '%'||search_text||'%' OR coalesce(i.internal_code,'') ILIKE '%'||search_text||'%')
+        ORDER BY coalesce(x.on_hand-x.reserved,0),i.name
+        OFFSET (page_num-1)*page_size LIMIT page_size
+      ) rows_page;
+      RETURN coalesce(result,jsonb_build_object('items','[]'::jsonb,'page',page_num,'pageSize',page_size,'total',0));
+    ELSE
+      SELECT jsonb_build_object(
+        'items',coalesce(jsonb_agg(row_data ORDER BY occurred_at DESC),'[]'::jsonb),
+        'page',page_num,'pageSize',page_size,
+        'total',(SELECT count(*) FROM public.petro_inventory_movements m
+          JOIN public.petro_catalog_items i ON i.id=m.item_id
+          WHERE m.location_id=inventory_query.location_id AND m.movement_kind='issue' AND m.on_hand_delta<0
+            AND -m.on_hand_delta>coalesce((
+              SELECT sum(ln.quantity) FROM public.petro_inventory_document_lines ln
+              JOIN public.petro_inventory_documents d ON d.id=ln.document_id
+              WHERE ln.related_movement_id=m.id AND d.status IN ('pending','approved')
+            ),0)
+            AND (search_text IS NULL OR i.name ILIKE '%'||search_text||'%' OR m.reason ILIKE '%'||search_text||'%'))
+      ) INTO result
+      FROM (
+        SELECT jsonb_build_object(
+          'movementId',m.id,'itemId',i.id,'itemName',i.name,'unitCode',i.unit_code,
+          'remainingQuantity',(-m.on_hand_delta-coalesce((
+            SELECT sum(ln.quantity) FROM public.petro_inventory_document_lines ln
+            JOIN public.petro_inventory_documents d ON d.id=ln.document_id
+            WHERE ln.related_movement_id=m.id AND d.status IN ('pending','approved')
+          ),0))::text,'occurredAt',m.occurred_at,'reason',m.reason
+        ) row_data,m.occurred_at
+        FROM public.petro_inventory_movements m
+        JOIN public.petro_catalog_items i ON i.id=m.item_id
+        WHERE m.location_id=inventory_query.location_id AND m.movement_kind='issue' AND m.on_hand_delta<0
+          AND -m.on_hand_delta>coalesce((
+            SELECT sum(ln.quantity) FROM public.petro_inventory_document_lines ln
+            JOIN public.petro_inventory_documents d ON d.id=ln.document_id
+            WHERE ln.related_movement_id=m.id AND d.status IN ('pending','approved')
+          ),0)
+          AND (search_text IS NULL OR i.name ILIKE '%'||search_text||'%' OR m.reason ILIKE '%'||search_text||'%')
+        ORDER BY m.occurred_at DESC,m.id DESC
+        OFFSET (page_num-1)*page_size LIMIT page_size
+      ) rows_page;
+      RETURN coalesce(result,jsonb_build_object('items','[]'::jsonb,'page',page_num,'pageSize',page_size,'total',0));
+    END IF;
+  ELSIF p_action IN ('documents','movements','transfers','counts') THEN
     location_id:=(p_payload->>'locationId')::uuid;
     SELECT l.organization_id INTO org_id FROM public.petro_inventory_locations l WHERE l.id=location_id;
     IF org_id IS NULL OR NOT petro_private.inventory_can_read(org_id,
@@ -526,12 +675,16 @@ BEGIN
     page_num:=greatest(1,least(coalesce((p_payload->>'page')::integer,1),100000));
     page_size:=greatest(1,least(coalesce((p_payload->>'pageSize')::integer,25),100));
     search_text:=nullif(btrim(p_payload->>'search'),'');
-    IF p_action='documents' THEN
+    IF p_action IN ('documents','transfers','counts') THEN
       SELECT jsonb_build_object(
-        'items',coalesce(jsonb_agg(row_data ORDER BY created_at DESC),'[]'::jsonb),
+        'items',coalesce(jsonb_agg(row_data ORDER BY row_order),'[]'::jsonb),
         'page',page_num,'pageSize',page_size,
         'total',(SELECT count(*) FROM public.petro_inventory_documents d
           WHERE (d.source_location_id=location_id OR d.target_location_id=location_id)
+            AND (status_filter IS NULL OR d.status=status_filter)
+            AND (p_action NOT IN ('transfers','counts')
+              OR (p_action='transfers' AND d.document_type='transfer')
+              OR (p_action='counts' AND d.document_type='count'))
             AND (search_text IS NULL OR d.reason ILIKE '%'||search_text||'%'
               OR d.document_type ILIKE '%'||search_text||'%' OR d.status ILIKE '%'||search_text||'%'))
       ) INTO result
@@ -541,20 +694,40 @@ BEGIN
           'sourceLocationName',(SELECT l.name FROM public.petro_inventory_locations l WHERE l.id=d.source_location_id),
           'targetLocationName',(SELECT l.name FROM public.petro_inventory_locations l WHERE l.id=d.target_location_id),
           'type',d.document_type,'status',d.status,'reason',d.reason,
-          'createdAt',d.created_at,'createdBy',d.created_by,'reviewedAt',d.reviewed_at,
-          'reviewedBy',d.reviewed_by,'lineCount',(SELECT count(*) FROM public.petro_inventory_document_lines x WHERE x.document_id=d.id)
-        ) row_data,d.created_at
+           'createdAt',d.created_at,'createdByName',(SELECT nullif(p.display_name,'') FROM public.petro_profiles p WHERE p.user_id=d.created_by),
+           'reviewedAt',d.reviewed_at,'reviewedByName',(SELECT nullif(p.display_name,'') FROM public.petro_profiles p WHERE p.user_id=d.reviewed_by),
+            'lineCount',(SELECT count(*) FROM public.petro_inventory_document_lines x WHERE x.document_id=d.id)
+         ) row_data,
+         row_number() OVER (ORDER BY
+           CASE WHEN sort_by='createdAt' AND sort_direction='asc' THEN d.created_at END ASC,
+           CASE WHEN sort_by='createdAt' AND sort_direction='desc' THEN d.created_at END DESC,
+           CASE WHEN sort_by='status' AND sort_direction='asc' THEN d.status END ASC,
+           CASE WHEN sort_by='status' AND sort_direction='desc' THEN d.status END DESC,
+           CASE WHEN sort_by='type' AND sort_direction='asc' THEN d.document_type END ASC,
+           CASE WHEN sort_by='type' AND sort_direction='desc' THEN d.document_type END DESC,
+           d.created_at DESC,d.id DESC) AS row_order
         FROM public.petro_inventory_documents d
         WHERE (d.source_location_id=location_id OR d.target_location_id=location_id)
+          AND (status_filter IS NULL OR d.status=status_filter)
+          AND (p_action NOT IN ('transfers','counts')
+            OR (p_action='transfers' AND d.document_type='transfer')
+            OR (p_action='counts' AND d.document_type='count'))
           AND (search_text IS NULL OR d.reason ILIKE '%'||search_text||'%'
             OR d.document_type ILIKE '%'||search_text||'%' OR d.status ILIKE '%'||search_text||'%')
-        ORDER BY d.created_at DESC,d.id DESC
+        ORDER BY
+          CASE WHEN sort_by='createdAt' AND sort_direction='asc' THEN d.created_at END ASC,
+          CASE WHEN sort_by='createdAt' AND sort_direction='desc' THEN d.created_at END DESC,
+          CASE WHEN sort_by='status' AND sort_direction='asc' THEN d.status END ASC,
+          CASE WHEN sort_by='status' AND sort_direction='desc' THEN d.status END DESC,
+          CASE WHEN sort_by='type' AND sort_direction='asc' THEN d.document_type END ASC,
+          CASE WHEN sort_by='type' AND sort_direction='desc' THEN d.document_type END DESC,
+          d.created_at DESC,d.id DESC
         OFFSET (page_num-1)*page_size LIMIT page_size
       ) rows_page;
       RETURN coalesce(result,jsonb_build_object('items','[]'::jsonb,'page',page_num,'pageSize',page_size,'total',0));
     END IF;
     SELECT jsonb_build_object(
-      'items',coalesce(jsonb_agg(row_data ORDER BY occurred_at DESC),'[]'::jsonb),
+      'items',coalesce(jsonb_agg(row_data ORDER BY row_order),'[]'::jsonb),
       'page',page_num,'pageSize',page_size,
       'total',(SELECT count(*) FROM public.petro_inventory_movements m
         JOIN public.petro_catalog_items i ON i.id=m.item_id
@@ -566,18 +739,35 @@ BEGIN
       SELECT jsonb_build_object('id',m.id,'itemId',m.item_id,'itemName',i.name,
         'internalCode',i.internal_code,
         'unitCode',i.unit_code,'kind',m.movement_kind,'onHandDelta',m.on_hand_delta::text,
-        'reservedDelta',m.reserved_delta::text,'reason',m.reason,'actorId',m.actor_id,
+        'reservedDelta',m.reserved_delta::text,'reason',m.reason,
+        'actorName',coalesce(nullif(profile.display_name,''),'مسؤول مخزون'),
         'locationName',l.name,'branchName',b.name,
         'occurredAt',m.occurred_at,'documentId',m.document_id,'reservationId',m.reservation_id
-      ) row_data,m.occurred_at
+      ) row_data,
+      row_number() OVER (ORDER BY
+        CASE WHEN sort_by='occurredAt' AND sort_direction='asc' THEN m.occurred_at END ASC,
+        CASE WHEN sort_by='occurredAt' AND sort_direction='desc' THEN m.occurred_at END DESC,
+        CASE WHEN sort_by='itemName' AND sort_direction='asc' THEN i.name END ASC,
+        CASE WHEN sort_by='itemName' AND sort_direction='desc' THEN i.name END DESC,
+        CASE WHEN sort_by='kind' AND sort_direction='asc' THEN m.movement_kind END ASC,
+        CASE WHEN sort_by='kind' AND sort_direction='desc' THEN m.movement_kind END DESC,
+        m.occurred_at DESC,m.id DESC) AS row_order
       FROM public.petro_inventory_movements m
       JOIN public.petro_catalog_items i ON i.id=m.item_id
       JOIN public.petro_inventory_locations l ON l.id=m.location_id
       JOIN public.petro_branches b ON b.id=l.branch_id
+      LEFT JOIN public.petro_profiles profile ON profile.user_id=m.actor_id
       WHERE m.location_id=inventory_query.location_id
         AND (search_text IS NULL OR i.name ILIKE '%'||search_text||'%'
           OR m.reason ILIKE '%'||search_text||'%' OR m.movement_kind ILIKE '%'||search_text||'%')
-      ORDER BY m.occurred_at DESC,m.id DESC
+      ORDER BY
+        CASE WHEN sort_by='occurredAt' AND sort_direction='asc' THEN m.occurred_at END ASC,
+        CASE WHEN sort_by='occurredAt' AND sort_direction='desc' THEN m.occurred_at END DESC,
+        CASE WHEN sort_by='itemName' AND sort_direction='asc' THEN i.name END ASC,
+        CASE WHEN sort_by='itemName' AND sort_direction='desc' THEN i.name END DESC,
+        CASE WHEN sort_by='kind' AND sort_direction='asc' THEN m.movement_kind END ASC,
+        CASE WHEN sort_by='kind' AND sort_direction='desc' THEN m.movement_kind END DESC,
+        m.occurred_at DESC,m.id DESC
       OFFSET (page_num-1)*page_size LIMIT page_size
     ) rows_page;
     RETURN coalesce(result,jsonb_build_object('items','[]'::jsonb,'page',page_num,'pageSize',page_size,'total',0));
@@ -597,10 +787,15 @@ BEGIN
         'targetLocationName',(SELECT l.name FROM public.petro_inventory_locations l WHERE l.id=d.target_location_id),
         'type',d.document_type,'status',d.status,
         'reason',d.reason,'createdBy',d.created_by,'createdAt',d.created_at,
-        'reviewedBy',d.reviewed_by,'reviewedAt',d.reviewed_at,'reviewReason',d.review_reason
+        'createdByName',(SELECT nullif(p.display_name,'') FROM public.petro_profiles p WHERE p.user_id=d.created_by),
+        'reviewedBy',d.reviewed_by,'reviewedAt',d.reviewed_at,'reviewReason',d.review_reason,
+        'reviewedByName',(SELECT nullif(p.display_name,'') FROM public.petro_profiles p WHERE p.user_id=d.reviewed_by)
       ),
       'lines',coalesce((SELECT jsonb_agg(jsonb_build_object(
-        'itemId',i.id,'itemName',i.name,'internalCode',i.internal_code,'unitCode',i.unit_code,'quantity',ln.quantity::text
+        'itemId',i.id,'itemName',i.name,'internalCode',i.internal_code,'unitCode',i.unit_code,'quantity',ln.quantity::text,
+        'snapshotQuantity',ln.expected_quantity::text,'snapshotVersion',ln.expected_version,
+        'originalIssueAt',(SELECT m.occurred_at FROM public.petro_inventory_movements m WHERE m.id=ln.related_movement_id),
+        'originalIssueReason',(SELECT m.reason FROM public.petro_inventory_movements m WHERE m.id=ln.related_movement_id)
       ) ORDER BY i.name) FROM public.petro_inventory_document_lines ln
         JOIN public.petro_catalog_items i ON i.id=ln.item_id WHERE ln.document_id=d.id),'[]'::jsonb)
     ) INTO result FROM public.petro_inventory_documents d WHERE d.id=document_id;
@@ -646,6 +841,8 @@ AS $$
 <<inventory_command>>
 DECLARE org_id uuid; location_id uuid; target_location_id uuid; document_id uuid;
         reservation_id uuid; branch_id uuid; target_branch_id uuid; source_reference uuid;
+        source_movement_id bigint; remaining_quantity numeric; expected_quantity numeric;
+        expected_version bigint; source_movement public.petro_inventory_movements%ROWTYPE;
         item_id uuid; item_row public.petro_catalog_items%ROWTYPE;
         doc public.petro_inventory_documents%ROWTYPE; line record; balance_row public.petro_inventory_balances%ROWTYPE;
         quantity numeric; delta numeric; request_hash text; prior public.petro_inventory_commands%ROWTYPE;
@@ -660,6 +857,11 @@ BEGIN
   IF p_action='location.create' THEN
     org_id:=(p_payload->>'organizationId')::uuid;
     branch_id:=(p_payload->>'branchId')::uuid;
+  ELSIF p_action='reorder.set' THEN
+    org_id:=(p_payload->>'organizationId')::uuid;
+    location_id:=(p_payload->>'locationId')::uuid;
+    SELECT l.branch_id INTO branch_id FROM public.petro_inventory_locations l
+    WHERE l.id=location_id AND l.organization_id=org_id;
   ELSIF p_action='document.create' THEN
     org_id:=(p_payload->>'organizationId')::uuid;
     location_id:=(p_payload->>'sourceLocationId')::uuid;
@@ -685,7 +887,7 @@ BEGIN
     RAISE EXCEPTION 'invalid inventory command' USING ERRCODE='22023';
   END IF;
   IF org_id IS NULL OR branch_id IS NULL THEN RAISE EXCEPTION 'inventory scope not found' USING ERRCODE='P0002'; END IF;
-  IF NOT petro_private.inventory_can_write(org_id,branch_id,p_action='document.review') THEN
+  IF NOT petro_private.inventory_can_write(org_id,branch_id,p_action IN ('document.review','reorder.set')) THEN
     RAISE EXCEPTION 'not authorized' USING ERRCODE='42501';
   END IF;
   IF p_action='document.review' AND doc.target_location_id IS NOT NULL THEN
@@ -706,7 +908,34 @@ BEGIN
   END IF;
   IF prior.completed_at IS NOT NULL THEN RETURN prior.result; END IF;
 
-  IF p_action='location.create' THEN
+  IF p_action='reorder.set' THEN
+    IF length(btrim(coalesce(p_payload->>'reason',''))) NOT BETWEEN 5 AND 500
+      OR NOT EXISTS (
+        SELECT 1 FROM public.petro_organizations o
+        JOIN public.petro_inventory_locations l ON l.organization_id=o.id
+        JOIN public.petro_catalog_items i ON i.organization_id=o.id
+        WHERE o.id=org_id AND o.kind IN ('station','provider') AND o.status='active'
+          AND l.id=location_id AND l.branch_id=inventory_command.branch_id AND l.active
+          AND i.id=(p_payload->>'itemId')::uuid
+      ) THEN
+      RAISE EXCEPTION 'invalid inventory reorder rule' USING ERRCODE='22023';
+    END IF;
+    item_id:=(p_payload->>'itemId')::uuid;
+    quantity:=(p_payload->>'reorderLevel')::numeric;
+    IF quantity<0 OR NOT petro_private.inventory_validate_item(org_id,item_id,quantity,true) THEN
+      RAISE EXCEPTION 'invalid inventory reorder level' USING ERRCODE='22023';
+    END IF;
+    INSERT INTO public.petro_inventory_reorder_rules(
+      organization_id,location_id,item_id,reorder_level,reason,created_by,updated_by
+    ) VALUES (org_id,location_id,item_id,quantity,btrim(p_payload->>'reason'),actor,actor)
+    ON CONFLICT ON CONSTRAINT petro_inventory_reorder_rules_pk DO UPDATE
+      SET reorder_level=EXCLUDED.reorder_level,reason=EXCLUDED.reason,
+          updated_by=EXCLUDED.updated_by,updated_at=now();
+    INSERT INTO public.petro_audit_events(actor_id,organization_id,action,target_id,detail)
+    VALUES(actor,org_id,'inventory.reorder_rule_set',item_id,
+      jsonb_build_object('locationId',location_id,'reorderLevel',quantity::text,'reason',btrim(p_payload->>'reason')));
+    response_json:=jsonb_build_object('id',item_id,'status','saved');
+  ELSIF p_action='location.create' THEN
     IF NOT petro_private.inventory_can_write(org_id,branch_id,true) THEN
       RAISE EXCEPTION 'not authorized' USING ERRCODE='42501';
     END IF;
@@ -734,10 +963,10 @@ BEGIN
       WHERE o.id=org_id AND o.kind IN ('station','provider') AND o.status='active'
     ) THEN RAISE EXCEPTION 'merchant organization is not active' USING ERRCODE='23514'; END IF;
     SELECT l.* INTO STRICT line FROM public.petro_inventory_locations l
-    WHERE l.id=location_id AND l.organization_id=org_id AND l.active;
+    WHERE l.id=location_id AND l.organization_id=org_id AND l.active FOR UPDATE;
     doc_type:=p_payload->>'type';
     target_location_id:=nullif(p_payload->>'targetLocationId','')::uuid;
-    IF doc_type IS NULL OR doc_type NOT IN ('receipt','issue','return','damage','transfer','count','adjustment')
+    IF doc_type IS NULL OR doc_type NOT IN ('opening','receipt','issue','return','damage','transfer','count','adjustment')
       OR length(btrim(coalesce(p_payload->>'reason',''))) NOT BETWEEN 5 AND 500
       OR jsonb_typeof(p_payload->'lines')<>'array'
       OR jsonb_array_length(p_payload->'lines') NOT BETWEEN 1 AND 100
@@ -763,6 +992,31 @@ BEGIN
          (SELECT count(DISTINCT x->>'itemId') FROM jsonb_array_elements(p_payload->'lines') x) THEN
       RAISE EXCEPTION 'invalid or duplicate inventory lines' USING ERRCODE='22023';
     END IF;
+    IF doc_type='opening' AND EXISTS (
+      SELECT 1 FROM public.petro_inventory_documents d
+      JOIN public.petro_inventory_document_lines ln ON ln.document_id=d.id
+      WHERE d.source_location_id=location_id AND d.document_type='opening'
+        AND d.status IN ('pending','approved')
+        AND ln.item_id IN (SELECT (x->>'itemId')::uuid FROM jsonb_array_elements(p_payload->'lines') x)
+    ) THEN
+      RAISE EXCEPTION 'opening balance already exists for this item and location' USING ERRCODE='23505';
+    END IF;
+    IF doc_type='opening' AND EXISTS (
+      SELECT 1 FROM public.petro_inventory_movements m
+      WHERE m.location_id=inventory_command.location_id
+        AND m.item_id IN (SELECT (x->>'itemId')::uuid FROM jsonb_array_elements(p_payload->'lines') x)
+    ) THEN
+      RAISE EXCEPTION 'opening balance must precede all movements for these items' USING ERRCODE='23514';
+    END IF;
+    IF doc_type<>'opening' AND EXISTS (
+      SELECT 1 FROM public.petro_inventory_documents d
+      JOIN public.petro_inventory_document_lines ln ON ln.document_id=d.id
+      WHERE d.source_location_id=location_id AND d.document_type='opening'
+        AND d.status='pending'
+        AND ln.item_id IN (SELECT (x->>'itemId')::uuid FROM jsonb_array_elements(p_payload->'lines') x)
+    ) THEN
+      RAISE EXCEPTION 'an opening balance for this item is waiting for review' USING ERRCODE='23514';
+    END IF;
     INSERT INTO public.petro_inventory_documents(
       organization_id,source_location_id,target_location_id,document_type,reason,
       idempotency_key,payload_hash,created_by
@@ -773,14 +1027,45 @@ BEGIN
     FOR line IN SELECT value FROM jsonb_array_elements(p_payload->'lines') LOOP
       item_id:=(line.value->>'itemId')::uuid;
       quantity:=(line.value->>'quantity')::numeric;
+      source_movement_id:=nullif(line.value->>'sourceMovementId','')::bigint;
       IF NOT petro_private.inventory_validate_item(org_id,item_id,quantity,doc_type='count')
         OR (doc_type='count' AND quantity<0)
         OR (doc_type<>'count' AND quantity=0)
         OR (doc_type NOT IN ('adjustment') AND quantity<0) THEN
         RAISE EXCEPTION 'invalid inventory item quantity' USING ERRCODE='22023';
       END IF;
-      INSERT INTO public.petro_inventory_document_lines(document_id,organization_id,item_id,quantity)
-      VALUES(document_id,org_id,item_id,quantity);
+      IF (doc_type='return') IS DISTINCT FROM (source_movement_id IS NOT NULL) THEN
+        RAISE EXCEPTION 'return requires an original issue movement' USING ERRCODE='22023';
+      END IF;
+      expected_quantity:=NULL;
+      expected_version:=NULL;
+      IF doc_type='count' THEN
+        INSERT INTO public.petro_inventory_balances(organization_id,location_id,item_id)
+        VALUES(org_id,location_id,item_id) ON CONFLICT DO NOTHING;
+        SELECT b.on_hand,b.version INTO expected_quantity,expected_version
+        FROM public.petro_inventory_balances b
+        WHERE b.location_id=inventory_command.location_id AND b.item_id=inventory_command.item_id FOR UPDATE;
+      END IF;
+      IF doc_type='return' THEN
+        SELECT * INTO source_movement FROM public.petro_inventory_movements m
+        WHERE m.id=source_movement_id FOR UPDATE;
+        IF NOT FOUND OR source_movement.organization_id<>org_id
+          OR source_movement.location_id<>location_id OR source_movement.item_id<>item_id
+          OR source_movement.movement_kind<>'issue' OR source_movement.on_hand_delta>=0 THEN
+          RAISE EXCEPTION 'invalid original issue movement for return' USING ERRCODE='23514';
+        END IF;
+        SELECT -source_movement.on_hand_delta-coalesce(sum(ln.quantity),0)
+          INTO remaining_quantity
+        FROM public.petro_inventory_document_lines ln
+        JOIN public.petro_inventory_documents d ON d.id=ln.document_id
+        WHERE ln.related_movement_id=source_movement_id AND d.status IN ('pending','approved');
+        IF quantity>coalesce(remaining_quantity,0) THEN
+          RAISE EXCEPTION 'return quantity exceeds original issue' USING ERRCODE='23514';
+        END IF;
+      END IF;
+      INSERT INTO public.petro_inventory_document_lines(
+        document_id,organization_id,item_id,quantity,expected_quantity,expected_version,related_movement_id
+      ) VALUES(document_id,org_id,item_id,quantity,expected_quantity,expected_version,source_movement_id);
     END LOOP;
     INSERT INTO public.petro_audit_events(actor_id,organization_id,action,target_id,detail)
     VALUES(actor,org_id,'inventory.document_created',document_id,
@@ -795,7 +1080,7 @@ BEGIN
     END IF;
     IF decision='approve' THEN
       FOR line IN
-        SELECT ln.item_id,ln.quantity
+        SELECT ln.item_id,ln.quantity,ln.expected_quantity,ln.expected_version,ln.related_movement_id
         FROM public.petro_inventory_document_lines ln
         JOIN public.petro_catalog_items i ON i.id=ln.item_id AND i.organization_id=ln.organization_id
         WHERE ln.document_id=doc.id ORDER BY ln.item_id
@@ -807,6 +1092,9 @@ BEGIN
           VALUES(org_id,doc.source_location_id,item_id) ON CONFLICT DO NOTHING;
           SELECT b.* INTO balance_row FROM public.petro_inventory_balances b
           WHERE b.location_id=doc.source_location_id AND b.item_id=line.item_id FOR UPDATE;
+          IF balance_row.version<>line.expected_version OR balance_row.on_hand<>line.expected_quantity THEN
+            RAISE EXCEPTION 'inventory changed after count snapshot; recount before approval' USING ERRCODE='40001';
+          END IF;
           delta:=quantity-balance_row.on_hand;
           IF balance_row.reserved>quantity THEN
             RAISE EXCEPTION 'INVENTORY_COUNT_BELOW_RESERVED' USING ERRCODE='23514';
@@ -814,11 +1102,41 @@ BEGIN
           IF delta<>0 THEN PERFORM petro_private.inventory_apply_delta(
             org_id,doc.source_location_id,item_id,delta,0,doc.id,NULL,'count_adjustment',btrim(p_payload->>'reason')
           ); END IF;
+        ELSIF doc.document_type='opening' THEN
+          INSERT INTO public.petro_inventory_balances(organization_id,location_id,item_id)
+          VALUES(org_id,doc.source_location_id,item_id) ON CONFLICT DO NOTHING;
+          SELECT b.* INTO balance_row FROM public.petro_inventory_balances b
+          WHERE b.location_id=doc.source_location_id AND b.item_id=inventory_command.item_id FOR UPDATE;
+          IF balance_row.version<>0 OR balance_row.on_hand<>0 OR balance_row.reserved<>0
+            OR EXISTS (SELECT 1 FROM public.petro_inventory_movements m
+              WHERE m.location_id=doc.source_location_id AND m.item_id=inventory_command.item_id) THEN
+            RAISE EXCEPTION 'opening balance must be first movement for item and location' USING ERRCODE='23514';
+          END IF;
+          PERFORM petro_private.inventory_apply_delta(
+            org_id,doc.source_location_id,item_id,quantity,0,doc.id,NULL,'opening',btrim(p_payload->>'reason')
+          );
         ELSIF doc.document_type='receipt' THEN
           PERFORM petro_private.inventory_apply_delta(
             org_id,doc.source_location_id,item_id,quantity,0,doc.id,NULL,'receipt',btrim(p_payload->>'reason')
           );
         ELSIF doc.document_type='return' THEN
+          SELECT * INTO source_movement FROM public.petro_inventory_movements m
+          WHERE m.id=line.related_movement_id FOR UPDATE;
+          IF NOT FOUND OR source_movement.organization_id<>org_id
+            OR source_movement.location_id<>doc.source_location_id
+            OR source_movement.item_id<>line.item_id OR source_movement.movement_kind<>'issue'
+            OR source_movement.on_hand_delta>=0 THEN
+            RAISE EXCEPTION 'original issue no longer qualifies for return' USING ERRCODE='23514';
+          END IF;
+          SELECT -source_movement.on_hand_delta-coalesce(sum(ln.quantity),0)
+            INTO remaining_quantity
+          FROM public.petro_inventory_document_lines ln
+          JOIN public.petro_inventory_documents d ON d.id=ln.document_id
+          WHERE ln.related_movement_id=line.related_movement_id
+            AND d.status IN ('pending','approved') AND d.id<>doc.id;
+          IF quantity>coalesce(remaining_quantity,0) THEN
+            RAISE EXCEPTION 'return quantity exceeds unreturned original issue' USING ERRCODE='23514';
+          END IF;
           PERFORM petro_private.inventory_apply_delta(
             org_id,doc.target_location_id,item_id,quantity,0,doc.id,NULL,'return',btrim(p_payload->>'reason')
           );
@@ -943,6 +1261,7 @@ CREATE TRIGGER petro_inventory_movements_immutable
 
 ALTER TABLE public.petro_inventory_locations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.petro_inventory_balances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.petro_inventory_reorder_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.petro_inventory_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.petro_inventory_document_lines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.petro_inventory_reservations ENABLE ROW LEVEL SECURITY;
@@ -950,6 +1269,7 @@ ALTER TABLE public.petro_inventory_movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.petro_inventory_commands ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.petro_inventory_locations,public.petro_inventory_balances,
+  public.petro_inventory_reorder_rules,
   public.petro_inventory_documents,public.petro_inventory_document_lines,
   public.petro_inventory_reservations,public.petro_inventory_movements,
   public.petro_inventory_commands
@@ -968,9 +1288,11 @@ REVOKE ALL ON FUNCTION petro_private.inventory_guard_immutable() FROM PUBLIC,ano
 
 COMMENT ON TABLE public.petro_inventory_balances IS
   'Derived on-hand and reserved quantities for merchant products; the immutable movement ledger is authoritative.';
+COMMENT ON TABLE public.petro_inventory_reorder_rules IS
+  'Per-location, per-product restock thresholds. Zero alerts only at stockout; no threshold means no generated alert.';
 COMMENT ON TABLE public.petro_inventory_movements IS
   'Append-only stock movement and reservation ledger; product stock only, never service, fuel tank, or finance balances.';
 COMMENT ON FUNCTION public.petro_inventory_admin_command(text,jsonb,text) IS
-  'Transactional inventory document, reservation, and idempotency command. Does not create sales, service orders, or financial postings.';
+  'Transactional inventory document, count snapshot, return lineage, reorder rule, reservation, and idempotency command. Does not create sales, service orders, or financial postings.';
 
 COMMIT;

@@ -17,7 +17,7 @@
 .inv-tabs button { flex:1 0 auto; display:flex; align-items:center; justify-content:center; gap:8px; min-height:43px; padding:9px 14px; border:0; border-radius:8px; background:transparent; color:#53665c; font:600 13px var(--app-font-sans,sans-serif); cursor:pointer; transition:transform .16s,opacity .16s; }
 .inv-tabs button:hover { color:var(--inv-ink); background:#f6f8f5; }
 .inv-tabs button[aria-selected="true"] { color:#fff; background:var(--inv-green); box-shadow:0 2px 5px #163e3020; }
-.inv-tabs button:focus-visible,.inv-page button:focus-visible,.inv-page input:focus-visible,.inv-page select:focus-visible,.inv-page textarea:focus-visible { outline:3px solid #d28a45; outline-offset:2px; }
+.inv-tabs button:focus-visible,.inv-page button:focus-visible,.inv-page input:focus-visible,.inv-page select:focus-visible,.inv-page textarea:focus-visible { outline:3px solid #125842; outline-offset:2px; }
 .inv-alert,.inv-success { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:9px; margin:0 0 14px; font-size:14px; line-height:1.65; }
 .inv-alert { color:#743222; background:#fff0eb; border:1px solid #e7b8aa; }
 .inv-success { color:#174b38; background:#e6f4ec; border:1px solid #abd4bc; }
@@ -40,21 +40,26 @@
 .inv-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:41px; padding:9px 14px; border:1px solid #c3d0c7; border-radius:7px; background:#fff; color:#284438; font:650 13px "Readex Pro",sans-serif; cursor:pointer; transition:transform .15s,opacity .15s; }
 .inv-button:hover:not(:disabled) { background:#f1f6f2; border-color:#83a995; }
 .inv-button:active:not(:disabled) { transform:translateY(1px); }
-.inv-button:disabled { opacity:.55; cursor:not-allowed; }
+.inv-button:disabled { color:#46574e; background:#e4e9e5; border-color:#c8d1cb; cursor:not-allowed; }
 .inv-button-primary { background:var(--inv-green); border-color:#12543f; color:#fff; }
 .inv-button-primary:hover:not(:disabled) { background:var(--inv-green-dark); border-color:var(--inv-green-dark); color:#fff; }
+.inv-button-primary:disabled { color:#fff; background:#637b70; border-color:#637b70; }
 .inv-button-quiet { min-height:35px; padding:6px 10px; }
 .inv-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .inv-table-wrap { overflow:auto; border:1px solid #dce4de; border-radius:9px; background:white; }
-.inv-table { border-collapse:collapse; width:100%; min-width:760px; text-align:right; font-size:13px; }
+.inv-table { border-collapse:collapse; width:100%; min-width:760px; text-align:right; font-size:14px; }
 .inv-table th { background:#f0f5f0; color:#52665b; font-size:12px; font-weight:700; white-space:nowrap; }
 .inv-table th,.inv-table td { padding:12px 13px; border-bottom:1px solid #e4eae5; vertical-align:middle; }
 .inv-table tbody tr:last-child td { border-bottom:0; }
 .inv-table tbody tr:hover { background:#f7faf6; }
 .inv-table tbody tr[aria-selected="true"] { background:#eef6ef; }
 .inv-table td b { color:#263e32; font-weight:650; }
-.inv-table td small { display:block; margin-top:4px; color:#74827a; font:11px "IBM Plex Mono",monospace; }
+.inv-table td small { display:block; margin-top:4px; color:#68776f; font:11px "IBM Plex Mono",monospace; }
 .inv-table .inv-num { font-family:"IBM Plex Mono","Readex Pro",sans-serif; direction:ltr; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.inv-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+.inv-summary-grid article { display:grid; gap:10px; padding:17px; border:1px solid #d8e3da; border-radius:9px; background:#f8faf7; }
+.inv-summary-grid article span { color:#52665b; font-size:13px; line-height:1.5; }
+.inv-summary-grid article b { color:#174d3a; font:700 24px "IBM Plex Mono","Readex Pro",sans-serif; font-variant-numeric:tabular-nums; }
 .inv-available { color:#17664f; font-weight:700; }
 .inv-low { color:#9a4c22; font-weight:700; }
 .inv-row-action { color:var(--inv-green); border:0; background:none; font:700 12px "Readex Pro",sans-serif; cursor:pointer; padding:5px; }

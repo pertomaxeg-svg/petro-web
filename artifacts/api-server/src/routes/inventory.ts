@@ -10,10 +10,10 @@ const router: IRouter = Router();
 type Session = NonNullable<Awaited<ReturnType<typeof requireSession>>>;
 type RpcResult = { data: unknown; error: { code?: string; message?: string } | null };
 type InventoryAction = "location.create" | "document.create" | "document.review"
-  | "reservation.reserve" | "reservation.release" | "reservation.consume";
+  | "reorder.set" | "reservation.reserve" | "reservation.release" | "reservation.consume";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const queryViews = new Set(["organizations", "locations", "branches", "items", "balances", "documents", "movements", "document", "reconciliation"]);
-const documentTypes = new Set(["receipt", "issue", "return", "damage", "transfer", "count", "adjustment"]);
+const queryViews = new Set(["organizations", "locations", "branches", "items", "balances", "summary", "alerts", "return_sources", "documents", "transfers", "counts", "movements", "document", "reconciliation"]);
+const documentTypes = new Set(["opening", "receipt", "issue", "return", "damage", "transfer", "count", "adjustment"]);
 
 function fail(res: Response, status: number, message: string): void {
   res.status(status).json({ message });
@@ -58,6 +58,13 @@ function validateCommand(action: InventoryAction, payload: Record<string, unknow
     if (!validText(payload["name"], 2, 120) || !validText(payload["reason"], 5, 500)) return "أدخل اسم المخزن وسبب الإنشاء.";
     if (!["sellable", "quarantine", "damaged", "transit"].includes(String(payload["kind"]))) return "نوع المخزن غير صالح.";
   }
+  if (action === "reorder.set") {
+    if (!validUuid(payload["organizationId"]) || !validUuid(payload["locationId"]) || !validUuid(payload["itemId"])) return "اختر الجهة وموقع التخزين والصنف.";
+    const level = payload["reorderLevel"];
+    if (!(typeof level === "string" && /^\d+(?:\.\d{1,6})?$/.test(level))
+      || !Number.isFinite(Number(level)) || Number(level) < 0
+      || !validText(payload["reason"], 5, 500)) return "أدخل حد إعادة الطلب وسبب التغيير.";
+  }
   if (action === "document.create") {
     if (!validUuid(payload["organizationId"]) || !validUuid(payload["sourceLocationId"])) return "اختر الجهة وموقع المخزون.";
     if (!documentTypes.has(String(payload["type"])) || !validText(payload["reason"], 5, 500)) return "حدد نوع الحركة والسبب.";
@@ -73,6 +80,10 @@ function validateCommand(action: InventoryAction, payload: Record<string, unknow
         ? /^-?\d+(?:\.\d{1,6})?$/
         : /^\d+(?:\.\d{1,6})?$/;
       if (!(typeof quantity === "number" || (typeof quantity === "string" && quantityPattern.test(quantity)))) return "أدخل كمية صحيحة حتى 6 منازل عشرية.";
+      if (payload["type"] === "return") {
+        const sourceMovementId = isRecord(entry) ? entry["sourceMovementId"] : undefined;
+        if (!(typeof sourceMovementId === "string" && /^[1-9]\d{0,18}$/.test(sourceMovementId))) return "اختر حركة الصرف الأصلية للإرجاع.";
+      } else if (isRecord(entry) && entry["sourceMovementId"] !== undefined) return "مرجع الحركة الأصلية مسموح للإرجاع فقط.";
       const numericQuantity = Number(quantity);
       if (!Number.isFinite(numericQuantity)
         || (payload["type"] === "count" && numericQuantity < 0)
@@ -114,6 +125,9 @@ router.get("/admin/inventory", async (req, res) => {
     ...(params.locationId ? { locationId: params.locationId } : {}),
     ...(params.documentId ? { documentId: params.documentId } : {}),
     ...(params.search ? { search: params.search.trim() } : {}),
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.sortBy ? { sortBy: params.sortBy } : {}),
+    ...(params.sortDirection ? { sortDirection: params.sortDirection } : {}),
     ...(params.page ? { page: params.page } : {}),
     ...(params.pageSize ? { pageSize: params.pageSize } : {}),
   };
@@ -121,7 +135,7 @@ router.get("/admin/inventory", async (req, res) => {
     fail(res, 400, "حدد الجهة أولًا.");
     return;
   }
-  if (["balances", "documents", "movements", "reconciliation"].includes(params.view) && !params.locationId) {
+  if (["balances", "summary", "alerts", "return_sources", "documents", "transfers", "counts", "movements", "reconciliation"].includes(params.view) && !params.locationId) {
     fail(res, 400, "حدد موقع المخزون أولًا.");
     return;
   }

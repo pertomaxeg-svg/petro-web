@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminInventoryQueryResultItemsItem } from './adminInventoryQueryResultItemsItem';
+import type { AdminInventoryQueryResultSummary } from './adminInventoryQueryResultSummary';
 
 export interface AdminInventoryQueryResult {
   items: AdminInventoryQueryResultItemsItem[];
@@ -16,5 +17,6 @@ export interface AdminInventoryQueryResult {
   /** @minimum 0 */
   total?: number;
   consistent?: boolean;
+  summary?: AdminInventoryQueryResultSummary;
   [key: string]: unknown;
  }

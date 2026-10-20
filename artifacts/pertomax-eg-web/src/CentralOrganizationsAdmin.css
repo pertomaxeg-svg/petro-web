@@ -5,11 +5,7 @@
 .central-admin .co-detail-hero{gap:20px;margin-bottom:18px}
 .central-admin .co-detail-title h1{margin:6px 0}
 .central-admin .co-code{font-size:12px}
-.central-admin .co-button{font-size:13px!important;min-height:42px}
-.central-admin .co-button:not(.co-secondary):not(.co-danger){background:#17664f!important;border:1px solid #12543f!important;color:#fff!important;font-weight:750;box-shadow:0 2px 5px #163e301a}
-.central-admin .co-button:not(.co-secondary):not(.co-danger):hover:not(:disabled){background:#104d3b!important;border-color:#0d4636!important}
-.central-admin .co-button:not(.co-secondary):not(.co-danger):focus-visible{outline:3px solid #d28a45;outline-offset:2px}
-.central-admin .co-button:not(.co-secondary):not(.co-danger):disabled{opacity:.62;cursor:not-allowed}
+.central-admin .co-button{font-size:14px;min-height:42px}
 .central-admin .co-filterbar label,.central-admin .co-search input{font-size:13px}
 .central-admin .co-table-scroll{max-width:100%;overflow-x:auto}
 .central-admin .co-table-scroll table{min-width:760px;font-size:13px}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   getGetAdminFleetCatalogQueryKey,
   getGetAdminFleetStockOptionsQueryKey,
@@ -134,6 +134,8 @@ export function FleetReferencePicker({
 }) {
   const listId = useId();
   const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Option | null>(null);
   const [selectedLabels, setSelectedLabels] = useState<Record<string, Option>>({});
   const selectedValuesKey = selectedValues.join(",");
@@ -179,7 +181,7 @@ export function FleetReferencePicker({
     query: { queryKey: getListPlatformUsersQueryKey(operationsParams), enabled: kind === "platformUser", retry: false },
   });
   const catalog = useGetAdminFleetCatalog(catalogParams, {
-    query: { queryKey: getGetAdminFleetCatalogQueryKey(catalogParams), enabled: Boolean(catalogView) && !["organization", "branch", "platformUser"].includes(kind), retry: false },
+    query: { queryKey: getGetAdminFleetCatalogQueryKey(catalogParams), enabled: Boolean(catalogView) && !["organization", "branch", "platformUser"].includes(kind) && (kind !== "link" || Boolean(vehicleId)), retry: false },
   });
   const subscriptionParams: GetAdminFleetSubscriptionOptionsParams = {
     ...(organizationId ? { organizationId } : {}),
@@ -256,8 +258,18 @@ export function FleetReferencePicker({
 
   useEffect(() => {
     setSearch("");
+    setOpen(false);
     if (!multiple) setSelected(null);
   }, [kind, organizationId, vehicleId, multiple]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [open]);
 
   useEffect(() => {
     if (multiple) {
@@ -280,7 +292,15 @@ export function FleetReferencePicker({
     else if (selected?.id !== value) setSelected(null);
   }, [options, value, initialLabel, multiple, selectedValuesKey, selected?.id]);
 
-  return <div className="fleet-reference-picker">
+  return <div ref={rootRef} className="fleet-reference-picker" onKeyDown={event => {
+    if (event.key === "Escape" && open) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      setSearch("");
+      document.getElementById(controlId)?.focus();
+    }
+  }}>
     {!multiple && selected && <div className="fleet-reference-selected"><span>{selected.label}</span>{selected.detail && <small>{selected.detail}</small>}
       <button type="button" data-testid={`${controlId}-clear`} onClick={() => { setSelected(null); onChange?.(""); }} aria-label={`مسح ${label}`}>تغيير</button>
     </div>}
@@ -292,7 +312,13 @@ export function FleetReferencePicker({
       {!selectedValues.length && <small>لم تُحدد خيارات بعد؛ لا تعني القائمة الفارغة السماح العام.</small>}
     </div>}
      <label className="fleet-field"><span className="fleet-field-label">{label}{required && <b className="fleet-required-mark">مطلوب</b>}</span>
-       <input type="search" data-testid={`${controlId}-input`} value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === "Escape") setSearch(""); }} placeholder={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId ? "اختر الشركة أو المركبة أولًا" : selected ? "ابحث لاختيار سجل آخر" : emptyLabel} aria-label={label} aria-required={required} aria-invalid={Boolean(fieldError)} aria-expanded={!!options.length} aria-controls={listId} autoComplete="off" disabled={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId}/>
+        <input id={controlId} type="search" data-testid={`${controlId}-input`} value={search} onFocus={() => setOpen(true)} onChange={event => { setSearch(event.target.value); setOpen(true); }} onKeyDown={event => {
+          if (event.key === "ArrowDown" && options.length) {
+            event.preventDefault();
+            setOpen(true);
+            window.requestAnimationFrame(() => document.getElementById(listId)?.querySelector<HTMLButtonElement>("button")?.focus());
+          }
+        }} placeholder={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId ? "اختر الشركة أو المركبة أولًا" : selected ? "ابحث لاختيار سجل آخر" : emptyLabel} aria-label={label} aria-required={required} aria-invalid={Boolean(fieldError)} aria-expanded={open && !!options.length} aria-controls={listId} autoComplete="off" disabled={(kind === "branch" || kind === "subscription") && !organizationId || kind === "link" && !vehicleId}/>
     </label>
      {fieldError && <small className="fleet-field-error" role="alert">{fieldError}</small>}
     {name && <input type="hidden" name={name} value={multiple ? selectedValues.join(",") : value}/>}
@@ -300,7 +326,7 @@ export function FleetReferencePicker({
     {loading && <small className="fleet-reference-state" role="status">جارٍ تحميل الخيارات…</small>}
      {error && <div className="fleet-reference-state is-error" role="alert">{error}<button type="button" data-testid={`${controlId}-retry`} onClick={retryOptions}>إعادة المحاولة</button></div>}
      {!loading && !error && !options.length && (search.trim().length >= 2 || allowedStatuses?.length || requiresWaiver || requiresProof) && <small className="fleet-reference-state">لا توجد سجلات مطابقة للشروط الحالية.</small>}
-     {!!options.length && <div id={listId} className="fleet-reference-options" role="listbox" aria-label={`نتائج ${label}`}>
+     {open && !!options.length && <div id={listId} className="fleet-reference-options" role="listbox" aria-label={`نتائج ${label}`}>
        {options.map((option, optionIndex) => {
          const alreadySelected = multiple && selectedValues.includes(option.id);
          return <button type="button" data-testid={`${controlId}-option-${optionIndex}`} role="option" aria-selected={multiple ? alreadySelected : value === option.id} key={option.id} onClick={() => {
@@ -310,10 +336,10 @@ export function FleetReferencePicker({
                setSelectedLabels(current => ({ ...current, [option.id]: option }));
              }
              setSearch("");
-              setSearch("");
+             setOpen(false);
              return;
            }
-            setSelected(option); onChange?.(option.id, option); setSearch("");
+            setSelected(option); onChange?.(option.id, option); setSearch(""); setOpen(false); document.getElementById(controlId)?.focus();
          }}>
            <span>{alreadySelected ? `محدد: ${option.label}` : option.label}</span>{option.detail && <small>{option.detail}</small>}
          </button>;

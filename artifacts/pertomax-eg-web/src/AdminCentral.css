@@ -1,7 +1,5 @@
 .ac-heading-actions{display:flex;align-items:center;gap:14px}
-.ac-button-primary{background:#17664f!important;border:1px solid #12543f!important;color:#fff!important;min-height:42px;padding:10px 16px;font-weight:750;box-shadow:0 2px 5px #163e301a}
-.ac-button-primary:hover:not(:disabled){background:#104d3b!important;border-color:#0d4636!important}
-.ac-button-primary:focus-visible,.ac-create-platform-user button:focus-visible,.ac-create-platform-user input:focus-visible,.ac-create-platform-user textarea:focus-visible{outline:3px solid #d28a45;outline-offset:2px}
+.ac-button-primary{min-height:42px;padding:10px 16px;font-weight:750;box-shadow:0 2px 5px #163e301a}
 .ac-inline-notice{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:9px;margin:0 0 14px;font-size:14px;line-height:1.6}
 .ac-inline-notice svg{flex:0 0 auto;margin-top:2px}
 .ac-inline-notice-success{color:#174b38;background:#e6f4ec;border:1px solid #abd4bc}

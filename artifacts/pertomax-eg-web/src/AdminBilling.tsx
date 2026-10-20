@@ -64,13 +64,66 @@ const apiErrorStatus = (error: unknown) => {
   const item = error as { status?: number; response?: { status?: number } };
   return item?.status ?? item?.response?.status ?? 0;
 };
-const money = (minor: number | null | undefined) =>
-  minor == null ? "غير محدد" : `${new Intl.NumberFormat("ar-EG").format(minor / 100)} ج.م`;
+const money = (minor: number | string | null | undefined) => {
+  if (minor == null) return "غير محدد";
+  const amount = BigInt(minor);
+  const absolute = amount < 0n ? -amount : amount;
+  const whole = new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(absolute / 100n);
+  const fraction = absolute % 100n;
+  const fractionText = fraction
+    ? `٫${new Intl.NumberFormat("ar-EG", { minimumIntegerDigits: 2, maximumFractionDigits: 0 }).format(fraction)}`
+    : "";
+  return `${amount < 0n ? "−" : ""}${whole}${fractionText} ج.م`;
+};
+function parseEgpMinor(value: FormDataEntryValue | null): number | null {
+  const normalized = String(value ?? "").trim()
+    .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace("٫", ".");
+  const match = /^(?:\d+)(?:\.(\d{1,2}))?$/.exec(normalized);
+  if (!match) return null;
+  const [wholeText, fractionText = ""] = normalized.split(".");
+  const minor = BigInt(wholeText) * 100n + BigInt(fractionText.padEnd(2, "0") || "0");
+  return minor <= 1_000_000_000n ? Number(minor) : null;
+}
+const minorToEgpInput = (minor: number | string) => {
+  const amount = BigInt(minor);
+  const whole = (amount / 100n).toString();
+  const fraction = amount % 100n;
+  return `${whole}${fraction ? `.${fraction.toString().padStart(2, "0")}` : ""}`;
+};
+const cairoDateParts = (date: Date) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date);
+  return Object.fromEntries(parts.map(part => [part.type, part.value])) as Record<string, string>;
+};
 const dateLabel = (value: string | null | undefined) =>
-  value ? new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+  value ? new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" }).format(new Date(value)) : "—";
 const localDateTime = (date: Date) => {
-  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return shifted.toISOString().slice(0, 16);
+  const parts = cairoDateParts(date);
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+};
+const cairoDateFromLocalDateTime = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) throw new Error("أدخل تاريخًا ووقتًا صالحين بتوقيت القاهرة.");
+  const [, year, month, day, hour, minute] = match;
+  const targetWallTime = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  let candidate = targetWallTime;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const parts = cairoDateParts(new Date(candidate));
+    const representedWallTime = Date.UTC(
+      Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+      Number(parts.hour), Number(parts.minute),
+    );
+    const difference = targetWallTime - representedWallTime;
+    candidate += difference;
+    if (difference === 0) break;
+  }
+  const result = new Date(candidate);
+  if (localDateTime(result) !== value) throw new Error("هذا الوقت غير صالح في توقيت القاهرة؛ اختر وقتًا آخر.");
+  return result;
 };
 const defaultEnd = () => {
   const value = new Date();
@@ -263,7 +316,7 @@ function FixedPriceNote({ defaults }: { defaults: AdminBillingPriceDefaults }) {
   return <section className="ab-pricing-note" aria-label="الأسعار المعتمدة">
     <div className="ab-pricing-heading"><Banknote size={17}/><b>مرجع الأسعار المعتمد</b><span>جنيه مصري · سنوي</span></div>
     <div className="ab-pricing-grid">
-      <div><span>الشركات</span><b>{defaults.companyAnnualPricesMinor.map(value=>new Intl.NumberFormat("ar-EG").format(value/100)).join(" / ")}</b><small>ج.م لكل مركبة سنويًا</small></div>
+      <div><span>الشركات</span><b>{defaults.companyAnnualPricesMinor.map(value=>money(value).replace(" ج.م", "")).join(" / ")}</b><small>ج.م لكل مركبة سنويًا</small></div>
       <div><span>مقدّمو الخدمات</span><b>{money(defaults.providerAnnualPriceMinor)}</b><small>لكل فرع سنويًا</small></div>
       <div><span>المحطات</span><b>مجاني</b><small>بلا عمولة أو رسم غسيل</small></div>
       <div><span>إصدار NFC</span><b>{money(defaults.nfcIssuePriceMinor)}</b><small>رسوم إصدار منفصلة</small></div>
@@ -402,9 +455,9 @@ export function AdminPlansPage() {
     setSuccess("");
     const data = new FormData(event.currentTarget);
     const audience = String(data.get("audience")) as Audience;
-    const enteredPrice = audience === "station" ? 0 : Number(data.get("price"));
-    if (!Number.isFinite(enteredPrice) || (audience !== "station" && enteredPrice <= 0)) {
-      setFormError("أدخل سعرًا سنويًا موجبًا؛ تظل المحطات مجانية.");
+    const annualPriceMinor = audience === "station" ? 0 : parseEgpMinor(data.get("price"));
+    if (annualPriceMinor === null || (audience !== "station" && annualPriceMinor <= 0)) {
+      setFormError("أدخل سعرًا سنويًا صحيحًا حتى قرشين؛ تظل المحطات مجانية.");
       return;
     }
     setBusy(true);
@@ -414,11 +467,11 @@ export function AdminPlansPage() {
         code: String(data.get("code")).trim(),
         audience,
         description: String(data.get("description") ?? "").trim(),
-        annualPriceMinor: Math.round(enteredPrice * 100),
+        annualPriceMinor,
         billingUnit: audience === "company" ? "vehicle" : "branch",
         billingCycle: "annual",
         currency: "EGP",
-        effectiveAt: new Date(String(data.get("effectiveAt"))).toISOString(),
+        effectiveAt: cairoDateFromLocalDateTime(String(data.get("effectiveAt"))).toISOString(),
         entitlements: [],
         settings: [],
         reason: String(data.get("reason")).trim(),
@@ -440,24 +493,23 @@ export function AdminPlansPage() {
     setSuccess("");
     const data = new FormData(event.currentTarget);
     try {
-      const effectiveAt = new Date(String(data.get("effectiveAt")));
-      if (Number.isNaN(effectiveAt.valueOf())) throw new Error("تاريخ السريان غير صالح.");
+      const effectiveAt = cairoDateFromLocalDateTime(String(data.get("effectiveAt")));
       if (data.get("entitlementsValid") === "false" || data.get("settingsValid") === "false") {
         throw new Error("راجع القيمة المتقدمة غير المكتملة قبل الحفظ.");
       }
       const entitlements = parseArray(data.get("entitlements"), "الاستحقاقات");
       const settings = parseArray(data.get("settings"), "الإعدادات");
       const audience = (versionPlan ?? editSelection!.plan).audience;
-      const enteredPrice = audience === "station" ? 0 : Number(data.get("price"));
-      if (!Number.isFinite(enteredPrice) || (audience !== "station" && enteredPrice <= 0)) {
-        throw new Error("أدخل سعرًا سنويًا موجبًا؛ تظل المحطات مجانية.");
+      const annualPriceMinor = audience === "station" ? 0 : parseEgpMinor(data.get("price"));
+      if (annualPriceMinor === null || (audience !== "station" && annualPriceMinor <= 0)) {
+        throw new Error("أدخل سعرًا سنويًا صحيحًا حتى قرشين؛ تظل المحطات مجانية.");
       }
       setBusy(true);
       const plan = versionPlan ?? editSelection!.plan;
       const payload = {
         displayName: String(data.get("displayName")).trim(),
         description: String(data.get("description") ?? "").trim(),
-        annualPriceMinor: Math.round(enteredPrice * 100),
+        annualPriceMinor,
         billingUnit: plan.audience === "company" ? "vehicle" as const : "branch" as const,
         billingCycle: "annual" as const,
         currency: "EGP" as const,
@@ -533,12 +585,16 @@ export function AdminPlansPage() {
     const data = new FormData(event.currentTarget);
     setFormError(""); setSuccess(""); setBusy(true);
     try {
-      const companyPrices = String(data.get("companyPrices") ?? "").split(",").map(value=>Math.round(Number(value.trim())*100));
-      if(companyPrices.length<1||companyPrices.length>5||companyPrices.some(value=>!Number.isFinite(value)||value<1)) throw new Error("أدخل من سعر واحد إلى خمسة أسعار موجبة مفصولة بفواصل.");
+      const companyPrices = String(data.get("companyPrices") ?? "").split(",").map(value=>parseEgpMinor(value));
+      const providerAnnualPriceMinor = parseEgpMinor(data.get("providerPrice"));
+      const nfcIssuePriceMinor = parseEgpMinor(data.get("nfcPrice"));
+      if(companyPrices.length<1||companyPrices.length>5||companyPrices.some(value=>value===null||value<1)) throw new Error("أدخل من سعر واحد إلى خمسة أسعار موجبة، حتى قرشين، مفصولة بفواصل.");
+      if(providerAnnualPriceMinor===null||providerAnnualPriceMinor<1) throw new Error("أدخل سعرًا سنويًا صحيحًا لمقدّم الخدمة.");
+      if(nfcIssuePriceMinor===null) throw new Error("أدخل سعر إصدار الشريحة بالجنيه والقرش.");
       await updateDefaults.mutateAsync({data:{
-        companyAnnualPricesMinor:companyPrices,
-        providerAnnualPriceMinor:Math.round(Number(data.get("providerPrice"))*100),
-        nfcIssuePriceMinor:Math.round(Number(data.get("nfcPrice"))*100),
+        companyAnnualPricesMinor:companyPrices as number[],
+        providerAnnualPriceMinor,
+        nfcIssuePriceMinor,
         reason:String(data.get("reason")).trim(),
       }});
       await refresh(); setSuccess("تم حفظ الأسعار الافتراضية مع سبب موثق.");
@@ -550,14 +606,15 @@ export function AdminPlansPage() {
     const data = new FormData(event.currentTarget);
     setFormError(""); setSuccess(""); setBusy(true);
     try {
-      const from = new Date(String(data.get("effectiveFrom")));
+      const from = cairoDateFromLocalDateTime(String(data.get("effectiveFrom")));
       const toRaw = String(data.get("effectiveTo") ?? "");
-      const to = toRaw ? new Date(toRaw) : null;
-      if(Number.isNaN(from.valueOf()) || (to && Number.isNaN(to.valueOf()))) throw new Error("تحقق من تواريخ التخصيص.");
+      const to = toRaw ? cairoDateFromLocalDateTime(toRaw) : null;
       const branchId = String(data.get("branchId") ?? "");
+      const priceMinor = parseEgpMinor(data.get("price"));
+      if(priceMinor===null||priceMinor<1) throw new Error("أدخل سعرًا مخصصًا موجبًا حتى قرشين.");
       await createOverride.mutateAsync({data:{
         organizationId:overrideOrgId, branchId:branchId || null, planId:overridePlanId,
-        priceMinor:Math.round(Number(data.get("price"))*100), effectiveFrom:from.toISOString(), effectiveTo:to?.toISOString() ?? null,
+        priceMinor, effectiveFrom:from.toISOString(), effectiveTo:to?.toISOString() ?? null,
         supersedesOverrideId:overrideSupersedesId || previousPriceVersions[0]?.id || null, reason:String(data.get("reason")).trim(),
       }});
       await refresh(); setOverrideSupersedesId(""); setSuccess("تم إنشاء تخصيص السعر لمقدّم الخدمة.");
@@ -655,9 +712,9 @@ export function AdminPlansPage() {
     {!query.isLoading&&!query.isError&&section==="defaults"&&<section className="ac-panel ab-form-panel">
       <div className="ab-form-head"><div><span className="ac-eyebrow">مرجع قابل للتحرير</span><h2>الأسعار الافتراضية</h2></div><span className="ac-status ac-status-active">سنوي · جنيه مصري</span></div>
       <form className="ab-form-grid" onSubmit={submitDefaults}>
-        <label className="ab-field ab-wide">أسعار الشركات لكل مركبة سنويًا (ج.م)<input name="companyPrices" required defaultValue={query.data?.pricingDefaults.companyAnnualPricesMinor.map(value=>String(value/100)).join(", ")}/><small>سعر أو أكثر، حتى خمسة؛ افصل بينها بفواصل. لن تُضاف مستويات غير موجودة تلقائيًا.</small></label>
-        <label className="ab-field">مقدّم الخدمة لكل فرع (ج.م)<input name="providerPrice" type="number" min="1" step="0.01" required defaultValue={(query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100}/></label>
-        <label className="ab-field">إصدار NFC (ج.م)<input name="nfcPrice" type="number" min="0" step="0.01" required defaultValue={(query.data?.pricingDefaults.nfcIssuePriceMinor??0)/100}/><small>إصدار NFC منفصل عن الاشتراك. المحطات مجانية ولا تقبل تخصيص سعر.</small></label>
+        <label className="ab-field ab-wide">أسعار الشركات لكل مركبة سنويًا (ج.م)<input name="companyPrices" required defaultValue={query.data?.pricingDefaults.companyAnnualPricesMinor.map(minorToEgpInput).join(", ")}/><small>سعر أو أكثر، حتى خمسة؛ افصل بينها بفواصل. لن تُضاف مستويات غير موجودة تلقائيًا.</small></label>
+        <label className="ab-field">مقدّم الخدمة لكل فرع (ج.م)<input name="providerPrice" type="number" min="1" step="0.01" required defaultValue={minorToEgpInput(query.data?.pricingDefaults.providerAnnualPriceMinor??0)}/></label>
+        <label className="ab-field">إصدار NFC (ج.م)<input name="nfcPrice" type="number" min="0" step="0.01" required defaultValue={minorToEgpInput(query.data?.pricingDefaults.nfcIssuePriceMinor??0)}/><small>إصدار NFC منفصل عن الاشتراك. المحطات مجانية ولا تقبل تخصيص سعر.</small></label>
         <ReasonField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy?"جارٍ الحفظ…":"حفظ الأسعار الافتراضية"} <Check size={14}/></button></div>
       </form>
@@ -693,7 +750,7 @@ export function AdminPlansPage() {
         <label className="ab-field">الفئة<select name="audience" required value={createAudience} onChange={event => setCreateAudience(event.target.value as Audience)}>
           <option value="company">شركة</option><option value="provider">مقدّم خدمة</option><option value="station">محطة</option>
         </select></label>
-         <label className="ab-field">السعر السنوي (ج.م) · {createAudience === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={createAudience === "station" ? 0 : 0.01} step="0.01" required key={createAudience} readOnly={createAudience === "station"} defaultValue={createAudience === "station" ? 0 : createAudience === "company" ? (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100 : (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100}/><small>{createAudience === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الأسعار الافتراضية، ويمكن تعديلها لهذه الخطة."} · EGP سنويًا</small></label>
+         <label className="ab-field">السعر السنوي (ج.م) · {createAudience === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={createAudience === "station" ? 0 : 0.01} step="0.01" required key={createAudience} readOnly={createAudience === "station"} defaultValue={createAudience === "station" ? 0 : createAudience === "company" ? minorToEgpInput(query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0) : minorToEgpInput(query.data?.pricingDefaults.providerAnnualPriceMinor??0)}/><small>{createAudience === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الأسعار الافتراضية، ويمكن تعديلها لهذه الخطة."} · EGP سنويًا</small></label>
         <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={defaultStart()} required/></label>
         <ReasonField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "حفظ كمسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
@@ -704,7 +761,7 @@ export function AdminPlansPage() {
          <section className="ab-version-price ab-wide">
            <div className="ab-version-price-copy"><span className="ab-price-icon"><Banknote size={19}/></span><span><b>السعر السنوي</b><small>يُحفظ لهذه النسخة فقط؛ لا يغيّر اشتراكًا سابقًا.</small></span></div>
            <label className="ab-field">{(versionPlan?.audience??editSelection?.plan.audience) === "company" ? "السعر لكل مركبة" : "السعر لكل فرع"}
-             <span className="ab-price-input"><input data-testid="input-plan-version-price" name="price" type="number" min={(versionPlan?.audience??editSelection?.plan.audience) === "station" ? 0 : 0.01} step="0.01" required readOnly={(versionPlan?.audience??editSelection?.plan.audience) === "station"} defaultValue={editSelection ? editSelection.version.annualPriceMinor/100 : (versionPlan?.audience === "station" ? 0 : versionPlan?.audience === "provider" ? (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100 : (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100)}/><span>ج.م</span></span>
+              <span className="ab-price-input"><input data-testid="input-plan-version-price" name="price" type="number" min={(versionPlan?.audience??editSelection?.plan.audience) === "station" ? 0 : 0.01} step="0.01" required readOnly={(versionPlan?.audience??editSelection?.plan.audience) === "station"} defaultValue={editSelection ? minorToEgpInput(editSelection.version.annualPriceMinor) : (versionPlan?.audience === "station" ? 0 : versionPlan?.audience === "provider" ? minorToEgpInput(query.data?.pricingDefaults.providerAnnualPriceMinor??0) : minorToEgpInput(query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0))}/><span>ج.م</span></span>
            </label>
            <label className="ab-field">تاريخ السريان<input data-testid="input-plan-version-effective-at" name="effectiveAt" type="datetime-local" defaultValue={localDateTime(new Date(editSelection?.version.effectiveAt??Date.now()+60_000))} required/></label>
            {(versionPlan?.audience??editSelection?.plan.audience) === "station" && <p className="ab-price-station">المحطات مجانية، ولا يقبل سعرًا خاصًا.</p>}
@@ -849,8 +906,14 @@ export function AdminSubscriptionsPage() {
     setSuccess("");
     const data = new FormData(event.currentTarget);
     const date = (name: string) => {
-      const parsed = new Date(String(data.get(name)));
-      if (Number.isNaN(parsed.valueOf())) throw new Error("تحقق من تاريخي البداية والنهاية.");
+      const raw = String(data.get(name) ?? "");
+      let parsed: Date;
+      try {
+        parsed = cairoDateFromLocalDateTime(raw);
+      } catch {
+        const label = name === "startsAt" ? "بداية الاشتراك" : "نهاية الاشتراك";
+        throw new Error(`أدخل تاريخ ووقت ${label} بتوقيت القاهرة.`);
+      }
       return parsed.toISOString();
     };
     const request = requestType;
@@ -906,9 +969,11 @@ export function AdminSubscriptionsPage() {
     event.preventDefault();
     if (!selectedRow || selectedKind !== "cancel") return;
     const data = new FormData(event.currentTarget);
-    const effectiveAt = new Date(String(data.get("effectiveAt")));
-    if (Number.isNaN(effectiveAt.valueOf())) {
-      setFormError("تاريخ الإلغاء غير صالح.");
+    let effectiveAt: Date;
+    try {
+      effectiveAt = cairoDateFromLocalDateTime(String(data.get("effectiveAt")));
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "تاريخ الإلغاء غير صالح.");
       return;
     }
     setFormError("");

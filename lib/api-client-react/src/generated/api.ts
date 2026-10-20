@@ -331,17 +331,10 @@ export function useSupabaseHealthCheck<TData = Awaited<ReturnType<typeof supabas
 
   const queryOptions = getSupabaseHealthCheckQueryOptions(options)
 
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
+   return withQueryKey(query, queryOptions.queryKey);
+ }
 export const getGetAdminFleetCatalogUrl = (params: GetAdminFleetCatalogParams,) => {
   const normalizedParams = new URLSearchParams();
 
