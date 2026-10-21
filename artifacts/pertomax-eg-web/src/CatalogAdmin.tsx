@@ -1,4 +1,4 @@
-import { isValidElement, useMemo, useRef, useState, type FormEvent } from "react";
+import { isValidElement, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ArrowRight, Box, CircleAlert, Fuel, ImagePlus, LoaderCircle, PackagePlus, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Tag, X } from "lucide-react";
@@ -218,8 +218,16 @@ function CategoryAdminPanel({ categories, units, canManage, onSend, onError, onN
   </section>;
 }
 
-export function CatalogAdminPage() {
-  const [tab, setTab] = useState<"directory"|"items"|"fuel"|"categories">("directory");
+type CatalogTab = "directory"|"items"|"fuel"|"categories";
+
+export function CatalogAdminPage({
+  initialTab = "directory",
+  focusedTabOnly = false,
+}: {
+  initialTab?: CatalogTab;
+  focusedTabOnly?: boolean;
+}) {
+  const [tab, setTab] = useState<CatalogTab>(initialTab);
   const [search, setSearch] = useState("");
   const [fuelSearch,setFuelSearch]=useState("");
   const [kind, setKind] = useState("");
@@ -245,6 +253,11 @@ export function CatalogAdminPage() {
   const [calc, setCalc] = useState({ fuelTypeId: "", quantity: "", amount: "" });
   const [previewResult, setPreviewResult] = useState<Row|null>(null);
   const [fuelForm, setFuelForm] = useState(false);
+  useEffect(() => {
+    setTab(initialTab);
+    setPage(1);
+    setFuelPage(1);
+  }, [initialTab]);
   async function refreshCatalog() {
     await Promise.all([
       cache.invalidateQueries({ queryKey: getListAdminCatalogFuelQueryKey() }),
@@ -287,13 +300,13 @@ export function CatalogAdminPage() {
   const activeUnits = units.filter((u) => u.active === true);
   const fuelUnitProblems = fuelRows.filter(f=>!units.some(u=>u.code===f.unitCode&&typeof u.nameAr==="string"&&u.active===true));
   return <div className="cat-page" dir="rtl">
-    <header className="cat-heading"><div><span className="cat-kicker">السجل المركزي / 04</span><h1>الكتالوج والخدمات</h1><p>مرجع المنصة المركزي منفصل عن أصناف وأسعار كل جهة مالكة.</p></div><span className="cat-seal"><ShieldCheck size={16}/> إدارة موثقة</span></header>
-    <nav className="cat-tabs" role="tablist" aria-label="أقسام الكتالوج">
+    <header className="cat-heading"><div><span className="cat-kicker">{focusedTabOnly ? "السجل المركزي / الوقود" : "السجل المركزي / 04"}</span><h1>{focusedTabOnly ? "أسعار الوقود" : "الكتالوج والخدمات"}</h1><p>{focusedTabOnly ? "إدارة مرجع سعر الوقود وتاريخه؛ لا تنشئ هذه الشاشة بيعًا أو قبضًا." : "مرجع المنصة المركزي منفصل عن أصناف وأسعار كل جهة مالكة."}</p>{focusedTabOnly&&<Link className="cat-link" href="/admin/catalog">العودة إلى الكتالوج والتصنيفات</Link>}</div><span className="cat-seal"><ShieldCheck size={16}/> إدارة موثقة</span></header>
+    {!focusedTabOnly&&<nav className="cat-tabs" role="tablist" aria-label="أقسام الكتالوج">
       <button role="tab" aria-selected={tab==="directory"} className={tab==="directory"?"selected":""} onClick={()=>setTab("directory")}><Box size={16}/> دليل الجهات</button>
       <button role="tab" aria-selected={tab==="items"} className={tab==="items"?"selected":""} onClick={()=>{setTab("items");setPage(1);}}><Tag size={16}/> أصناف التجار</button>
       <button role="tab" aria-selected={tab==="categories"} className={tab==="categories"?"selected":""} onClick={()=>setTab("categories")}><SlidersHorizontal size={16}/> التصنيفات والوحدات</button>
       <button role="tab" aria-selected={tab==="fuel"} className={tab==="fuel"?"selected":""} onClick={()=>setTab("fuel")}><Fuel size={16}/> تعريف الوقود والأسعار المرجعية</button>
-    </nav>
+    </nav>}
     {error && <div className="cat-alert" role="alert"><CircleAlert size={17}/>{error}</div>}
     {notice && <div className="cat-success" role="status">{notice}</div>}
     {tab==="directory" ? <section className="cat-panel">

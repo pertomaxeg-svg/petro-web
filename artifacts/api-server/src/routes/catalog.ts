@@ -251,7 +251,7 @@ router.post("/catalog/commands", async (req, res) => {
   const { data, error } = await rpc(session, "petro_catalog_command", {
     p_action: parsed.data.action,
     p_payload: parsed.data.payload,
-    p_reason: explicitReason || "تعديل إداري من لوحة الكتالوج",
+    p_reason: explicitReason || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
     p_idempotency_key: parsed.data.idempotencyKey,
   });
   if (error) return mapCatalogError(res, error);

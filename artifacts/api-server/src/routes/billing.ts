@@ -161,7 +161,7 @@ router.post("/admin/billing/plans", async (req, res): Promise<void> => {
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);
@@ -195,7 +195,7 @@ router.post("/admin/billing/plans/:planId/versions", async (req, res): Promise<v
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);
@@ -231,7 +231,7 @@ router.patch("/admin/billing/plans/:planId/versions/:versionId", async (req, res
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);
@@ -257,7 +257,7 @@ router.patch("/admin/billing/pricing-defaults", async (req, res): Promise<void> 
     p_company_prices_minor: body.companyAnnualPricesMinor,
     p_provider_price_minor: body.providerAnnualPriceMinor,
     p_nfc_issue_price_minor: body.nfcIssuePriceMinor,
-    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);

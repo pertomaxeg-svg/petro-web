@@ -22,6 +22,11 @@ import {
   useSubmitAdminFinanceTopup, useUpdateAdminFinanceTopup,
 } from "@workspace/api-client-react";
 import type { CreateDocumentUploadIntent } from "@workspace/api-client-react";
+import {
+  financeMetricCountKeys,
+  financeMetricKey,
+  getFinanceMetricLabel,
+} from "./financeMetricLabels";
 import "./AdminFinancePage.css";
 
 type Section = "overview" | "accounts" | "banks" | "topups" | "receipts" | "subscriptions" | "journal" | "reconciliation";
@@ -84,25 +89,14 @@ const statusName = (value: unknown) => {
   const key = String(value ?? "");
   return label[key] ?? (key ? key.replaceAll("_", " ") : "غير محدد");
 };
-const financeFieldLabels: Record<string, string> = {
-  accountName: "الحساب", accountKind: "نوع الحساب", actorName: "المسؤول",
-  availableMinor: "الرصيد المتاح", bankReference: "مرجع التحويل البنكي",
-  branchName: "الفرع", collectedAt: "وقت التحصيل", collectionStatus: "حالة التحصيل",
-  createdAt: "وقت الإنشاء", creditMinor: "دائن", debitMinor: "مدين",
-  differenceMinor: "الفرق", entryType: "نوع القيد", effectiveAt: "وقت السريان",
-  isBalanced: "القيد متوازن", journalEntryId: "مرجع القيد",
-  ledgerBalanceMinor: "الرصيد الدفتري", organizationName: "الجهة",
-  reason: "السبب", reference: "المرجع", reservedMinor: "الرصيد المحجوز",
-  reversedBy: "القيد العكسي", sourceType: "مصدر القيد", status: "الحالة",
-  updatedAt: "وقت آخر تحديث",
-};
-const financeFieldLabel = (key: string) => {
-  const camel = key.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
-  return financeFieldLabels[camel] ?? "تفاصيل إضافية";
-};
+const financeFieldLabel = (key: string) => getFinanceMetricLabel(key) ?? "معلومة غير معرّفة";
 const financeDetailValue = (key: string, value: unknown) => {
   if (value === undefined || value === null || value === "") return "—";
   if (typeof value === "boolean") return value ? "نعم" : "لا";
+  if (financeMetricCountKeys.has(financeMetricKey(key))
+    && (typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value)))) {
+    return Number(value).toLocaleString("ar-EG");
+  }
   if (/(?:minor|amount|debit|credit|balance|reserved|available|difference)/i.test(key)
     && (typeof value === "number" || typeof value === "string")) return currency(value);
   if (/(?:at|_at|date|_date|time|_time)$/i.test(key) && typeof value === "string") return dateText(value);
@@ -663,9 +657,11 @@ function JournalDetail({ detail, loading, error, onClose }: { detail: unknown; l
 }
 function Reconciliation({ data }: { data: unknown }) {
   const root = data && typeof data === "object" && !Array.isArray(data) ? data as Row : {};
-  const metrics = Object.entries(root).filter(([key]) => key !== "issues");
+  const allMetrics = Object.entries(root).filter(([key]) => key !== "issues");
+  const metrics = allMetrics.filter(([key]) => getFinanceMetricLabel(key) !== null);
+  const unknownMetricCount = allMetrics.length - metrics.length;
   const issues = rows(get(root, "issues"));
-  return <section className="af-panel af-recon"><header className="af-panel-title"><div><span className="af-kicker">قراءة فقط</span><h3>مؤشرات المطابقة</h3></div><Status value={get(root, "status")}/></header>{metrics.length === 0 ? <Empty title="لا توجد نتائج مطابقة" detail="لم يُرجع الخادم عناصر في هذا العرض."/> : <div className="af-recon-grid">{metrics.map(([key, value]) => <article key={key}><small>{financeFieldLabel(key)}</small><b>{financeDetailValue(key, value)}</b></article>)}</div>}{issues.length > 0 && <div className="af-table-scroll"><table><thead><tr><th>الحساب</th><th>نوع الحساب</th><th>الرصيد الدفتري</th><th>محجوز</th><th>متاح</th></tr></thead><tbody>{issues.map((issue, index) => <tr key={String(get(issue, "accountId", "account_id") ?? index)}><td>{text(get(issue, "accountName", "account_name"))}</td><td>{statusName(get(issue, "accountKind", "account_kind"))}</td><td className="af-money">{currency(get(issue, "ledgerBalanceMinor", "ledger_balance_minor"))}</td><td className="af-money">{currency(get(issue, "reservedMinor", "reserved_minor"))}</td><td className="af-money">{currency(get(issue, "availableMinor", "available_minor"))}</td></tr>)}</tbody></table></div>}<p className="af-muted">لا تنشئ هذه الشاشة قيدًا ولا تغيّر الرصيد.</p></section>;
+  return <section className="af-panel af-recon"><header className="af-panel-title"><div><span className="af-kicker">قراءة فقط</span><h3>مؤشرات المطابقة</h3></div><Status value={get(root, "status")}/></header>{unknownMetricCount > 0 && <p className="af-alert" role="alert">وصلت {unknownMetricCount.toLocaleString("ar-EG")} مؤشرات بلا تسمية معتمدة؛ لم نعرضها كأرقام مفهومة. أُبقيت بقية النتائج الواضحة ظاهرة.</p>}{metrics.length === 0 ? <Empty title={unknownMetricCount ? "تعذّر عرض مؤشرات المطابقة" : "لا توجد نتائج مطابقة"} detail={unknownMetricCount ? "تحتاج أسماء المؤشرات القادمة من السجل إلى مراجعة قبل عرضها." : "لم يُرجع الخادم عناصر في هذا العرض."}/> : <div className="af-recon-grid">{metrics.map(([key, value]) => <article key={key}><small>{financeFieldLabel(key)}</small><b>{financeDetailValue(key, value)}</b></article>)}</div>}{issues.length > 0 && <div className="af-table-scroll"><table><thead><tr><th>الحساب</th><th>نوع الحساب</th><th>الرصيد الدفتري</th><th>محجوز</th><th>متاح</th></tr></thead><tbody>{issues.map((issue, index) => <tr key={String(get(issue, "accountId", "account_id") ?? index)}><td>{text(get(issue, "accountName", "account_name"))}</td><td>{statusName(get(issue, "accountKind", "account_kind"))}</td><td className="af-money">{currency(get(issue, "ledgerBalanceMinor", "ledger_balance_minor"))}</td><td className="af-money">{currency(get(issue, "reservedMinor", "reserved_minor"))}</td><td className="af-money">{currency(get(issue, "availableMinor", "available_minor"))}</td></tr>)}</tbody></table></div>}<p className="af-muted">لا تنشئ هذه الشاشة قيدًا ولا تغيّر الرصيد.</p></section>;
 }
 
 function decimalInput(value: unknown) {
