@@ -6,3 +6,4 @@
 - [Sanitized worktree Git context](sanitized-worktree-git-context.md) — Verify Git root and ref; a missing worktree marker can redirect commands to root `main`.
 - [Deferred trigger testing](deferred-trigger-test-commit.md) — Use generic record access in shared triggers and force deferred constraints before rollback-only tests finish.
 - [Approved migration runner](approved-migration-runner.md) — Keep strict transaction wrappers, object-safe probes, and migration hashes synchronized with rollback plans.
+- [Optional admin audit notes](optional-admin-audit-notes.md) — Keep routine admin edits low-friction while retaining explicit reasons for sensitive actions.

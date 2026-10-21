@@ -28,5 +28,5 @@ export interface AdminBillingPriceDefaultsInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }

@@ -188,7 +188,7 @@ export interface CatalogCommandRequest {
      * @minLength 3
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
   /**
      * @minLength 16
      * @maxLength 120
@@ -589,7 +589,7 @@ export interface AdminPlanInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }
 
 export interface AdminPlanStopInput {
@@ -644,7 +644,7 @@ export interface AdminPlanVersionInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }
 
 export type AdminPlanVersionBillingUnit = typeof AdminPlanVersionBillingUnit[keyof typeof AdminPlanVersionBillingUnit];
@@ -922,7 +922,7 @@ export interface AdminBillingPriceDefaultsInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }
 
 export interface AdminProviderPriceOverrideInput {

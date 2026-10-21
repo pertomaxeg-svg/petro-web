@@ -165,6 +165,17 @@ function ReasonField() {
   </label>;
 }
 
+function AuditNoteField() {
+  return <label className="ab-field ab-wide">ملاحظة تدقيق (اختيارية)
+    <textarea name="reason" minLength={5} maxLength={500} placeholder="يمكنك إضافة سياق مختصر؛ يسجل النظام الفاعل والوقت والتغيير تلقائيًا."/>
+  </label>;
+}
+
+function optionalAuditNote(data: FormData): string | undefined {
+  const note = String(data.get("reason") ?? "").trim();
+  return note || undefined;
+}
+
 type ConfigValueMode = "text" | "number" | "boolean" | "json";
 const getConfigValueMode = (value: unknown): ConfigValueMode => {
   if (typeof value === "boolean") return "boolean";
@@ -474,7 +485,7 @@ export function AdminPlansPage() {
         effectiveAt: cairoDateFromLocalDateTime(String(data.get("effectiveAt"))).toISOString(),
         entitlements: [],
         settings: [],
-        reason: String(data.get("reason")).trim(),
+        reason: optionalAuditNote(data),
       } satisfies AdminPlanInput });
       await refresh();
       setCreateOpen(false);
@@ -516,7 +527,7 @@ export function AdminPlansPage() {
         effectiveAt: effectiveAt.toISOString(),
         entitlements,
         settings,
-        reason: String(data.get("reason")).trim(),
+        reason: optionalAuditNote(data),
       };
       if(editSelection) await updateDraft.mutateAsync({planId:plan.id,versionId:editSelection.version.id,data:payload});
       else await createVersion.mutateAsync({ planId: plan.id, data: payload });
@@ -595,9 +606,9 @@ export function AdminPlansPage() {
         companyAnnualPricesMinor:companyPrices as number[],
         providerAnnualPriceMinor,
         nfcIssuePriceMinor,
-        reason:String(data.get("reason")).trim(),
+        reason: optionalAuditNote(data),
       }});
-      await refresh(); setSuccess("تم حفظ الأسعار الافتراضية مع سبب موثق.");
+      await refresh(); setSuccess("تم حفظ الأسعار الافتراضية وتحديث السجل.");
     } catch(error) { setFormError(apiErrorMessage(error)); } finally { setBusy(false); }
   }
 
@@ -715,7 +726,7 @@ export function AdminPlansPage() {
         <label className="ab-field ab-wide">أسعار الشركات لكل مركبة سنويًا (ج.م)<input name="companyPrices" required defaultValue={query.data?.pricingDefaults.companyAnnualPricesMinor.map(minorToEgpInput).join(", ")}/><small>سعر أو أكثر، حتى خمسة؛ افصل بينها بفواصل. لن تُضاف مستويات غير موجودة تلقائيًا.</small></label>
         <label className="ab-field">مقدّم الخدمة لكل فرع (ج.م)<input name="providerPrice" type="number" min="1" step="0.01" required defaultValue={minorToEgpInput(query.data?.pricingDefaults.providerAnnualPriceMinor??0)}/></label>
         <label className="ab-field">إصدار NFC (ج.م)<input name="nfcPrice" type="number" min="0" step="0.01" required defaultValue={minorToEgpInput(query.data?.pricingDefaults.nfcIssuePriceMinor??0)}/><small>إصدار NFC منفصل عن الاشتراك. المحطات مجانية ولا تقبل تخصيص سعر.</small></label>
-        <ReasonField/><FormFeedback error={formError}/>
+        <AuditNoteField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy?"جارٍ الحفظ…":"حفظ الأسعار الافتراضية"} <Check size={14}/></button></div>
       </form>
       <p className="ab-footnote"><ShieldAlert size={15}/>المصدر الوحيد هو مرجع التسعير المحفوظ. لا تُضاف ضرائب أو رسوم تركيب أو استبدال.</p>
@@ -752,7 +763,7 @@ export function AdminPlansPage() {
         </select></label>
          <label className="ab-field">السعر السنوي (ج.م) · {createAudience === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={createAudience === "station" ? 0 : 0.01} step="0.01" required key={createAudience} readOnly={createAudience === "station"} defaultValue={createAudience === "station" ? 0 : createAudience === "company" ? minorToEgpInput(query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0) : minorToEgpInput(query.data?.pricingDefaults.providerAnnualPriceMinor??0)}/><small>{createAudience === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الأسعار الافتراضية، ويمكن تعديلها لهذه الخطة."} · EGP سنويًا</small></label>
         <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={defaultStart()} required/></label>
-        <ReasonField/><FormFeedback error={formError}/>
+        <AuditNoteField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "حفظ كمسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
        {(versionPlan || editSelection) && <form className="ab-form-grid ab-version-editor" onSubmit={submitVersion}>
@@ -769,7 +780,7 @@ export function AdminPlansPage() {
          <JsonArrayField key={`entitlements-${editSelection?.version.id??versionPlan?.id??"new"}`} name="entitlements" title="مميزات الباقة" value={editSelection?.version.entitlements}/>
          <JsonArrayField key={`settings-${editSelection?.version.id??versionPlan?.id??"new"}`} name="settings" title="إعدادات إضافية" value={editSelection?.version.settings} collapsible/>
          <p className="ab-form-note ab-wide"><ShieldAlert size={15}/>لا تظهر أي ميزة للمشترك قبل اعتمادها صراحةً. رسوم إصدار NFC منفصلة عن الاشتراك وتُضبط من مرجع الأسعار.</p>
-        <ReasonField/><FormFeedback error={formError}/>
+        <AuditNoteField/><FormFeedback error={formError}/>
          <div className="ab-form-actions"><button data-testid="button-save-plan-version" className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : editSelection?"حفظ تعديلات المسودة":"حفظ إصدار مسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
       {stopPlan && <form className="ab-form-grid" onSubmit={submitStop}>

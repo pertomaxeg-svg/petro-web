@@ -2668,7 +2668,7 @@ components:
           additionalProperties: true
         reason: { type: string, minLength: 3, maxLength: 500 }
         idempotencyKey: { type: string, minLength: 16, maxLength: 120 }
-      required: [action, payload, reason, idempotencyKey]
+      required: [action, payload, idempotencyKey]
     CatalogCommandResult:
       type: object
       additionalProperties: true
@@ -2918,7 +2918,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
         reason: { type: string, minLength: 5, maxLength: 500 }
-      required: [code, audience, name, description, annualPriceMinor, billingUnit, billingCycle, currency, effectiveAt, entitlements, settings, reason]
+      required: [code, audience, name, description, annualPriceMinor, billingUnit, billingCycle, currency, effectiveAt, entitlements, settings]
     AdminPlanStopInput:
       type: object
       properties:
@@ -2950,7 +2950,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/AdminPlanEntitlement" }
         reason: { type: string, minLength: 5, maxLength: 500 }
-      required: [displayName, description, annualPriceMinor, billingUnit, billingCycle, currency, effectiveAt, entitlements, settings, reason]
+      required: [displayName, description, annualPriceMinor, billingUnit, billingCycle, currency, effectiveAt, entitlements, settings]
     AdminPlanVersion:
       type: object
       properties:
@@ -3072,7 +3072,7 @@ components:
         providerAnnualPriceMinor: { type: integer, format: int64, minimum: 1, maximum: 1000000000 }
         nfcIssuePriceMinor: { type: integer, format: int64, minimum: 0, maximum: 1000000000 }
         reason: { type: string, minLength: 5, maxLength: 500 }
-      required: [companyAnnualPricesMinor, providerAnnualPriceMinor, nfcIssuePriceMinor, reason]
+      required: [companyAnnualPricesMinor, providerAnnualPriceMinor, nfcIssuePriceMinor]
     AdminProviderPriceOverride:
       type: object
       properties:

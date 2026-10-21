@@ -146,7 +146,7 @@ router.post("/admin/billing/plans", async (req, res): Promise<void> => {
   if (!session) return;
   const body = parseBody(CreateAdminBillingPlanBody, req.body);
   if (!body) {
-    fail(res, 400, "بيانات الخطة أو سبب الإنشاء غير صالح.");
+    fail(res, 400, "بيانات الخطة غير صالحة.");
     return;
   }
   const { data, error } = await session.supabase.rpc("petro_billing_admin_create_plan_v2", {
@@ -161,7 +161,7 @@ router.post("/admin/billing/plans", async (req, res): Promise<void> => {
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
   });
   if (error) {
     mapBillingError(res, error);
@@ -181,7 +181,7 @@ router.post("/admin/billing/plans/:planId/versions", async (req, res): Promise<v
   const planId = req.params["planId"];
   const body = parseBody(CreateAdminBillingPlanVersionBody, req.body);
   if (!validId(planId) || !body) {
-    fail(res, 400, "تحقق من معرّف الخطة وبيانات النسخة وسبب التعديل.");
+    fail(res, 400, "تحقق من معرّف الخطة وبيانات النسخة.");
     return;
   }
   const { data, error } = await session.supabase.rpc("petro_billing_admin_add_plan_version_v2", {
@@ -195,7 +195,7 @@ router.post("/admin/billing/plans/:planId/versions", async (req, res): Promise<v
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
   });
   if (error) {
     mapBillingError(res, error);
@@ -216,7 +216,7 @@ router.patch("/admin/billing/plans/:planId/versions/:versionId", async (req, res
   const versionId = req.params["versionId"];
   const body = parseBody(UpdateAdminBillingPlanDraftBody, req.body);
   if (!validId(planId) || !validId(versionId) || !body) {
-    fail(res, 400, "تحقق من معرّفات الخطة والنسخة وبيانات المسودة وسبب التعديل.");
+    fail(res, 400, "تحقق من معرّفات الخطة والنسخة وبيانات المسودة.");
     return;
   }
   const { data, error } = await session.supabase.rpc("petro_billing_admin_update_draft_version", {
@@ -231,7 +231,7 @@ router.patch("/admin/billing/plans/:planId/versions/:versionId", async (req, res
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
   });
   if (error) {
     mapBillingError(res, error);
@@ -250,14 +250,14 @@ router.patch("/admin/billing/pricing-defaults", async (req, res): Promise<void> 
   if (!session) return;
   const body = parseBody(UpdateAdminBillingPriceDefaultsBody, req.body);
   if (!body) {
-    fail(res, 400, "تحقق من أسعار الاقتراحات وسعر إصدار NFC وسبب التغيير.");
+    fail(res, 400, "تحقق من أسعار الاقتراحات وسعر إصدار NFC.");
     return;
   }
   const { error } = await session.supabase.rpc("petro_billing_admin_update_price_defaults", {
     p_company_prices_minor: body.companyAnnualPricesMinor,
     p_provider_price_minor: body.providerAnnualPriceMinor,
     p_nfc_issue_price_minor: body.nfcIssuePriceMinor,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "تعديل إداري من لوحة الباقات",
   });
   if (error) {
     mapBillingError(res, error);

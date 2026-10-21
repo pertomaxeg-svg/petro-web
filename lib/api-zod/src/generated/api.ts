@@ -3268,7 +3268,7 @@ export const CreateAdminBillingPlanBody = zod.object({
   "value": zod.unknown(),
   "approved": zod.boolean()
 })),
-  "reason": zod.string().min(createAdminBillingPlanBodyReasonMin).max(createAdminBillingPlanBodyReasonMax)
+  "reason": zod.string().min(createAdminBillingPlanBodyReasonMin).max(createAdminBillingPlanBodyReasonMax).optional()
 })
 
 export const CreateAdminBillingPlanResponse = zod.object({
@@ -3322,7 +3322,7 @@ export const CreateAdminBillingPlanVersionBody = zod.object({
   "value": zod.unknown(),
   "approved": zod.boolean()
 })),
-  "reason": zod.string().min(createAdminBillingPlanVersionBodyReasonMin).max(createAdminBillingPlanVersionBodyReasonMax)
+  "reason": zod.string().min(createAdminBillingPlanVersionBodyReasonMin).max(createAdminBillingPlanVersionBodyReasonMax).optional()
 })
 
 export const CreateAdminBillingPlanVersionResponse = zod.object({
@@ -3377,7 +3377,7 @@ export const UpdateAdminBillingPlanDraftBody = zod.object({
   "value": zod.unknown(),
   "approved": zod.boolean()
 })),
-  "reason": zod.string().min(updateAdminBillingPlanDraftBodyReasonMin).max(updateAdminBillingPlanDraftBodyReasonMax)
+  "reason": zod.string().min(updateAdminBillingPlanDraftBodyReasonMin).max(updateAdminBillingPlanDraftBodyReasonMax).optional()
 })
 
 export const UpdateAdminBillingPlanDraftResponse = zod.object({
@@ -3405,7 +3405,7 @@ export const UpdateAdminBillingPriceDefaultsBody = zod.object({
   "companyAnnualPricesMinor": zod.array(zod.number().int().min(1).max(updateAdminBillingPriceDefaultsBodyCompanyAnnualPricesMinorItemMax)).min(1).max(updateAdminBillingPriceDefaultsBodyCompanyAnnualPricesMinorMax),
   "providerAnnualPriceMinor": zod.number().int().min(1).max(updateAdminBillingPriceDefaultsBodyProviderAnnualPriceMinorMax),
   "nfcIssuePriceMinor": zod.number().int().min(updateAdminBillingPriceDefaultsBodyNfcIssuePriceMinorMin).max(updateAdminBillingPriceDefaultsBodyNfcIssuePriceMinorMax),
-  "reason": zod.string().min(updateAdminBillingPriceDefaultsBodyReasonMin).max(updateAdminBillingPriceDefaultsBodyReasonMax)
+  "reason": zod.string().min(updateAdminBillingPriceDefaultsBodyReasonMin).max(updateAdminBillingPriceDefaultsBodyReasonMax).optional()
 })
 
 export const UpdateAdminBillingPriceDefaultsResponse = zod.object({
@@ -3790,7 +3790,7 @@ export const executeCatalogCommandBodyIdempotencyKeyMax = 120;
 export const ExecuteCatalogCommandBody = zod.object({
   "action": zod.enum(['unit.create', 'unit.status', 'category.create', 'category.update', 'category.status', 'fuel.type.create', 'fuel.type.update', 'fuel.type.status', 'fuel.price.create_draft', 'fuel.price.publish', 'fuel.price.cancel', 'item.create', 'item.update', 'item.status', 'item.review', 'item.branch_availability', 'item.price.create_draft', 'item.price.publish', 'item.price.cancel', 'item.image.intent', 'item.image.remove']),
   "payload": zod.record(zod.string(), zod.unknown()),
-  "reason": zod.string().min(executeCatalogCommandBodyReasonMin).max(executeCatalogCommandBodyReasonMax),
+  "reason": zod.string().min(executeCatalogCommandBodyReasonMin).max(executeCatalogCommandBodyReasonMax).optional(),
   "idempotencyKey": zod.string().min(executeCatalogCommandBodyIdempotencyKeyMin).max(executeCatalogCommandBodyIdempotencyKeyMax)
 })
 

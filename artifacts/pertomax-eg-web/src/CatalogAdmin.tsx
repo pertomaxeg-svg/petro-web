@@ -135,16 +135,17 @@ const formValidationEvents = {
     if(target instanceof HTMLInputElement||target instanceof HTMLSelectElement||target instanceof HTMLTextAreaElement)target.setCustomValidity("");
   },
 };
-function AuditReason() { return <Field label="سبب الإجراء (3–500 حرف)"><textarea name="reason" required minLength={3} maxLength={500} rows={2} placeholder="اكتب سببًا واضحًا للتغيير"/></Field>; }
+function AuditReason() { return <Field label="ملاحظة تدقيق (اختيارية)"><textarea name="reason" minLength={3} maxLength={500} rows={2} placeholder="يسجل النظام الفاعل والوقت والتغيير تلقائيًا."/></Field>; }
 
 function useCatalogCommandSender() {
   const command = useExecuteCatalogCommand();
   const retryKeys = useRef(new Map<string, string>());
-  const send = async (action: CatalogCommandRequestAction, payload: Row, reason: string) => {
-    const fingerprint = JSON.stringify([action, payload, reason]);
+  const send = async (action: CatalogCommandRequestAction, payload: Row, reason?: string) => {
+    const note = reason?.trim() || undefined;
+    const fingerprint = JSON.stringify([action, payload, note ?? null]);
     const key = retryKeys.current.get(fingerprint) ?? idempotency();
     retryKeys.current.set(fingerprint, key);
-    const result = await command.mutateAsync({ data: { action, payload, reason, idempotencyKey: key } });
+    const result = await command.mutateAsync({ data: { action, payload, ...(note ? { reason: note } : {}), idempotencyKey: key } });
     retryKeys.current.delete(fingerprint);
     return result;
   };
@@ -153,7 +154,7 @@ function useCatalogCommandSender() {
 
 function CategoryAdminPanel({ categories, units, canManage, onSend, onError, onNotice }: {
   categories: Row[]; units: Row[]; canManage: boolean;
-  onSend: (action: CatalogCommandRequestAction, payload: Row, reason: string) => Promise<unknown>;
+  onSend: (action: CatalogCommandRequestAction, payload: Row, reason?: string) => Promise<unknown>;
   onError: (message: string) => void; onNotice: (message: string) => void;
 }) {
   const [categoryForm,setCategoryForm]=useState(false);
@@ -178,14 +179,14 @@ function CategoryAdminPanel({ categories, units, canManage, onSend, onError, onN
     } catch(x) { onError(errText(x)); } finally { setBusy(false); }
   }
   async function updateCategory(category:Row, statusOnly:boolean) {
-    if(reason.trim().length<3){onError("سبب الإجراء مطلوب، من ثلاثة أحرف على الأقل.");return;}
+    if(statusOnly && reason.trim().length<3){onError("سبب الإيقاف أو التفعيل مطلوب، من ثلاثة أحرف على الأقل.");return;}
     setBusy(true);onError("");
     try {
       const action:CatalogCommandRequestAction=statusOnly?"category.status":"category.update";
       const payload:Row=statusOnly
         ? {categoryId:category.id,expectedVersion:category.version,status:category.active===true?"suspended":"active"}
         : {categoryId:category.id,expectedVersion:category.version,nameAr:editCategoryName};
-      await onSend(action,payload,reason.trim());
+      await onSend(action,payload,statusOnly?reason.trim():(reason.trim()||undefined));
       setReason("");setEditCategoryId("");setEditCategoryName("");onNotice(statusOnly?"تم تحديث حالة التصنيف.":"تم تحديث اسم التصنيف.");
     } catch(x) { onError(errText(x)); } finally { setBusy(false); }
   }
@@ -251,7 +252,7 @@ export function CatalogAdminPage() {
       cache.invalidateQueries({ queryKey: getListAdminCatalogOrganizationsQueryKey() }),
     ]);
   }
-  async function sendAndRefresh(action: CatalogCommandRequestAction, payload: Row, reason: string) {
+  async function sendAndRefresh(action: CatalogCommandRequestAction, payload: Row, reason?: string) {
     const result = await send(action, payload, reason);
     await refreshCatalog();
     return result;
@@ -338,7 +339,7 @@ export function CatalogAdminPage() {
   </div>;
 }
 
-function FuelPriceEditor({ fuel, units, canManage, initialDraft = false, onSave, onDone, onError }: { fuel: Row; units: Row[]; canManage: boolean; initialDraft?: boolean; onSave: (a: CatalogCommandRequestAction,p:Row,r:string)=>Promise<unknown>; onDone:()=>void; onError:(s:string)=>void }) {
+function FuelPriceEditor({ fuel, units, canManage, initialDraft = false, onSave, onDone, onError }: { fuel: Row; units: Row[]; canManage: boolean; initialDraft?: boolean; onSave: (a: CatalogCommandRequestAction,p:Row,r?:string)=>Promise<unknown>; onDone:()=>void; onError:(s:string)=>void }) {
   const [draft, setDraft] = useState(initialDraft);
   const [editType, setEditType] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -349,7 +350,7 @@ function FuelPriceEditor({ fuel, units, canManage, initialDraft = false, onSave,
   const selectableUnits = fuelUnitsForFamily(editFamily,units);
   const pendingVersion = history.find(h=>h.status==="draft");
   async function action(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault(); const d = new FormData(e.currentTarget); const reason = String(d.get("reason")).trim();
+    e.preventDefault(); const d = new FormData(e.currentTarget); const reason = String(d.get("reason") ?? "").trim() || undefined;
     const price = String(d.get("price")).trim();
     if (!/^\d+(?:\.\d{1,6})?$/.test(price) || Number(price) <= 0) { onError("أدخل سعرًا موجبًا بالجنيه، حتى ست خانات عشرية للوحدة."); return; }
     setBusy(true);
@@ -362,7 +363,7 @@ function FuelPriceEditor({ fuel, units, canManage, initialDraft = false, onSave,
     try { await onSave(actionName, { fuelTypeId:fuel.id, priceVersionId:pendingVersion?.id }, actionReason.trim()); onDone(); }
     catch(e) { onError(errText(e)); } finally { setBusy(false); }
   }
-  async function saveType(e:FormEvent<HTMLFormElement>){e.preventDefault();const d=new FormData(e.currentTarget);if(!fuelUnitsForFamily(editFamily,units).some(u=>str(u.code,"")===editUnit)){onError("لا توجد وحدة معتمدة لعائلة الوقود المحددة. البنزين والسولار يستخدمان اللتر.");return;}setBusy(true);try{await onSave("fuel.type.update",{fuelTypeId:fuel.id,expectedVersion:fuel.version,code:String(d.get("code")).trim(),nameAr:String(d.get("nameAr")).trim(),vehicleFuelFamily:editFamily,unitCode:editUnit},String(d.get("reason")).trim());onDone();}catch(e){onError(errText(e));}finally{setBusy(false);}}
+  async function saveType(e:FormEvent<HTMLFormElement>){e.preventDefault();const d=new FormData(e.currentTarget);if(!fuelUnitsForFamily(editFamily,units).some(u=>str(u.code,"")===editUnit)){onError("لا توجد وحدة معتمدة لعائلة الوقود المحددة. البنزين والسولار يستخدمان اللتر.");return;}setBusy(true);try{await onSave("fuel.type.update",{fuelTypeId:fuel.id,expectedVersion:fuel.version,code:String(d.get("code")).trim(),nameAr:String(d.get("nameAr")).trim(),vehicleFuelFamily:editFamily,unitCode:editUnit},String(d.get("reason")).trim()||undefined);onDone();}catch(e){onError(errText(e));}finally{setBusy(false);}}
   async function changeTypeStatus(){if(actionReason.trim().length<3){onError("سبب الإجراء مطلوب.");return;}setBusy(true);try{await onSave("fuel.type.status",{fuelTypeId:fuel.id,expectedVersion:fuel.version,status:fuel.active===false?"active":"suspended"},actionReason.trim());onDone();}catch(e){onError(errText(e));}finally{setBusy(false);}}
   return <div className="cat-editor"><div className="cat-editor-head"><div><b>سجل السعر · {str(fuel.nameAr)}</b><small>السعر الحالي: {fuelMoney(fuel.currentPrice)}</small></div>{canManage&&<button type="button" className="cat-text-button" onClick={()=>setDraft(!draft)}>{draft?"إغلاق":"إنشاء نسخة سعر"}</button>}</div>
     {canManage&&<div className="cat-actions cat-type-actions"><button type="button" className="cat-button cat-quiet" onClick={()=>setEditType(!editType)}>{editType?"إغلاق":"تعديل تعريف الوقود"}</button><span className="cat-type-state">{fuel.active===false?"موقوف":"نشط"}</span><button type="button" className="cat-text-button" onClick={()=>void changeTypeStatus()}>{fuel.active===false?"إعادة تفعيل النوع":"إيقاف النوع"}</button></div>}

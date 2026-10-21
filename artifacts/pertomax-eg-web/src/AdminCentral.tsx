@@ -99,10 +99,10 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
   const isOwner = userRoles.includes("owner");
   const canSeeFinance = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
   const isFleet = path.startsWith("/admin/fleet");
-  const active = path === "/admin" ? "overview" : isFleet ? "fleet" : path.startsWith("/admin/catalog") ? "catalog" : path.startsWith("/admin/inventory") ? "inventory" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
-  const fleetLabels: Record<string, string> = { "/admin/fleet": "الشركات والأسطول", "/admin/fleet/vehicles": "المركبات", "/admin/fleet/drivers": "السائقون", "/admin/fleet/policies": "سياسات الأسطول", "/admin/fleet/coverage": "تغطية المركبات", "/admin/fleet/credentials": "رموز تعريف المركبات", "/admin/fleet/documents": "مستندات المركبات", "/admin/fleet/odometer": "قراءات العداد", "/admin/fleet/maintenance": "سجلات الصيانة", "/admin/fleet/imports": "استيراد بيانات الأسطول" };
+  const active = path === "/admin" ? "overview" : path === "/admin/cards" ? "cards" : isFleet ? "fleet" : path.startsWith("/admin/catalog") ? "catalog" : path.startsWith("/admin/inventory") ? "inventory" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
+  const fleetLabels: Record<string, string> = { "/admin/fleet": "الشركات والأسطول", "/admin/fleet/vehicles": "المركبات", "/admin/fleet/drivers": "السائقون", "/admin/fleet/policies": "سياسات الأسطول", "/admin/fleet/coverage": "تغطية المركبات", "/admin/fleet/documents": "مستندات المركبات", "/admin/fleet/odometer": "قراءات العداد", "/admin/fleet/maintenance": "سجلات الصيانة", "/admin/fleet/imports": "استيراد بيانات الأسطول" };
   const fleetTitle = isFleet ? path.match(/\/branches\/[^/]+$/) ? "مركبات الفرع" : path.match(/\/companies\/[^/]+$/) ? "الشركة والفروع" : path.startsWith("/admin/fleet/companies/") ? "الشركة والأسطول" : fleetLabels[path] ?? "إدارة الأسطول" : "";
-  const pageTitle = isFleet ? fleetTitle : active === "catalog" ? "الكتالوج والخدمات" : active === "inventory" ? "مخزون منتجات التجار" : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const pageTitle = isFleet ? fleetTitle : active === "cards" ? "إدارة البطاقات" : active === "catalog" ? "الكتالوج والخدمات" : active === "inventory" ? "مخزون منتجات التجار" : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
   const fleetLinks = [
     ["/admin/fleet", "الشركات والأسطول"],
@@ -110,7 +110,6 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
     ["/admin/fleet/drivers", "السائقون"],
     ["/admin/fleet/policies", "سياسات الأسطول"],
     ["/admin/fleet/coverage", "تغطية المركبات"],
-    ["/admin/fleet/credentials", "رموز تعريف المركبات"],
     ["/admin/fleet/documents", "مستندات المركبات"],
     ["/admin/fleet/odometer", "قراءات العداد"],
     ["/admin/fleet/maintenance", "سجلات الصيانة"],
@@ -149,6 +148,7 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
       </button>
       {fleetExpanded&&<div className="ac-fleet-subnav" aria-label="أقسام الأسطول">{fleetLinks.slice(1).map(([href, label]) => <Link key={href} href={href} onClick={()=>setDrawerOpen(false)} className={path === href ? "selected" : ""} aria-current={path === href ? "page" : undefined}>{label}</Link>)}</div>}
     </>}
+    {userRoles.some((role) => ["owner", "operations", "auditor"].includes(role)) && <Link href="/admin/cards" onClick={()=>setDrawerOpen(false)} className={active === "cards" ? "selected" : ""} aria-current={active === "cards" ? "page" : undefined}><span className="ac-nav-icon"><LockKeyhole size={17}/></span><span className="ac-nav-label">إدارة البطاقات</span></Link>}
     <div className="ac-nav-bottom"><ShieldCheck size={15}/><span>قرارات موثقة<br/><small>نطاق المنصة فقط</small></span></div>
   </nav>;
   return <div className={`ac-app ${collapsed ? "ac-collapsed" : ""}`} dir="rtl">

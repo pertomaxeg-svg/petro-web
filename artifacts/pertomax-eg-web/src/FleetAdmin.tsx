@@ -37,7 +37,7 @@ const views: Array<{ path: string; view: View; title: string; icon: ReactNode }>
   { path: "/admin/fleet/drivers", view: "drivers", title: "السائقون", icon: <UserRound size={17}/> },
   { path: "/admin/fleet/policies", view: "policies", title: "السياسات", icon: <ShieldCheck size={17}/> },
   { path: "/admin/fleet/coverage", view: "coverage", title: "التغطية", icon: <BadgeCheck size={17}/> },
-  { path: "/admin/fleet/credentials", view: "credentials", title: "رموز التعريف", icon: <LockKeyhole size={17}/> },
+  { path: "/admin/cards", view: "credentials", title: "إدارة البطاقات", icon: <LockKeyhole size={17}/> },
   { path: "/admin/fleet/documents", view: "documents", title: "المستندات", icon: <FileText size={17}/> },
   { path: "/admin/fleet/odometer", view: "odometer", title: "قراءة العداد", icon: <Gauge size={17}/> },
   { path: "/admin/fleet/maintenance", view: "maintenance", title: "الصيانة", icon: <Wrench size={17}/> },
@@ -206,7 +206,7 @@ const referenceStatusesByAction: Record<string, Record<string, string[]>> = {
 };
 function date(value: unknown) { if (typeof value !== "string" || !value) return "—"; const parsed = new Date(value); return Number.isNaN(+parsed) ? value : new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" }).format(parsed); }
 const vehicleCreateRequiredByStep: Record<number, string[]> = {
-  0: ["plateOriginal", "plateStandard", "category", "vehicleType", "brand", "model", "fuelType"],
+  0: ["plateOriginal", "category", "vehicleType", "brand", "model", "fuelType"],
   1: ["organizationId", "branchId"],
   2: [],
   3: [],
@@ -217,6 +217,16 @@ function egpFromMinor(value: number | null) {
   const fraction = value % 100;
   const pounds = new Intl.NumberFormat("ar-EG").format(whole);
   return fraction === 0 ? `${pounds} جنيه مصري` : `${pounds}٫${fraction.toLocaleString("ar-EG", { minimumIntegerDigits: 2, useGrouping: false })} جنيه مصري`;
+}
+function createSecureFourDigitPin(): string {
+  const sample = new Uint32Array(1);
+  const limit = 4_294_960_000;
+  let value = limit;
+  while (value >= limit) {
+    crypto.getRandomValues(sample);
+    value = sample[0]!;
+  }
+  return String(value % 10_000).padStart(4, "0");
 }
 function Field({ label, children, wide = false, required = false, error, hint }: { label: string; children: ReactNode; wide?: boolean; required?: boolean; error?: string; hint?: string }) {
   const childProps = isValidElement(children) ? children.props as { name?: string; "data-testid"?: string } : {};
@@ -267,6 +277,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [formWizardStep, setFormWizardStep] = useState(0);
   const [wizardErrors, setWizardErrors] = useState<Record<string, string>>({});
   const [initialDriverMode, setInitialDriverMode] = useState<"none" | "existing" | "new">("none");
+  const [revealInitialPin, setRevealInitialPin] = useState(false);
   const [initialReadingInput, setInitialReadingInput] = useState("");
   const [initialReadingTimeInput, setInitialReadingTimeInput] = useState("");
   const createdVehiclePhotoRef = useRef<{ signature: string; photoSignature: string; evidenceSignature: string; id: string; driverLinked: boolean; driverCreated: boolean; driverId: string; photoSaved: boolean; odometerRecorded: boolean; evidenceSaved: boolean; vehiclePhotoIntentId?: string; evidenceIntentId?: string; evidenceDocumentId?: string } | null>(null);
@@ -463,7 +474,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   };
   const openAction = (action: string, row: Row = {}) => {
     setSelectedRecord(row); setCommand(action); setVehicleCredentialChoice(""); setReason(""); setProblem(""); setWizardErrors({}); setMessage(""); setOneTimeToken("");
-    setVehicleCreatedMessage(""); setFormWizardStep(0); setInitialDriverMode("none"); setInitialReadingInput(""); setInitialReadingTimeInput(""); setVehiclePhoto(null); setOdometerEvidencePhoto(null);
+    setVehicleCreatedMessage(""); setFormWizardStep(0); setInitialDriverMode("none"); setRevealInitialPin(false); setInitialReadingInput(""); setInitialReadingTimeInput(""); setVehiclePhoto(null); setOdometerEvidencePhoto(null);
     createdVehiclePhotoRef.current = null; driverLinkRetryRef.current = null; driverCreateRetryRef.current = null; odometerRetryRef.current = null;
     commandRetryRef.current = null;
     const contextRow = Object.keys(row).length ? row : isVehicleDetail ? fields(root.vehicle) : isDriverDetail ? (records.find(item => String(item.id ?? "") === detailId) ?? {}) : {};
@@ -719,7 +730,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       return;
     }
     if (createVehicle && formWizardStep === 3) {
-      const pinInput = event.currentTarget.querySelector<HTMLInputElement>('input[name="initialDriverPin"]');
       if (initialLinkPin && (!/^\d{4}$/.test(initialLinkPin) || driverMode === "none")) {
         setProblem("رمز الربط اختياري؛ عند استخدامه اختر سائقًا وأدخل تاريخ البداية ورمزًا من أربعة أرقام.");
         return;
@@ -728,7 +738,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         setProblem("تحقق من قراءة العداد وتاريخها.");
         return;
       }
-      if (pinInput) pinInput.value = "";
     }
     const uploadPrivateImage = async (vehicleId: string, file: File, documentType: string, intentKey: "vehiclePhotoIntentId" | "evidenceIntentId") => {
       let documentId = createdVehiclePhotoRef.current?.[intentKey] ?? "";
@@ -819,6 +828,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             idempotencyKey: linkKey,
           });
           createdVehiclePhotoRef.current.driverLinked = true;
+          const linkedPinInput = dialogRef.current?.querySelector<HTMLInputElement>('input[name="initialDriverPin"]');
+          if (linkedPinInput) linkedPinInput.value = "";
+          setRevealInitialPin(false);
           driverLinkRetryRef.current = null;
         }
         if (vehiclePhoto && !createdVehiclePhotoRef.current.photoSaved) {
@@ -885,6 +897,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         setLastReservedRequestLabel("");
       }
       setMessage(command.startsWith("credential.activate_") ? "صدر معرّف منطقي لمرة واحدة من الخدمة. لا يمثل ذلك كتابة فعلية على NFC أو تحصيلًا." : command === "vehicle.create" && driverMode !== "none" && !initialLinkPin ? "تم حفظ المركبة وربط السائق دون رمز تعبئة؛ يمكن للمخول تعيينه لاحقًا." : "تم إرسال الإجراء إلى الخادم وتسجيله.");
+      const oneTimePinInput = dialogRef.current?.querySelector<HTMLInputElement>('input[name="initialDriverPin"]');
+      if (oneTimePinInput) oneTimePinInput.value = "";
+      setRevealInitialPin(false);
       setShowForm(false); setReason("");
       commandRetryRef.current = null;
       createdVehiclePhotoRef.current = null;
@@ -1029,7 +1044,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
          {oneTimeToken && <section className="fleet-token-once" aria-label="رمز منطقي لمرة واحدة"><div><b>رمز لمرة واحدة من الخادم</b><small>احتفظ به وفق الإجراء المعتمد؛ لن نعرضه مجددًا بعد الإغلاق. ليس إثباتًا لكتابة NFC فعلية.</small></div><code dir="ltr">{oneTimeToken}</code><button data-testid="fleet-token-copy" className="fleet-row-action" onClick={() => void copyToken()}>نسخ الرمز</button><button data-testid="fleet-token-hide" className="fleet-icon-button" onClick={() => setOneTimeToken("")} aria-label="إخفاء الرمز">إخفاء</button></section>}
         {isCompanyRoute ? <FleetDirectory canMutate={canMutate} branchOnly={!isCompanyDirectory}/> : query.isLoading ? <Skeleton/> : query.isError ? <State error title="تعذر تحميل بيانات الأسطول" retry={() => void query.refetch()}>{apiError(query.error)}</State> :
         <>
-          {view === "overview" && <><section className="fleet-intro"><div className="fleet-intro-copy"><span className="fleet-eyebrow">قراءة تشغيلية مباشرة</span><h2>سجلات الأسطول<br/><em>ومؤشرات التشغيل.</em></h2><p>لوحة ضبط للشركات والفروع والمركبات والسائقين، مع سجل واضح للسياسات والتغطية.</p></div><div className="fleet-quick-links">{views.slice(1).map((item, index) => <Link data-testid={`fleet-quick-${item.view}`} key={item.path} href={item.path}><span className="fleet-index">{String(index + 1).padStart(2, "0")}</span><span>{item.icon}<b>{item.title}</b></span><ArrowLeft size={15}/></Link>)}</div></section><section className="fleet-overview-metrics">{Object.entries(root).filter(([key, value]) => typeof value === "number" && !isHiddenKey(key)).map(([key, value]) => <article key={key}><small>{labels[key] ?? key}</small><bdi>{Number(value).toLocaleString("ar-EG")}</bdi></article>)}</section></>}
+          {view === "overview" && <><section className="fleet-intro"><div className="fleet-intro-copy"><span className="fleet-eyebrow">قراءة تشغيلية مباشرة</span><h2>سجلات الأسطول<br/><em>ومؤشرات التشغيل.</em></h2><p>لوحة ضبط للشركات والفروع والمركبات والسائقين، مع سجل واضح للسياسات والتغطية.</p></div><div className="fleet-quick-links">{views.slice(1).filter(item => item.view !== "credentials").map((item, index) => <Link data-testid={`fleet-quick-${item.view}`} key={item.path} href={item.path}><span className="fleet-index">{String(index + 1).padStart(2, "0")}</span><span>{item.icon}<b>{item.title}</b></span><ArrowLeft size={15}/></Link>)}</div></section><section className="fleet-overview-metrics">{Object.entries(root).filter(([key, value]) => typeof value === "number" && !isHiddenKey(key)).map(([key, value]) => <article key={key}><small>{labels[key] ?? key}</small><bdi>{Number(value).toLocaleString("ar-EG")}</bdi></article>)}</section></>}
            {view === "credentials" && canMutate && <section className="fleet-panel">
              <div className="fleet-panel-head"><div><span className="fleet-eyebrow">متابعة المخزون</span><h2>وحدات تعريف محجوزة</h2><p>تظهر الحجوزات المحفوظة حتى بعد تحديث الصفحة، مع طلبها ومركبتها والفرع المرتبط بها.</p></div></div>
              {stockReservations.isLoading ? <Skeleton/> : stockReservations.isError ? <State error title="تعذر تحميل الحجوزات" retry={() => void stockReservations.refetch()}>{apiError(stockReservations.error)}</State> : reservedStockRows.length ? <div className="fleet-table-scroll"><table className="fleet-table"><thead><tr><th>الوحدة</th><th>الشركة / الفرع</th><th>المركبة</th><th>حالة الطلب</th><th>تاريخ الحجز</th><th>الإجراء</th></tr></thead><tbody>{reservedStockRows.map((reservation, index) => {
@@ -1132,6 +1147,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             : [];
           const companyValueListId = `fleet-company-values-${field}`;
           const wrap = (node: ReactNode) => <div key={field} hidden={stepHidden}>{node}</div>;
+          if ((command === "vehicle.create" || command === "vehicle.update") && field === "plateStandard") {
+            return wrap(<Field label="صيغة اللوحة للمطابقة"><span className="fleet-reference-fixed">تُشتق تلقائيًا من اللوحة الأصلية بحذف المسافات فقط.</span></Field>);
+          }
           const choices: Record<string, Array<[string, string]>> = {
             status: [["active", "نشط"], ["suspended", "موقوف"], ["inactive", "غير نشط"]],
             scope: [["branch", "نطاق فرع"], ["vehicle", "نطاق مركبة"]],
@@ -1200,7 +1218,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             <Field label="اختيار السائق"><select data-testid="fleet-create-driver-mode" name="initialDriverMode" value={initialDriverMode} onChange={event => { const mode = event.target.value as "none" | "existing" | "new"; setInitialDriverMode(mode); if (mode !== "existing") setFormReferences(current => { const next = { ...current }; delete next.initialDriverId; return next; }); driverLinkRetryRef.current = null; }}><option value="none">بدون سائق الآن</option><option value="existing">استخدام سائق موجود</option><option value="new">إضافة سائق تشغيلي جديد</option></select></Field>
             {initialDriverMode === "existing" && <FleetReferencePicker kind="driver" name="initialDriverId" label="السائق التشغيلي" value={formReferences.initialDriverId ?? ""} organizationId={formOrganizationId || undefined} testId="fleet-create-existing-driver" required error={wizardErrors.initialDriverId} onChange={value => { clearWizardError("initialDriverId"); setFormReferences(current => ({ ...current, initialDriverId: value })); driverLinkRetryRef.current = null; }}/>}
             {initialDriverMode === "new" && <div className="fleet-form-grid"><Field label="الكود التشغيلي للسائق" required error={wizardErrors.newDriverCode}><input data-testid="fleet-create-driver-code" name="newDriverCode" autoComplete="off" dir="ltr" maxLength={80} onChange={() => clearWizardError("newDriverCode")}/></Field><Field label="اسم السائق" required error={wizardErrors.newDriverName}><input data-testid="fleet-create-driver-name" name="newDriverName" maxLength={160} onChange={() => clearWizardError("newDriverName")}/></Field><Field label="رقم الهاتف (اختياري)"><input data-testid="fleet-create-driver-phone" name="newDriverPhone" inputMode="tel" dir="ltr" maxLength={40}/></Field></div>}
-            {initialDriverMode !== "none" && <div className="fleet-create-link-fields"><p>رمز الربط اختياري. إذا أدخلته، يُستخدم مرة واحدة لإنشاء الربط الآمن؛ لن يُخزّن في واجهة التطبيق.</p><Field label="رمز ربط جديد من أربعة أرقام (اختياري)" error={wizardErrors.initialDriverPin}><input data-testid="fleet-create-driver-pin" type="password" name="initialDriverPin" inputMode="numeric" autoComplete="new-password" maxLength={4} onChange={() => clearWizardError("initialDriverPin")}/></Field><Field label="بداية الربط — مطلوبة عند إسناد السائق" required error={wizardErrors.initialLinkStartsAt}><input data-testid="fleet-create-link-starts-at" type="datetime-local" name="initialLinkStartsAt" onChange={() => clearWizardError("initialLinkStartsAt")}/></Field><Field label="نهاية الربط (اختياري)"><input data-testid="fleet-create-link-ends-at" type="datetime-local" name="initialLinkEndsAt"/></Field></div>}
+            {initialDriverMode !== "none" && <div className="fleet-create-link-fields"><p>رمز الربط اختياري. يمكنك توليد رمز جديد أو إدخاله؛ يُرسل مرة واحدة ولا يمكن استرجاع الرمز المحفوظ من البصمة الآمنة.</p><Field label="رمز ربط جديد من أربعة أرقام (اختياري)" error={wizardErrors.initialDriverPin}><input data-testid="fleet-create-driver-pin" type={revealInitialPin ? "text" : "password"} name="initialDriverPin" inputMode="numeric" autoComplete="new-password" pattern="[0-9]{4}" maxLength={4} onChange={event => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 4); clearWizardError("initialDriverPin"); }}/></Field><div className="fleet-actions"><button type="button" className="fleet-button fleet-quiet" onClick={() => { try { const input = dialogRef.current?.querySelector<HTMLInputElement>('[name="initialDriverPin"]'); if (!input) throw new Error("PIN input unavailable"); input.value = createSecureFourDigitPin(); input.dispatchEvent(new Event("input", { bubbles: true })); clearWizardError("initialDriverPin"); setProblem(""); } catch { setProblem("تعذر إنشاء رمز آمن. يمكنك إدخاله يدويًا أو المتابعة دون رمز."); } }}>توليد رمز جديد</button><button type="button" className="fleet-button fleet-quiet" onClick={() => setRevealInitialPin(value => !value)}>{revealInitialPin ? "إخفاء الرمز" : "إظهار الرمز الحالي"}</button></div><Field label="بداية الربط — مطلوبة عند إسناد السائق" required error={wizardErrors.initialLinkStartsAt}><input data-testid="fleet-create-link-starts-at" type="datetime-local" name="initialLinkStartsAt" onChange={() => clearWizardError("initialLinkStartsAt")}/></Field><Field label="نهاية الربط (اختياري)"><input data-testid="fleet-create-link-ends-at" type="datetime-local" name="initialLinkEndsAt"/></Field></div>}
           </div>
           <div className="fleet-create-option-block"><h3>قراءة العداد الأولية (اختيارية)</h3><p>تُسجل قراءة مؤرخة من مسار العداد المعتمد؛ لا تُحسب كفاءة الوقود دون أحداث تعبئة فعلية.</p><Field label="قراءة العداد بالكيلومتر" error={wizardErrors.initialReadingKm}><input data-testid="fleet-create-odometer-reading" type="number" name="initialReadingKm" min="0" step="0.001" value={initialReadingInput} onChange={event => { setInitialReadingInput(event.target.value); clearWizardError("initialReadingKm"); }}/></Field><Field label="وقت تسجيل القراءة" error={wizardErrors.initialRecordedAt}><input data-testid="fleet-create-odometer-time" type="datetime-local" name="initialRecordedAt" value={initialReadingTimeInput} onChange={event => { setInitialReadingTimeInput(event.target.value); clearWizardError("initialRecordedAt"); }}/></Field><div className="fleet-create-photo"><div><ImagePlus size={18}/><div><b>إثبات القراءة (اختياري)</b><small>صورة PNG أو JPEG تُحفظ عبر مسار المستند الخاص.</small></div></div><input data-testid="fleet-create-odometer-evidence" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setOdometerEvidencePhoto(file); }}/></div></div>
           <div className="fleet-create-option-block"><h3>صورة المركبة (اختيارية)</h3><p>تُرفع بعد إنشاء المركبة إلى التخزين الخاص.</p><div className="fleet-create-photo"><input data-testid="fleet-create-vehicle-photo" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setVehiclePhoto(file); }}/>{vehiclePhotoPreview && <img src={vehiclePhotoPreview} alt="معاينة صورة المركبة قبل الرفع"/>}</div></div>

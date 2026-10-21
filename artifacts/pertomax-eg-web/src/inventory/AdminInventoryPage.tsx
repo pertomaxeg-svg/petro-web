@@ -278,6 +278,8 @@ export function AdminInventoryPage({ canManageInventory = false }: { canManageIn
       setShowDocumentForm(false);
       setDocumentLineIds([0]);
       setReturnSourceByLine({});
+      if (documentType === "transfer") setView("transfers");
+      else if (documentType === "count") setView("counts");
     } catch (caught) { setError(errText(caught)); }
   }
   async function reviewDocument(form: HTMLFormElement) {
@@ -478,7 +480,7 @@ export function AdminInventoryPage({ canManageInventory = false }: { canManageIn
     </section>}
 
     {["documents", "transfers", "counts"].includes(view) && <section className="inv-panel">
-      <div className="inv-panel-head"><div><span className="inv-eyebrow">أثر الحيازة</span><h2>{view === "transfers" ? "التحويلات الداخلية" : view === "counts" ? "مستندات الجرد" : "مستندات المخزون"}</h2><p>{view === "transfers" ? "نقل موثق بين مواقع الجهة نفسها، مع خصم وإضافة متزامنين." : view === "counts" ? "تسجل كل جلسة لقطة للرصيد؛ إذا تغير قبل الاعتماد تُطلب إعادة الجرد." : "سجل عمليات المخزون التجارية وقرارات المراجعة؛ لا ينشئ قيودًا مالية."}</p></div><div className="inv-actions"><span className="inv-count">{totalDocuments.toLocaleString("ar-EG")} سجل</span>{canManageInventory && view !== "documents" && <button className="inv-button inv-button-primary" onClick={() => { setDocumentType(view === "transfers" ? "transfer" : "count"); setDocumentLineIds([0]); setReturnSourceByLine({}); setView("stock"); setShowDocumentForm(true); }}><Plus size={15}/>{view === "transfers" ? "إنشاء تحويل" : "بدء جرد"}</button>}</div></div>
+      <div className="inv-panel-head"><div><span className="inv-eyebrow">أثر الحيازة</span><h2>{view === "transfers" ? "التحويلات الداخلية" : view === "counts" ? "مستندات الجرد" : "مستندات المخزون"}</h2><p>{view === "transfers" ? "نقل موثق بين مواقع الجهة نفسها، مع خصم وإضافة متزامنين." : view === "counts" ? "تسجل كل جلسة لقطة للرصيد؛ إذا تغير قبل الاعتماد تُطلب إعادة الجرد." : "سجل عمليات المخزون التجارية وقرارات المراجعة؛ لا ينشئ قيودًا مالية."}</p></div><div className="inv-actions"><span className="inv-count">{totalDocuments.toLocaleString("ar-EG")} سجل</span>{canManageInventory && view !== "documents" && <button className="inv-button inv-button-primary" disabled={!selectedLocationId} onClick={() => { setDocumentType(view === "transfers" ? "transfer" : "count"); setDocumentLineIds([0]); setReturnSourceByLine({}); setView("stock"); setShowDocumentForm(true); }}><Plus size={15}/>{view === "transfers" ? "إنشاء تحويل" : "بدء جرد"}</button>}</div></div>
       <div className="inv-toolbar"><label className="inv-search"><Search size={17}/><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="ابحث بالسبب أو النوع أو الحالة" aria-label="البحث في المستندات"/></label>
          <label className="inv-field inv-filter"><span>موقع التخزين</span><select value={selectedLocationId} onChange={(e) => setSelectedLocationId(e.target.value)}><option value="">كل المواقع المتاحة</option>{locationRows.map((location, index) => <option key={rowId(location) || index} value={rowId(location)}>{text(location.name)}</option>)}</select></label>
          <label className="inv-field inv-filter"><span>الحالة</span><select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}><option value="">كل الحالات</option><option value="pending">بانتظار المراجعة</option><option value="approved">معتمد</option><option value="rejected">مرفوض</option></select></label>

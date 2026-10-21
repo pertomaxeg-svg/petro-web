@@ -15,7 +15,7 @@ export interface CatalogCommandRequest {
      * @minLength 3
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
   /**
      * @minLength 16
      * @maxLength 120

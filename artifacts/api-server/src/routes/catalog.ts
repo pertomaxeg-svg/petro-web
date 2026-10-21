@@ -238,10 +238,20 @@ router.post("/catalog/commands", async (req, res) => {
   }
   const fuelUnitError = validateFuelTypeUnitCommand(parsed.data);
   if (fuelUnitError) return fail(res, 400, fuelUnitError);
+  const explicitReason = parsed.data.reason?.trim();
+  const reasonRequiredActions = new Set([
+    "unit.status", "category.status", "fuel.type.status",
+    "fuel.price.publish", "fuel.price.cancel",
+    "item.status", "item.review", "item.price.publish",
+    "item.price.cancel", "item.image.remove",
+  ]);
+  if (reasonRequiredActions.has(parsed.data.action) && !explicitReason) {
+    return fail(res, 400, "أدخل سببًا مختصرًا قبل تنفيذ تغيير الحالة أو النشر أو الإلغاء.");
+  }
   const { data, error } = await rpc(session, "petro_catalog_command", {
     p_action: parsed.data.action,
     p_payload: parsed.data.payload,
-    p_reason: parsed.data.reason,
+    p_reason: explicitReason || "تعديل إداري من لوحة الكتالوج",
     p_idempotency_key: parsed.data.idempotencyKey,
   });
   if (error) return mapCatalogError(res, error);

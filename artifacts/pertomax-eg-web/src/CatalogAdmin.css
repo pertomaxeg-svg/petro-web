@@ -35,7 +35,7 @@
 .cat-link:hover,.cat-text-button:hover{text-decoration:underline}
 .cat-status{display:inline-block;padding:4px 8px;background:#e8efe8;color:#315d4b;font-size:10px;white-space:nowrap}
 .cat-scope,.cat-reference-note,.cat-version-note{display:flex;align-items:center;gap:7px;color:hsl(var(--muted-foreground));font-size:10px;line-height:1.8;margin:14px 0 0}
-.cat-fuel-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.8fr);gap:16px;align-items:start}
+.cat-fuel-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 .cat-calculator{position:sticky;top:16px}
 .cat-calculator form{display:grid;gap:13px;margin-top:18px}
 .cat-calculator .cat-button{width:100%}
