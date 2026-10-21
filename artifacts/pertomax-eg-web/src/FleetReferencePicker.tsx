@@ -103,6 +103,7 @@ export function FleetReferencePicker({
   error: fieldError,
   initialLabel,
   allowAll = false,
+  organizationKinds,
   emptyLabel = "اختر سجلًا",
   multiple = false,
   selectedValues = [],
@@ -123,6 +124,7 @@ export function FleetReferencePicker({
   error?: string;
   initialLabel?: string;
   allowAll?: boolean;
+  organizationKinds?: NonNullable<ListOrganizationsParams["kind"]>[];
   emptyLabel?: string;
   multiple?: boolean;
   selectedValues?: string[];
@@ -142,10 +144,17 @@ export function FleetReferencePicker({
   const labelSlug = label.trim().replace(/\s+/g, "-").replace(/[^\w\u0600-\u06FF-]/g, "");
   const controlId = testId ?? `fleet-reference-${name ?? `${kind}-${labelSlug}`}`;
   const queryText = search.trim().length >= 2 ? search.trim() : undefined;
+  const organizationKindsKey = (organizationKinds ?? []).join(",");
+  const organizationKind = organizationKinds?.[0] ?? "company";
+  const secondaryOrganizationKind = organizationKinds?.[1];
   const organizationParams = useMemo<ListOrganizationsParams>(() => ({
-    page: 1, pageSize: 20, kind: "company", sortBy: "name", sortDirection: "asc",
+    page: 1, pageSize: 20, kind: organizationKind, sortBy: "name", sortDirection: "asc",
     ...(queryText ? { search: queryText } : {}),
-  }), [queryText]);
+  }), [organizationKind, queryText]);
+  const secondaryOrganizationParams = useMemo<ListOrganizationsParams>(() => ({
+    page: 1, pageSize: 20, kind: secondaryOrganizationKind ?? organizationKind, sortBy: "name", sortDirection: "asc",
+    ...(queryText ? { search: queryText } : {}),
+  }), [organizationKind, queryText, secondaryOrganizationKind]);
   const branchParams = useMemo<ListBranchesPaginatedParams>(() => ({
     organizationId: organizationId ?? "", page: 1, pageSize: 20, sortBy: "name", sortDirection: "asc",
     ...(queryText ? { search: queryText } : {}),
@@ -170,6 +179,9 @@ export function FleetReferencePicker({
   }), [catalogView, queryText, organizationId, vehicleId, kind, allowedStatuses]);
   const organizations = useListOrganizations(organizationParams, {
     query: { queryKey: getListOrganizationsQueryKey(organizationParams), enabled: kind === "organization", retry: false },
+  });
+  const secondaryOrganizations = useListOrganizations(secondaryOrganizationParams, {
+    query: { queryKey: getListOrganizationsQueryKey(secondaryOrganizationParams), enabled: kind === "organization" && Boolean(secondaryOrganizationKind), retry: false },
   });
   const branches = useListBranchesPaginated(branchParams, {
     query: { queryKey: getListBranchesPaginatedQueryKey(branchParams), enabled: kind === "branch" && Boolean(organizationId), retry: false },
@@ -223,7 +235,7 @@ export function FleetReferencePicker({
   const options = useMemo(() => {
     if (kind === "subscription" || kind === "stockUnit") return typedOptions;
     const root = record(catalog.data);
-    const source = kind === "organization" ? rows(organizations.data)
+     const source = kind === "organization" ? [...rows(organizations.data), ...rows(secondaryOrganizations.data)]
       : kind === "branch" ? rows(branches.data)
       : kind === "platformUser" ? [...rows(ownerUsers.data), ...rows(operationsUsers.data)].filter((item, index, list) => list.findIndex(candidate => candidate.id === item.id) === index)
           : kind === "link" ? (Array.isArray(root.driverLinks) ? root.driverLinks.map(record) : [])
@@ -235,14 +247,14 @@ export function FleetReferencePicker({
       && (!requiresWaiver || item.paymentState === "waived")
       && (!requiresProof || item.hasProof === true),
     );
-  }, [kind, typedOptions, organizations.data, branches.data, ownerUsers.data, operationsUsers.data, catalog.data, vehicleId, allowedStatuses, requiresWaiver, requiresProof]);
+  }, [kind, typedOptions, organizations.data, secondaryOrganizations.data, branches.data, ownerUsers.data, operationsUsers.data, catalog.data, vehicleId, allowedStatuses, requiresWaiver, requiresProof]);
   const loading = kind === "subscription" || kind === "stockUnit" ? typedLoading
-    : kind === "organization" ? organizations.isLoading
+    : kind === "organization" ? organizations.isLoading || (Boolean(secondaryOrganizationKind) && secondaryOrganizations.isLoading)
       : kind === "branch" ? branches.isLoading
         : kind === "platformUser" ? ownerUsers.isLoading || operationsUsers.isLoading
           : catalog.isLoading;
   const errorValue = kind === "subscription" || kind === "stockUnit" ? typedError
-    : kind === "organization" ? organizations.error
+    : kind === "organization" ? organizations.error ?? secondaryOrganizations.error
       : kind === "branch" ? branches.error
         : kind === "platformUser" ? ownerUsers.error ?? operationsUsers.error
           : catalog.error;
@@ -250,7 +262,7 @@ export function FleetReferencePicker({
   const retryOptions = () => {
     if (kind === "subscription") void subscriptionQuery.refetch();
     else if (kind === "stockUnit") void stockQuery.refetch();
-    else if (kind === "organization") void organizations.refetch();
+    else if (kind === "organization") { void organizations.refetch(); if (secondaryOrganizationKind) void secondaryOrganizations.refetch(); }
     else if (kind === "branch") void branches.refetch();
     else if (kind === "platformUser") { void ownerUsers.refetch(); void operationsUsers.refetch(); }
     else void catalog.refetch();
@@ -260,7 +272,7 @@ export function FleetReferencePicker({
     setSearch("");
     setOpen(false);
     if (!multiple) setSelected(null);
-  }, [kind, organizationId, vehicleId, multiple]);
+  }, [kind, organizationId, vehicleId, multiple, organizationKindsKey]);
 
   useEffect(() => {
     if (!open) return;

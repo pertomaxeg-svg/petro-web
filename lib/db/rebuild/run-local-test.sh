@@ -347,6 +347,18 @@ if ! cmp -s "$tmp_dir/default-acl-before-0021.txt" "$tmp_dir/default-acl-after-0
   diff -u "$tmp_dir/default-acl-before-0021.txt" "$tmp_dir/default-acl-after-0021.txt" >&2 || true
   exit 1
 fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0022.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0022_fleet_onboarding_fulfillment_and_policy_groups.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0022.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0022.txt" "$tmp_dir/default-acl-after-0022.txt"; then
+  echo "0022 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0022.txt" "$tmp_dir/default-acl-after-0022.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/fleet-onboarding-0022-smoke-test.sql" >/dev/null
+echo "PASS: 0022 fleet onboarding smoke test (local PostgreSQL)"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/inventory-smoke-test.sql" >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 \

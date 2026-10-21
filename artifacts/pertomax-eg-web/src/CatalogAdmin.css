@@ -167,3 +167,38 @@
 .co-hours-enable input{width:18px;height:18px}
 @media(max-width:900px){.cat-taxonomy-grid{grid-template-columns:1fr}}
 @media(max-width:680px){.cat-panel{padding:16px 13px}.cat-taxonomy-grid{grid-template-columns:1fr}.cat-taxonomy .cat-panel-head{flex-direction:column}.cat-pagination{gap:8px;flex-wrap:wrap}.cat-pagination .cat-button{white-space:normal}.cat-table{min-width:700px}.cat-heading h1{font-size:24px}.cat-fuel-actions{align-items:stretch;flex-direction:column}.cat-fuel-actions .cat-button{width:100%}.co-hours>div{grid-template-columns:1fr 1fr}.co-hours>div>b{grid-column:1/-1}.co-hours>div>label{min-width:0}}
+
+/* Fuel price lifecycle — clear distinction between live, queued and unpublished values */
+.cat-price-legend{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:0 0 12px;padding:9px 12px;border:1px solid hsl(var(--border));background:#f3f0e7;color:hsl(var(--muted-foreground));font-size:12px}
+.cat-price-legend span{display:inline-flex;align-items:center;gap:7px}
+.cat-dot{display:inline-block;width:8px;height:8px;flex:0 0 auto;border-radius:50%;background:#4d7966}
+.cat-dot-scheduled{background:#b27b37}
+.cat-dot-draft{background:#9b654e}
+.cat-editor{border-inline-start:3px solid var(--cat-teal);background:#f4f1e8}
+.cat-editor-explainer{margin:8px 0 12px;color:hsl(var(--muted-foreground));font-size:13px;line-height:1.75}
+.cat-scheduled-price{display:flex;align-items:center;gap:10px;margin:10px 0;padding:11px 13px;border:1px solid hsl(38 34% 77%);background:#fbf3e5}
+.cat-scheduled-price>span:last-child,.cat-draft-summary>span{display:grid;gap:3px}
+.cat-scheduled-price b,.cat-draft-summary b{font-size:12px}
+.cat-scheduled-price strong,.cat-draft-summary strong{font-size:15px;color:var(--cat-ink)}
+.cat-scheduled-price small,.cat-draft-summary small{color:hsl(var(--muted-foreground));font-size:12px}
+.cat-action-reason{margin:11px 0 0}
+.cat-action-reason label{display:grid;gap:6px;min-width:min(390px,100%);color:hsl(var(--muted-foreground));font-size:12px;font-weight:600}
+.cat-action-reason input{min-height:42px;border:1px solid hsl(var(--border));background:#fffdf8;padding:8px 10px;color:var(--cat-ink);font:13px var(--app-font-sans)}
+.cat-pending-price .cat-draft-summary{display:flex;align-items:flex-start;gap:9px}
+.cat-pending-actions{display:flex;gap:8px;flex-wrap:wrap;margin-inline-start:auto}
+.cat-pending-actions button{min-height:40px;padding:8px 12px}
+.cat-pending-actions button:first-child{background:var(--cat-teal);color:#fffdf8;border-color:var(--cat-teal)}
+.cat-price-legend,.cat-scheduled-price,.cat-pending-price{border-radius:4px}
+.cat-editor .cat-form{background:#fffdf8;border-color:hsl(var(--primary)/.22)}
+.cat-editor .cat-form .cat-button{justify-self:start}
+.cat-editor .cat-history>div{display:grid;grid-template-columns:.5fr 1fr 1fr;align-items:center}
+.cat-editor .cat-history>div strong{font-variant-numeric:tabular-nums}
+@media(max-width:680px){
+  .cat-price-legend{display:grid;grid-template-columns:1fr;gap:8px}
+  .cat-pending-price{align-items:stretch}
+  .cat-pending-price .cat-draft-summary{align-items:flex-start}
+  .cat-pending-actions{display:grid;grid-template-columns:1fr 1fr;margin:0}
+  .cat-pending-actions button{white-space:normal}
+  .cat-action-reason label{min-width:0;width:100%}
+  .cat-editor .cat-history>div{grid-template-columns:1fr}
+}

@@ -47,7 +47,10 @@ const policyGroups = [
   { id: "fuel", title: "الوقود" },
   { id: "wash", title: "الغسيل" },
   { id: "oils", title: "الزيوت" },
+  { id: "batteries", title: "البطاريات" },
+  { id: "filters", title: "الفلاتر" },
   { id: "parts", title: "قطع الغيار" },
+  { id: "consumables", title: "المستهلكات" },
 ];
 const policyRuleLimits = [
   ["maxOperationMinor", "أقصى مبلغ للعملية بالقرش"],
@@ -59,6 +62,16 @@ const policyRuleLimits = [
   ["weeklyQuantityLimit", "حد الكمية الأسبوعي"],
   ["monthlyQuantityLimit", "حد الكمية الشهري"],
 ] as const;
+const onboardingRuleLabels: Record<string, string> = {
+  maxOperationMinor: "سقف مبلغ العملية (جنيه)",
+  maxOperationQuantity: "سقف كمية العملية",
+  dailyAmountLimitMinor: "الحد اليومي للمبلغ (جنيه)",
+  weeklyAmountLimitMinor: "الحد الأسبوعي للمبلغ (جنيه)",
+  monthlyAmountLimitMinor: "الحد الشهري للمبلغ (جنيه)",
+  dailyQuantityLimit: "الحد اليومي للكمية",
+  weeklyQuantityLimit: "الحد الأسبوعي للكمية",
+  monthlyQuantityLimit: "الحد الشهري للكمية",
+};
 const fields = (obj: unknown): Row => obj && typeof obj === "object" && !Array.isArray(obj) ? obj as Row : {};
 const get = (row: Row, ...keys: string[]) => keys.map(key => row[key]).find(value => value !== undefined && value !== null);
 const text = (value: unknown) => typeof value === "string" || typeof value === "number" ? String(value) : "—";
@@ -152,6 +165,10 @@ const labels: Record<string, string> = {
   linkId: "ربط السائق", pinCode: "رمز PIN جديد", policyVersionId: "نسخة السياسة",
   requestId: "طلب التعريف", proofDocumentId: "مستند إثبات التركيب", stockUnitId: "وحدة المخزون",
   assignedTo: "المسؤول عن التنفيذ", scheduledAt: "موعد التنفيذ", credentialType: "نوع الرمز",
+  tankCapacityLiters: "سعة الخزان باللتر (اختياري)",
+  fulfillmentMethod: "طريقة استلام الشريحة", installationAddress: "عنوان التركيب",
+  pickupLocation: "نقطة الاستلام", fulfillmentContactName: "اسم جهة التواصل",
+  fulfillmentContactPhone: "رقم جهة التواصل",
   previousCredentialId: "الرمز السابق", waive: "إعفاء معتمد", unitCode: "كود وحدة المخزون",
   readingKm: "قراءة الكيلومتر", evidenceDocumentId: "مستند الإثبات", supersedesEventId: "القراءة المصححة",
   maintenanceId: "سجل الصيانة", odometerEventId: "قراءة العداد المرتبطة", nextDueAt: "الاستحقاق التالي",
@@ -205,7 +222,34 @@ const referenceStatusesByAction: Record<string, Record<string, string[]>> = {
   "credential.stop": { credentialId: ["active"] },
 };
 function date(value: unknown) { if (typeof value !== "string" || !value) return "—"; const parsed = new Date(value); return Number.isNaN(+parsed) ? value : new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" }).format(parsed); }
-const vehicleCreateRequiredByStep: Record<number, string[]> = {
+function cairoLocalDateTimeAfterMinutes(minutes = 2) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(Date.now() + minutes * 60_000));
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
+}
+function cairoLocalDateTimeToIso(value: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute] = match;
+  const target = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  let candidate = target;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(candidate));
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    const represented = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), Number(values.hour), Number(values.minute));
+    const delta = target - represented;
+    if (delta === 0) return new Date(candidate).toISOString();
+    candidate += delta;
+  }
+  return null;
+}
+  const vehicleCreateRequiredByStep: Record<number, string[]> = {
   0: ["plateOriginal", "category", "vehicleType", "brand", "model", "fuelType"],
   1: ["organizationId", "branchId"],
   2: [],
@@ -217,6 +261,13 @@ function egpFromMinor(value: number | null) {
   const fraction = value % 100;
   const pounds = new Intl.NumberFormat("ar-EG").format(whole);
   return fraction === 0 ? `${pounds} جنيه مصري` : `${pounds}٫${fraction.toLocaleString("ar-EG", { minimumIntegerDigits: 2, useGrouping: false })} جنيه مصري`;
+}
+function egpToMinor(value: string): number | null {
+  const normalized = value.trim().replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const [pounds, fraction = ""] = normalized.split(".");
+  const minor = BigInt(pounds || "0") * 100n + BigInt(fraction.padEnd(2, "0") || "0");
+  return minor <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(minor) : null;
 }
 function createSecureFourDigitPin(): string {
   const sample = new Uint32Array(1);
@@ -240,6 +291,64 @@ function Field({ label, children, wide = false, required = false, error, hint }:
 function Reason({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <Field label="سبب موثّق — مطلوب (٣ إلى ٥٠٠ حرف)" wide><textarea data-testid="fleet-reason" required minLength={3} maxLength={500} value={value} onChange={event => onChange(event.target.value)} placeholder="اكتب سبب الإجراء لتسجيله في التدقيق."/></Field>; }
 function Skeleton() { return <div className="fleet-skeleton" aria-label="جارٍ تحميل سجلات الأسطول"><i/><i/><i/><i/></div>; }
 function State({ error = false, title, children, retry }: { error?: boolean; title: string; children?: ReactNode; retry?: () => void }) { return <section className={`fleet-state ${error ? "fleet-state-error" : ""}`} role={error ? "alert" : "status"}><span>{error ? <RefreshCw size={19}/> : <Truck size={19}/>}</span><b>{title}</b>{children && <p>{children}</p>}{retry && <button data-testid="fleet-state-retry" className="fleet-button fleet-quiet" onClick={retry}><RefreshCw size={15}/> إعادة المحاولة</button>}</section>; }
+function PrivateFleetImage({ documentId, label }: { documentId: string; label: string }) {
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const load = async () => {
+    setLoading(true); setError("");
+    try {
+      const response = await fetch(`/api/documents/${encodeURIComponent(documentId)}/download`, { credentials: "include" });
+      const data = fields(await response.json().catch(() => ({})));
+      if (!response.ok || typeof data.url !== "string") throw new Error("تعذر فتح الصورة الخاصة بصلاحية المستخدم الحالية.");
+      setUrl(data.url);
+    } catch (reason) {
+      setUrl("");
+      setError(reason instanceof Error ? reason.message : "تعذر تحميل الصورة.");
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { void load(); }, [documentId]);
+  return <figure className="fleet-private-image">
+    {url ? <img src={url} alt={label} loading="lazy" onError={() => { setUrl(""); setError("انتهت صلاحية رابط المعاينة؛ أعد فتح الصورة."); }}/> : <div className="fleet-private-image-empty" role={error ? "alert" : "status"}>{loading ? "جارٍ تحميل الصورة…" : error || "الصورة غير متاحة"}</div>}
+    <figcaption>{label}<button type="button" className="fleet-row-action" onClick={() => void load()} disabled={loading}>{loading ? "جارٍ التحميل…" : "تحديث المعاينة"}</button></figcaption>
+  </figure>;
+}
+function VehiclePhotoGallery({ documents, odometer }: { documents: Row[]; odometer: Row[] }) {
+  const images = [
+    ...documents.filter(document => ["vehicle_photo", "odometer_evidence"].includes(String(document.documentType ?? ""))),
+    ...odometer.filter(event => event.evidenceDocumentId).map(event => ({
+      id: event.evidenceDocumentId,
+      documentType: "odometer_evidence",
+      recordedAt: event.recordedAt,
+    })),
+  ].filter((document, index, list) => document.id && list.findIndex(item => item.id === document.id) === index);
+  if (!images.length) return <section className="fleet-detail-list"><h3>صور المركبة والعداد</h3><p className="fleet-muted">لا توجد صور محفوظة لهذا الملف.</p></section>;
+  return <section className="fleet-detail-list"><h3>صور المركبة والعداد</h3><div className="fleet-private-image-grid">{images.map(document => {
+    const id = String(document.id ?? "");
+    const label = document.documentType === "vehicle_photo" ? "صورة المركبة" : `إثبات قراءة العداد${document.recordedAt ? ` · ${date(document.recordedAt)}` : ""}`;
+    return UUID_RE.test(id) ? <PrivateFleetImage key={id} documentId={id} label={label}/> : null;
+  })}</div></section>;
+}
+function VehiclePolicySummary({ data, loading, error, retry }: { data: unknown; loading: boolean; error: unknown; retry: () => void }) {
+  const root = fields(data);
+  const policies = Array.isArray(root.items) ? root.items.map(fields) : [];
+  return <section className="fleet-detail-list">
+    <h3>حدود الاستخدام حسب الخدمة</h3>
+    {loading ? <div className="fleet-skeleton" aria-label="جارٍ تحميل حدود الاستخدام"><i/><i/></div>
+      : error ? <State error title="تعذر تحميل حدود الاستخدام"><span>أعد المحاولة؛ لا يؤثر هذا على التمويل أو سجل المركبة.</span></State>
+        : policies.length ? <div className="fleet-policy-summary-list">{policies.map((policy, index) => {
+          const rules = Array.isArray(policy.rules) ? policy.rules.map(fields) : [];
+          const activeRules = rules.filter(rule => rule.enabled === true);
+          const status = String(policy.status ?? policy.policyStatus ?? "");
+          return <article key={String(policy.id ?? index)}>
+            <div><b>{policy.scope === "vehicle" ? "سياسة المركبة" : "سياسة الفرع"} · نسخة {text(policy.version ?? policy.versionNo)}</b><span className={`fleet-status status-${status}`}>{statusText(status)}</span></div>
+            <p>السريان: {date(policy.effectiveFrom ?? policy.startsAt)} · النطاق الزمني: {text(policy.startTime)}–{text(policy.endTime)}</p>
+            <p>الخدمات المفعّلة: {activeRules.length ? activeRules.map(rule => policyGroups.find(group => group.id === rule.serviceGroup)?.title ?? text(rule.serviceGroup)).join("، ") : "لا توجد مجموعة مفعّلة"}</p>
+            {activeRules.map(rule => <small key={String(rule.serviceGroup)}>{policyGroups.find(group => group.id === rule.serviceGroup)?.title ?? text(rule.serviceGroup)}: {egpFromMinor(Number(rule.maxOperationMinor ?? 0))} للعملية، كمية {text(rule.maxOperationQuantity)}؛ يومي {egpFromMinor(Number(rule.dailyAmountLimitMinor ?? 0))}، أسبوعي {egpFromMinor(Number(rule.weeklyAmountLimitMinor ?? 0))}، شهري {egpFromMinor(Number(rule.monthlyAmountLimitMinor ?? 0))}.</small>)}
+          </article>;
+        })}</div> : <p className="fleet-muted">لا توجد سياسة حدود منشورة لهذه المركبة؛ عدم وجودها لا يمنح سماحًا بالخدمة.</p>}
+  </section>;
+}
 
 export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isOwner: boolean }) {
   const [path, navigate] = useLocation();
@@ -270,6 +379,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [vehiclePhoto, setVehiclePhoto] = useState<File | null>(null);
   const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState("");
   const [odometerEvidencePhoto, setOdometerEvidencePhoto] = useState<File | null>(null);
+  const [odometerEvidencePreview, setOdometerEvidencePreview] = useState("");
   const [photoUploadPending, setPhotoUploadPending] = useState(false);
   const [vehicleCreatedMessage, setVehicleCreatedMessage] = useState("");
   const [formOrganizationId, setFormOrganizationId] = useState("");
@@ -277,10 +387,16 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [formWizardStep, setFormWizardStep] = useState(0);
   const [wizardErrors, setWizardErrors] = useState<Record<string, string>>({});
   const [initialDriverMode, setInitialDriverMode] = useState<"none" | "existing" | "new">("none");
+  const [initialFulfillmentMethod, setInitialFulfillmentMethod] = useState<"install" | "pickup">("install");
+  const [initialPolicyEnabled, setInitialPolicyEnabled] = useState(false);
+  const [initialPolicyWeekdays, setInitialPolicyWeekdays] = useState<string[]>([]);
+  const [initialPolicyRuleEnabled, setInitialPolicyRuleEnabled] = useState<Record<string, boolean>>({});
+  const [initialPolicyMerchantOrgIds, setInitialPolicyMerchantOrgIds] = useState<string[]>([]);
+  const [initialPolicyMerchantBranchIds, setInitialPolicyMerchantBranchIds] = useState<string[]>([]);
   const [revealInitialPin, setRevealInitialPin] = useState(false);
   const [initialReadingInput, setInitialReadingInput] = useState("");
   const [initialReadingTimeInput, setInitialReadingTimeInput] = useState("");
-  const createdVehiclePhotoRef = useRef<{ signature: string; photoSignature: string; evidenceSignature: string; id: string; driverLinked: boolean; driverCreated: boolean; driverId: string; photoSaved: boolean; odometerRecorded: boolean; evidenceSaved: boolean; vehiclePhotoIntentId?: string; evidenceIntentId?: string; evidenceDocumentId?: string } | null>(null);
+  const createdVehiclePhotoRef = useRef<{ signature: string; photoSignature: string; evidenceSignature: string; id: string; driverLinked: boolean; driverCreated: boolean; driverId: string; photoSaved: boolean; odometerRecorded: boolean; evidenceSaved: boolean; policyId?: string; policyCreated?: boolean; policyPublished?: boolean; credentialRequestId?: string; vehiclePhotoIntentId?: string; evidenceIntentId?: string; evidenceDocumentId?: string } | null>(null);
   const driverLinkRetryRef = useRef<{ signature: string; key: string } | null>(null);
   const driverCreateRetryRef = useRef<{ signature: string; key: string } | null>(null);
   const odometerRetryRef = useRef<{ signature: string; key: string } | null>(null);
@@ -311,6 +427,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [oneTimeToken, setOneTimeToken] = useState("");
   const dialogRef = useRef<HTMLElement | null>(null);
   const commandRetryRef = useRef<{ signature: string; key: string } | null>(null);
+  const onboardingPolicyRetryRef = useRef<{ signature: string; createKey: string; publishKey: string } | null>(null);
   const importApplyRetryRef = useRef<{ signature: string; key: string } | null>(null);
   useEffect(() => {
     if (path === "/admin/fleet/vehicles/new") {
@@ -330,7 +447,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     focusable()[0]?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (createdVehiclePhotoRef.current && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved)) {
+        if (createdVehiclePhotoRef.current && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved || createdVehiclePhotoRef.current.policyCreated === false || createdVehiclePhotoRef.current.policyPublished === false)) {
           setProblem("أُنشئت المركبة. أكمل الخطوات الاختيارية أو اختر صراحةً المتابعة دونها قبل إغلاق النموذج.");
           return;
         }
@@ -352,6 +469,12 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     setVehiclePhotoPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [vehiclePhoto]);
+  useEffect(() => {
+    if (!odometerEvidencePhoto) { setOdometerEvidencePreview(""); return; }
+    const url = URL.createObjectURL(odometerEvidencePhoto);
+    setOdometerEvidencePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [odometerEvidencePhoto]);
   const params = useMemo<GetAdminFleetCatalogParams>(() => ({
     view, page, pageSize: 20,
     ...(isVehicleDetail ? { id: detailId, vehicleId: detailId } : {}),
@@ -380,6 +503,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   });
   const driverEventsParams: GetAdminFleetCatalogParams = { view: "events", driverId: detailId, page: 1, pageSize: 50 };
   const driverEvents = useGetAdminFleetCatalog(driverEventsParams, { query: { queryKey: getGetAdminFleetCatalogQueryKey(driverEventsParams), enabled: isDriverDetail, retry: false } });
+  const vehiclePoliciesParams: GetAdminFleetCatalogParams = { view: "policies", vehicleId: detailId, page: 1, pageSize: 20 };
+  const vehiclePolicies = useGetAdminFleetCatalog(vehiclePoliciesParams, { query: { queryKey: getGetAdminFleetCatalogQueryKey(vehiclePoliciesParams), enabled: isVehicleDetail && UUID_RE.test(detailId), retry: false, refetchOnMount: "always" } });
   const reservationParams: GetAdminFleetStockReservationsParams = {
     page,
     pageSize: 20,
@@ -402,6 +527,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const root = fields(query.data);
   const reservedStockRows = Array.isArray(stockReservations.data?.items) ? stockReservations.data.items as Row[] : [];
   const nfcIssuePriceMinor = typeof fleetMeta.data?.nfcIssuePriceMinor === "number" ? fleetMeta.data.nfcIssuePriceMinor : null;
+  const fleetOnboardingReady = Number(fields(fleetMeta.data).onboardingCapabilitiesVersion ?? 0) >= 2;
+  const policyGroupsForSchema = fleetOnboardingReady ? policyGroups : policyGroups.slice(0, 4);
   const pageInfo = fields(root.pageInfo ?? root.pagination ?? query.data);
   const title = isVehicleDetail ? "ملف المركبة" : isDriverDetail ? "ملف السائق" : isCompanyRoute ? isBranchFleet ? "أسطول الفرع" : isCompanyVehicles ? "مركبات الشركة" : isCompanyDetail ? "الشركة والفروع" : "الشركات" : active.title;
   const refresh = async () => {
@@ -424,8 +551,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   };
   const selectedAction = actionOptions[view]?.includes(command) ? command : actionOptions[view]?.[0] ?? "";
   const fieldsByAction: Record<string, string[]> = {
-    "vehicle.create": ["organizationId", "branchId", "plateOriginal", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType", "credentialType"],
-    "vehicle.update": ["vehicleId", "expectedVersion", "plateOriginal", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType"],
+    "vehicle.create": ["organizationId", "branchId", "plateOriginal", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType", "tankCapacityLiters", "credentialType", "fulfillmentMethod", "installationAddress", "pickupLocation", "fulfillmentContactName", "fulfillmentContactPhone"],
+    "vehicle.update": ["vehicleId", "expectedVersion", "plateOriginal", "category", "vehicleType", "brand", "model", "modelYear", "chassisNumber", "internalCode", "fuelType", "tankCapacityLiters"],
     "vehicle.move": ["vehicleId", "targetBranchId", "expectedVersion"],
     "vehicle.status": ["vehicleId", "status", "expectedVersion"],
     "driver.create": ["organizationId", "driverCode", "fullName", "phone"],
@@ -439,7 +566,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     "policy.publish": ["policyVersionId"],
     "coverage.assign": ["vehicleId", "subscriptionId", "startsAt"],
     "coverage.end": ["assignmentId"],
-    "credential.request": ["vehicleId", "credentialType", "requestType", "previousCredentialId"],
+    "credential.request": ["vehicleId", "credentialType", "requestType", "previousCredentialId", "fulfillmentMethod", "installationAddress", "pickupLocation", "fulfillmentContactName", "fulfillmentContactPhone"],
     "credential.approve": ["requestId", "waive"],
     "credential.assign": ["requestId", "assignedTo", "scheduledAt"],
     "credential.install": ["requestId", "proofDocumentId", "stockUnitId"],
@@ -475,8 +602,11 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const openAction = (action: string, row: Row = {}) => {
     setSelectedRecord(row); setCommand(action); setVehicleCredentialChoice(""); setReason(""); setProblem(""); setWizardErrors({}); setMessage(""); setOneTimeToken("");
     setVehicleCreatedMessage(""); setFormWizardStep(0); setInitialDriverMode("none"); setRevealInitialPin(false); setInitialReadingInput(""); setInitialReadingTimeInput(""); setVehiclePhoto(null); setOdometerEvidencePhoto(null);
+    setInitialFulfillmentMethod("install"); setInitialPolicyEnabled(false); setInitialPolicyWeekdays([]);
+    setInitialPolicyRuleEnabled(Object.fromEntries(policyGroups.map(({ id }) => [id, false])));
+    setInitialPolicyMerchantOrgIds([]); setInitialPolicyMerchantBranchIds([]);
     createdVehiclePhotoRef.current = null; driverLinkRetryRef.current = null; driverCreateRetryRef.current = null; odometerRetryRef.current = null;
-    commandRetryRef.current = null;
+    commandRetryRef.current = null; onboardingPolicyRetryRef.current = null;
     const contextRow = Object.keys(row).length ? row : isVehicleDetail ? fields(root.vehicle) : isDriverDetail ? (records.find(item => String(item.id ?? "") === detailId) ?? {}) : {};
     const organizationId = text(get(contextRow, "organizationId", "companyOrgId"));
     const vehicleId = text(get(contextRow, "vehicleId", "id"));
@@ -524,14 +654,14 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     setShowForm(true);
   };
   const closeForm = () => {
-    if (createdVehiclePhotoRef.current && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved)) {
+    if (createdVehiclePhotoRef.current && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved || createdVehiclePhotoRef.current.policyCreated === false || createdVehiclePhotoRef.current.policyPublished === false)) {
       setProblem("أُنشئت المركبة. أكمل الخطوات الاختيارية أو اختر صراحةً المتابعة دونها قبل إغلاق النموذج.");
       return;
     }
     dialogRef.current?.querySelectorAll<HTMLInputElement>('input[type="password"]').forEach(input => { input.value = ""; });
     setShowForm(false); setOneTimeToken(""); setVehiclePhoto(null); setOdometerEvidencePhoto(null);
     createdVehiclePhotoRef.current = null; driverLinkRetryRef.current = null; driverCreateRetryRef.current = null; odometerRetryRef.current = null;
-    commandRetryRef.current = null;
+    commandRetryRef.current = null; onboardingPolicyRetryRef.current = null;
     if (path === "/admin/fleet/vehicles/new") navigate("/admin/fleet/vehicles");
   };
   const sendCommand = async (event: FormEvent<HTMLFormElement>) => {
@@ -549,12 +679,22 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     const initialLinkStartsAt = createVehicle ? String(form.get("initialLinkStartsAt") ?? "") : "";
     const initialReadingRaw = createVehicle ? String(form.get("initialReadingKm") ?? "").trim() : "";
     const initialRecordedAt = createVehicle ? String(form.get("initialRecordedAt") ?? "").trim() : "";
+    const onboardingPolicyRequested = createVehicle && form.get("onboardingPolicyEnabled") === "on";
     const secretAndWorkflowFields = new Set(["reason", "initialDriverMode", "newDriverCode", "newDriverName", "newDriverPhone", "initialDriverPin", "initialLinkStartsAt", "initialReadingKm", "initialRecordedAt"]);
     const payload: Row = {};
-    for (const [key, value] of form.entries()) if (!secretAndWorkflowFields.has(key) && !key.startsWith("rule_") && String(value).trim()) payload[key] = String(value).trim();
+    for (const [key, value] of form.entries()) if (!secretAndWorkflowFields.has(key) && !key.startsWith("rule_") && !key.startsWith("onboarding") && String(value).trim()) payload[key] = String(value).trim();
     delete payload.initialDriverId;
     for (const [field, value] of Object.entries(formReferences)) if (value) payload[field] = value;
     if (command === "vehicle.create") delete payload.initialDriverId;
+    if (["vehicle.create", "credential.request"].includes(command)) {
+      if (vehicleCredentialChoice !== "nfc") {
+        for (const field of ["fulfillmentMethod", "installationAddress", "pickupLocation", "fulfillmentContactName", "fulfillmentContactPhone"]) delete payload[field];
+      } else {
+        payload.fulfillmentMethod = initialFulfillmentMethod;
+        if (initialFulfillmentMethod === "install") delete payload.pickupLocation;
+        else delete payload.installationAddress;
+      }
+    }
     if (command === "vehicle.create" || command === "vehicle.update") {
       const plateOriginal = String(payload.plateOriginal ?? "").trim();
       const correction = String(form.get("plateStandardCorrection") ?? "").trim();
@@ -579,6 +719,37 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       const year = Number(payload.modelYear);
       if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear()) {
         reportWizardError("modelYear", `أدخل سنة صنع بين ١٩٠٠ و${new Date().getFullYear()}.`);
+        return;
+      }
+    }
+    if ((command === "vehicle.create" || command === "vehicle.update") && String(payload.tankCapacityLiters ?? "").trim()) {
+      const capacity = Number(payload.tankCapacityLiters);
+      if (!fleetOnboardingReady) {
+        reportWizardError("tankCapacityLiters", "لم تُفعّل خيارات السعة الجديدة بعد؛ أزل القيمة أو أكمل الإجراء بعد التفعيل.");
+        return;
+      }
+      if (!Number.isFinite(capacity) || capacity <= 0 || capacity > 5000) {
+        reportWizardError("tankCapacityLiters", "أدخل سعة خزان موجبة باللتر لا تتجاوز ٥٬٠٠٠.");
+        return;
+      }
+      payload.tankCapacityLiters = capacity;
+    }
+    if (command === "credential.request" && vehicleCredentialChoice === "nfc") {
+      if (!fleetOnboardingReady) {
+        reportWizardError("credentialType", "طلب NFC مع بيانات التركيب أو الاستلام ينتظر تفعيل خيارات الأسطول الجديدة.");
+        return;
+      }
+      if (initialFulfillmentMethod === "install") {
+        if (String(form.get("installationAddress") ?? "").trim().length < 4) {
+          reportWizardError("installationAddress", "أدخل عنوان التركيب بوضوح.");
+          return;
+        }
+        if (String(form.get("fulfillmentContactPhone") ?? "").trim().length < 7) {
+          reportWizardError("fulfillmentContactPhone", "أدخل رقم تواصل صالحًا للتنسيق.");
+          return;
+        }
+      } else if (String(form.get("pickupLocation") ?? "").trim().length < 3) {
+        reportWizardError("pickupLocation", "حدد موقع الاستلام داخل الفرع.");
         return;
       }
     }
@@ -630,6 +801,123 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       if (formWizardStep === 2 && odometerEvidencePhoto && !initialReadingRaw) {
         reportWizardError("initialReadingKm", "أضف قراءة العداد قبل إرفاق صورة إثباتها.");
         return;
+      }
+      if (formWizardStep === 2 && vehicleCredentialChoice === "nfc") {
+        if (!fleetOnboardingReady) {
+          reportWizardError("credentialType", "طلب NFC مع تحديد التركيب أو الاستلام غير متاح حتى تفعيل تحديث الأسطول.");
+          return;
+        }
+        if (initialFulfillmentMethod === "install") {
+          if (String(form.get("installationAddress") ?? "").trim().length < 4) {
+            reportWizardError("installationAddress", "أدخل عنوان التركيب بوضوح.");
+            return;
+          }
+          if (String(form.get("fulfillmentContactPhone") ?? "").trim().length < 7) {
+            reportWizardError("fulfillmentContactPhone", "أدخل رقم تواصل صالحًا للتنسيق.");
+            return;
+          }
+        } else if (String(form.get("pickupLocation") ?? "").trim().length < 3) {
+          reportWizardError("pickupLocation", "حدد موقع الاستلام داخل الفرع.");
+          return;
+        }
+      }
+      if (formWizardStep === 2 && onboardingPolicyRequested) {
+        if (!fleetOnboardingReady) {
+          setProblem("إعداد حدود الخدمة من هذه الرحلة ينتظر تفعيل خيارات الأسطول الجديدة.");
+          return;
+        }
+        if (!initialPolicyWeekdays.length) {
+          setProblem("اختر يومًا واحدًا على الأقل؛ الأيام غير المحددة تمنع الاستخدام.");
+          return;
+        }
+        if (!initialPolicyMerchantOrgIds.length || !initialPolicyMerchantBranchIds.length) {
+          setProblem("اختر جهة تجارية وفرعًا مسموحًا بهما؛ لا يفتح غياب النطاق السماح لجميع الجهات.");
+          return;
+        }
+        const activePolicyGroups = policyGroups.filter(({ id }) => initialPolicyRuleEnabled[id]);
+        if (!activePolicyGroups.length) {
+          setProblem("فعّل خدمة واحدة على الأقل أو ألغِ إعداد الحدود.");
+          return;
+        }
+        for (const { id, title } of activePolicyGroups) {
+          for (const [field, fieldLabel] of policyRuleLimits) {
+            const raw = String(form.get(`onboardingRule_${id}_${field}`) ?? "").trim();
+            const amount = field.endsWith("Minor") ? egpToMinor(raw) : Number(raw);
+            if (amount === null || !Number.isFinite(amount) || amount <= 0) {
+              reportWizardError(`onboardingRule_${id}_${field}`, `أدخل ${fieldLabel} موجبًا لخدمة ${title}.`);
+              return;
+            }
+          }
+        }
+        for (const [field, label] of [
+          ["onboardingMaxOperationEgp", "سقف العملية"],
+          ["onboardingDailyAmountEgp", "الحد اليومي"],
+          ["onboardingWeeklyAmountEgp", "الحد الأسبوعي"],
+          ["onboardingMonthlyAmountEgp", "الحد الشهري"],
+        ]) {
+          if (egpToMinor(String(form.get(field) ?? "")) === null || (egpToMinor(String(form.get(field) ?? "")) ?? 0) <= 0) {
+            reportWizardError(field, `أدخل ${label} بالجنيه وبحد أقصى منزلتين عشريتين.`);
+            return;
+          }
+        }
+        for (const [field, label] of [
+          ["onboardingMaxOperationQuantity", "كمية العملية"],
+          ["onboardingDailyQuantity", "الكمية اليومية"],
+          ["onboardingWeeklyQuantity", "الكمية الأسبوعية"],
+          ["onboardingMonthlyQuantity", "الكمية الشهرية"],
+        ]) {
+          const value = Number(form.get(field));
+          if (!Number.isFinite(value) || value <= 0) {
+            reportWizardError(field, `أدخل ${label} موجبًا.`);
+            return;
+          }
+        }
+        const effective = String(form.get("onboardingEffectiveFrom") ?? "");
+        const effectiveIso = cairoLocalDateTimeToIso(effective);
+        if (!effectiveIso || new Date(effectiveIso).getTime() <= Date.now()) {
+          reportWizardError("onboardingEffectiveFrom", "اختر وقت سريان مستقبليًا.");
+          return;
+        }
+        const startTime = String(form.get("onboardingStartTime") ?? "");
+        const endTime = String(form.get("onboardingEndTime") ?? "");
+        if (!startTime || !endTime || startTime >= endTime) {
+          reportWizardError(startTime >= endTime ? "onboardingEndTime" : "onboardingStartTime", "حدد فترة يومية صحيحة؛ يجب أن تكون النهاية بعد البداية.");
+          return;
+        }
+        const amountSequence = [
+          egpToMinor(String(form.get("onboardingMaxOperationEgp") ?? "")) ?? 0,
+          egpToMinor(String(form.get("onboardingDailyAmountEgp") ?? "")) ?? 0,
+          egpToMinor(String(form.get("onboardingWeeklyAmountEgp") ?? "")) ?? 0,
+          egpToMinor(String(form.get("onboardingMonthlyAmountEgp") ?? "")) ?? 0,
+        ];
+        if (amountSequence.some((value, index) => index > 0 && value < amountSequence[index - 1])) {
+          setProblem("رتّب حدود المبالغ تصاعديًا من سقف العملية ثم اليوم والأسبوع والشهر.");
+          return;
+        }
+        const quantitySequence = [
+          Number(form.get("onboardingMaxOperationQuantity")),
+          Number(form.get("onboardingDailyQuantity")),
+          Number(form.get("onboardingWeeklyQuantity")),
+          Number(form.get("onboardingMonthlyQuantity")),
+        ];
+        if (quantitySequence.some((value, index) => index > 0 && value < quantitySequence[index - 1])) {
+          setProblem("رتّب حدود الكميات تصاعديًا من سقف العملية ثم اليوم والأسبوع والشهر.");
+          return;
+        }
+        for (const { id, title } of activePolicyGroups) {
+          const ruleAmount = (field: string) => egpToMinor(String(form.get(`onboardingRule_${id}_${field}`) ?? "")) ?? 0;
+          const ruleQuantity = (field: string) => Number(form.get(`onboardingRule_${id}_${field}`));
+          const amounts = ["maxOperationMinor", "dailyAmountLimitMinor", "weeklyAmountLimitMinor", "monthlyAmountLimitMinor"].map(ruleAmount);
+          const quantities = ["maxOperationQuantity", "dailyQuantityLimit", "weeklyQuantityLimit", "monthlyQuantityLimit"].map(ruleQuantity);
+          if (amounts.some((value, index) => index > 0 && value < amounts[index - 1])) {
+            reportWizardError(`onboardingRule_${id}_dailyAmountLimitMinor`, `رتّب حدود مبالغ ${title} تصاعديًا من العملية إلى الشهر.`);
+            return;
+          }
+          if (quantities.some((value, index) => index > 0 && value < quantities[index - 1])) {
+            reportWizardError(`onboardingRule_${id}_dailyQuantityLimit`, `رتّب حدود كميات ${title} تصاعديًا من العملية إلى الشهر.`);
+            return;
+          }
+        }
       }
       setFormWizardStep(step => Math.min(3, step + 1));
       return;
@@ -701,11 +989,11 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       payload.allowedMerchantBranchIds = String(formReferences.allowedMerchantBranchIds ?? "").split(",").filter(Boolean);
       if (!formWeekdays.length) { setProblem("اختر يوم استخدام واحدًا على الأقل؛ عدم الاختيار لا يفتح الاستخدام."); return; }
     }
-    const numericFields = ["modelYear", "expectedVersion", "maxOperationMinor", "maxOperationQuantity", "dailyAmountLimitMinor", "weeklyAmountLimitMinor", "monthlyAmountLimitMinor", "dailyQuantityLimit", "weeklyQuantityLimit", "monthlyQuantityLimit", "readingKm", "nextDueKm"];
+    const numericFields = ["modelYear", "expectedVersion", "maxOperationMinor", "maxOperationQuantity", "dailyAmountLimitMinor", "weeklyAmountLimitMinor", "monthlyAmountLimitMinor", "dailyQuantityLimit", "weeklyQuantityLimit", "monthlyQuantityLimit", "readingKm", "nextDueKm", "tankCapacityLiters"];
     for (const field of numericFields) if (typeof payload[field] === "string") payload[field] = Number(payload[field]);
     if (command === "credential.approve") payload.waive = form.get("waive") === "true";
     if (command === "policy.create" || command === "policy.update") {
-      payload.rules = policyGroups.map(({ id }) => ({
+      payload.rules = policyGroupsForSchema.map(({ id }) => ({
         serviceGroup: id,
         enabled: form.get(`rule_${id}_enabled`) === "on",
         ...Object.fromEntries(policyRuleLimits.map(([field]) => {
@@ -714,9 +1002,66 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         })),
       }));
     }
+    let onboardingPolicyPayload: Row | null = null;
+    if (onboardingPolicyRequested) {
+      const effectiveFromInput = String(form.get("onboardingEffectiveFrom") ?? "");
+      const effectiveFrom = cairoLocalDateTimeToIso(effectiveFromInput);
+      const startTime = String(form.get("onboardingStartTime") ?? "");
+      const endTime = String(form.get("onboardingEndTime") ?? "");
+      const amount = (name: string) => egpToMinor(String(form.get(name) ?? ""));
+      const quantity = (name: string) => Number(form.get(name));
+      const globalAmounts = {
+        maxOperationMinor: amount("onboardingMaxOperationEgp"),
+        dailyAmountLimitMinor: amount("onboardingDailyAmountEgp"),
+        weeklyAmountLimitMinor: amount("onboardingWeeklyAmountEgp"),
+        monthlyAmountLimitMinor: amount("onboardingMonthlyAmountEgp"),
+      };
+      const globalQuantities = {
+        maxOperationQuantity: quantity("onboardingMaxOperationQuantity"),
+        dailyQuantityLimit: quantity("onboardingDailyQuantity"),
+        weeklyQuantityLimit: quantity("onboardingWeeklyQuantity"),
+        monthlyQuantityLimit: quantity("onboardingMonthlyQuantity"),
+      };
+      const invalidActiveRule = policyGroups.some(({ id }) => initialPolicyRuleEnabled[id] && policyRuleLimits.some(([field]) => {
+        const raw = String(form.get(`onboardingRule_${id}_${field}`) ?? "").trim();
+        const value = field.endsWith("Minor") ? egpToMinor(raw) : Number(raw);
+        return value === null || !Number.isFinite(value) || value <= 0;
+      }));
+      if (!fleetOnboardingReady || !effectiveFrom
+          || !startTime || !endTime || startTime >= endTime
+          || Object.values(globalAmounts).some(value => value === null || value <= 0)
+          || Object.values(globalQuantities).some(value => !Number.isFinite(value) || value <= 0)
+          || !initialPolicyWeekdays.length || !initialPolicyMerchantOrgIds.length || !initialPolicyMerchantBranchIds.length
+          || !policyGroups.some(({ id }) => initialPolicyRuleEnabled[id]) || invalidActiveRule) {
+        setProblem("تعذر التحقق من سياسة الحدود. راجع السريان والأيام والجهة والفروع والحدود المطلوبة.");
+        return;
+      }
+      onboardingPolicyPayload = {
+        scope: "vehicle",
+        organizationId: payload.organizationId,
+        branchId: payload.branchId,
+        effectiveFrom,
+        allowedWeekdays: initialPolicyWeekdays.map(Number),
+        startTime,
+        endTime,
+        allowedMerchantOrganizationIds: initialPolicyMerchantOrgIds,
+        allowedMerchantBranchIds: initialPolicyMerchantBranchIds,
+        ...globalAmounts,
+        ...globalQuantities,
+        rules: policyGroups.map(({ id }) => ({
+          serviceGroup: id,
+          enabled: initialPolicyRuleEnabled[id] === true,
+          ...Object.fromEntries(policyRuleLimits.map(([field]) => {
+            const raw = String(form.get(`onboardingRule_${id}_${field}`) ?? "").trim();
+            const value = field.endsWith("Minor") ? egpToMinor(raw) ?? 0 : Number(raw);
+            return [field, initialPolicyRuleEnabled[id] ? value : 0];
+          })),
+        })),
+      };
+    }
     const retryPayload = { ...payload };
     delete retryPayload.pinCode;
-    const signature = `${command}:${JSON.stringify(retryPayload)}:${driverMode}:${initialDriverId}:${newDriverCode}:${newDriverName}:${newDriverPhone}:${initialReadingRaw}:${initialRecordedAt}:${initialLinkStartsAt}:${reason.trim()}`;
+    const signature = `${command}:${JSON.stringify(retryPayload)}:${JSON.stringify(onboardingPolicyPayload)}:${driverMode}:${initialDriverId}:${newDriverCode}:${newDriverName}:${newDriverPhone}:${initialReadingRaw}:${initialRecordedAt}:${initialLinkStartsAt}:${reason.trim()}`;
     const photoSignature = vehiclePhoto ? `${vehiclePhoto.name}:${vehiclePhoto.type}:${vehiclePhoto.size}:${vehiclePhoto.lastModified}` : "";
     const evidenceSignature = odometerEvidencePhoto ? `${odometerEvidencePhoto.name}:${odometerEvidencePhoto.type}:${odometerEvidencePhoto.size}:${odometerEvidencePhoto.lastModified}` : "";
     if (createVehicle && createdVehiclePhotoRef.current && createdVehiclePhotoRef.current.signature !== signature) {
@@ -783,14 +1128,46 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           ? createdVehiclePhotoRef.current
           : {
             signature, photoSignature, evidenceSignature, id: vehicleId,
+            credentialRequestId: String(get(result, "credentialRequestId") ?? ""),
             driverLinked: driverMode === "none",
             driverCreated: driverMode !== "new",
             driverId: initialDriverId,
+            policyCreated: !onboardingPolicyPayload,
+            policyPublished: !onboardingPolicyPayload,
             photoSaved: !vehiclePhoto,
             odometerRecorded: !initialReadingRaw,
             evidenceSaved: !odometerEvidencePhoto,
           };
         setVehicleCreatedMessage(`تم إنشاء المركبة ${String(payload.plateOriginal ?? "")}؛ تُحفظ كل خطوة لاحقة على حدة ولا تعيد إنشاءها عند المحاولة.`);
+        if (onboardingPolicyPayload && !createdVehiclePhotoRef.current.policyPublished) {
+          const policySignature = `${vehicleId}:${JSON.stringify(onboardingPolicyPayload)}:${reason.trim()}`;
+          const retry = onboardingPolicyRetryRef.current?.signature === policySignature
+            ? onboardingPolicyRetryRef.current
+            : { signature: policySignature, createKey: crypto.randomUUID(), publishKey: crypto.randomUUID() };
+          onboardingPolicyRetryRef.current = retry;
+          if (!createdVehiclePhotoRef.current.policyCreated) {
+            const policyCreated = fields(await execute.mutateAsync({ data: {
+              action: "policy.create",
+              payload: { ...onboardingPolicyPayload, vehicleId },
+              reason: reason.trim(),
+              idempotencyKey: retry.createKey,
+            } as never }));
+            const policyId = String(get(policyCreated, "id", "policyVersionId") ?? "");
+            if (!UUID_RE.test(policyId)) throw new Error("حُفظت المركبة لكن تعذر تأكيد مسودة حدود الاستخدام.");
+            createdVehiclePhotoRef.current.policyId = policyId;
+            createdVehiclePhotoRef.current.policyCreated = true;
+          }
+          if (createdVehiclePhotoRef.current.policyId && !createdVehiclePhotoRef.current.policyPublished) {
+            await execute.mutateAsync({ data: {
+              action: "policy.publish",
+              payload: { policyVersionId: createdVehiclePhotoRef.current.policyId },
+              reason: reason.trim(),
+              idempotencyKey: retry.publishKey,
+            } as never });
+            createdVehiclePhotoRef.current.policyPublished = true;
+          }
+          onboardingPolicyRetryRef.current = null;
+        }
         if (driverMode === "new" && !createdVehiclePhotoRef.current.driverCreated) {
           const driverSignature = `${signature}:${newDriverCode}:${newDriverName}:${newDriverPhone}`;
           const driverKey = driverCreateRetryRef.current?.signature === driverSignature ? driverCreateRetryRef.current.key : crypto.randomUUID();
@@ -871,7 +1248,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           createdVehiclePhotoRef.current.odometerRecorded = true;
           odometerRetryRef.current = null;
         }
-        const incomplete = !createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.driverCreated || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved;
+        const incomplete = !createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.driverCreated || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved || createdVehiclePhotoRef.current.policyCreated === false || createdVehiclePhotoRef.current.policyPublished === false;
         if (incomplete) throw new Error("تم حفظ المركبة، وما زالت خطوة اختيارية بحاجة إلى إكمال.");
       }
       if (command === "credential.activate_qr" || command === "credential.activate_nfc") {
@@ -1074,7 +1451,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           {view === "coverage" && <p className="fleet-caution"><BadgeCheck size={15}/> التغطية قراءة أو إسناد فقط؛ لا تُحصّل اشتراكًا ولا تتجاوز أهلية الأسطول.</p>}
           {view === "policies" && <p className="fleet-caution"><ShieldCheck size={15}/> نشر السياسة يضبط الأهلية اللاحقة فقط؛ لا ينفّذ خدمة أو دفعة.</p>}
           {view === "documents" && <p className="fleet-caution">التنزيل متاح فقط عبر رابط الخادم الموقّع. لا تُعرض مسارات التخزين.</p>}
-          {isVehicleDetail && <section className="fleet-panel fleet-record-detail"><div className="fleet-panel-head"><div><span className="fleet-eyebrow">مركبة / ملف كامل</span><h2>{text(get(vehicleRecord, "plateOriginal", "plateStandard"))}</h2><p>الحقائق والارتباطات من ملف المركبة.</p></div></div><div className="fleet-facts">{Object.entries(vehicleRecord).filter(([key, value]) => !isHiddenKey(key) && (value === null || typeof value !== "object")).map(([key, value]) => <div key={key}><small>{labels[key] ?? key}</small><b>{key.toLowerCase().includes("at") ? date(value) : statusText(value)}</b></div>)}</div>{(["driverLinks", "credentials", "coverage", "documents", "odometer", "maintenance", "events"] as const).map(key => { const list = root[key]; if (!Array.isArray(list)) return null; return <section className="fleet-detail-list" key={key}><h3>{({ driverLinks: "روابط السائقين", credentials: "الرموز النشطة وتلميحاتها", coverage: "التغطية", documents: "المستندات", odometer: "قراءات العداد", maintenance: "الصيانة", events: "سجل الأحداث" } as Record<string, string>)[key]}</h3>{list.length ? <div className="fleet-facts">{list.map((record, index) => <div key={`${key}-${index}`}>{Object.entries(fields(record)).filter(([field]) => !isHiddenKey(field)).map(([field, value]) => <span key={field}><small>{labels[field] ?? field}</small><b>{typeof value === "object" ? readable(value) : field.toLowerCase().includes("at") ? date(value) : statusText(value)}</b></span>)}</div>)}</div> : <p className="fleet-muted">لا توجد عناصر في هذا القسم.</p>}</section>; })}</section>}
+          {isVehicleDetail && <section className="fleet-panel fleet-record-detail"><div className="fleet-panel-head"><div><span className="fleet-eyebrow">مركبة / ملف كامل</span><h2>{text(get(vehicleRecord, "plateOriginal", "plateStandard"))}</h2><p>الحقائق والارتباطات من ملف المركبة.</p></div></div><div className="fleet-facts">{Object.entries(vehicleRecord).filter(([key, value]) => !isHiddenKey(key) && (value === null || typeof value !== "object")).map(([key, value]) => <div key={key}><small>{labels[key] ?? key}</small><b>{key.toLowerCase().includes("at") ? date(value) : statusText(value)}</b></div>)}</div><VehiclePhotoGallery documents={Array.isArray(root.documents) ? root.documents.map(fields) : []} odometer={Array.isArray(root.odometer) ? root.odometer.map(fields) : []}/><VehiclePolicySummary data={vehiclePolicies.data} loading={vehiclePolicies.isLoading} error={vehiclePolicies.error} retry={() => void vehiclePolicies.refetch()}/>{(["driverLinks", "credentials", "coverage", "documents", "odometer", "maintenance", "events"] as const).map(key => { const list = root[key]; if (!Array.isArray(list)) return null; return <section className="fleet-detail-list" key={key}><h3>{({ driverLinks: "روابط السائقين", credentials: "الرموز النشطة وتلميحاتها", coverage: "التغطية", documents: "المستندات", odometer: "قراءات العداد", maintenance: "الصيانة", events: "سجل الأحداث" } as Record<string, string>)[key]}</h3>{list.length ? <div className="fleet-facts">{list.map((record, index) => <div key={`${key}-${index}`}>{Object.entries(fields(record)).filter(([field]) => !isHiddenKey(field)).map(([field, value]) => <span key={field}><small>{labels[field] ?? field}</small><b>{typeof value === "object" ? readable(value) : field.toLowerCase().includes("at") ? date(value) : statusText(value)}</b></span>)}</div>)}</div> : <p className="fleet-muted">لا توجد عناصر في هذا القسم.</p>}</section>; })}</section>}
           {isVehicleDetail && <section className="fleet-efficiency-panel"><div><small>آخر قراءة مقبولة</small><b>{latestAcceptedReading ? `${text(latestAcceptedReading.readingKm)} كم` : "لا توجد قراءة مقبولة"}</b></div><div><small>المسافة بين آخر قراءتين مقبولتين</small><b>{acceptedDistanceKm !== null && Number.isFinite(acceptedDistanceKm) && acceptedDistanceKm >= 0 ? `${acceptedDistanceKm.toLocaleString("ar-EG")} كم` : "غير متاح"}</b></div><div><small>كفاءة الوقود الفعلية</small><b>غير متاحة</b><p>لا توجد أحداث تعبئة بكمية وقود فعلية لحساب كم/لتر أو لتر/١٠٠ كم.</p></div></section>}
           {isVehicleDetail && UUID_RE.test(String(vehicleRecord.organizationId ?? "")) && <FleetFuelRate organizationId={String(vehicleRecord.organizationId)} branchId={UUID_RE.test(String(vehicleRecord.branchId ?? "")) ? String(vehicleRecord.branchId) : undefined} canMutate={canMutate}/>}
           {isDriverDetail && <section className="fleet-panel fleet-record-detail">
@@ -1113,9 +1490,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         {showForm && <div className="fleet-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) closeForm(); }}><section ref={dialogRef} tabIndex={-1} className="fleet-dialog" role="dialog" aria-modal="true" aria-labelledby="fleet-dialog-title"><header><div><span className="fleet-eyebrow">إجراء مسجل</span><h2 id="fleet-dialog-title">{actionLabels[command] ?? "إجراء الأسطول"}</h2></div><button data-testid="fleet-dialog-close" className="fleet-icon-button" aria-label="إغلاق" onClick={closeForm}><X size={18}/></button></header><form className="fleet-form" noValidate={command === "vehicle.create" || command === "vehicle.update"} onSubmit={sendCommand}>
           {command === "vehicle.create" && <ol className="fleet-create-steps" aria-label="خطوات تسجيل المركبة">{["بيانات المركبة", "الشركة والفرع", "السائق والتعرّف", "المراجعة والحفظ"].map((step, index) => <li key={step} aria-current={formWizardStep === index ? "step" : undefined} className={formWizardStep === index ? "is-current" : index < formWizardStep ? "is-done" : ""}><b>{index + 1}</b><span>{step}</span></li>)}</ol>}
           {(command === "driver.link.end" || command === "credential.stop") && <FleetReferencePicker testId={`fleet-context-vehicle-${command.replaceAll(".", "-")}`} kind="vehicle" value={formVehicleId} organizationId={formOrganizationId || undefined} label="المركبة — لتحديد السجل المرتبط" emptyLabel="ابحث برقم اللوحة" onChange={(value, option) => { setFormVehicleId(value); if (option?.organizationId) setFormOrganizationId(option.organizationId); }}/>}
-          {vehicleCreatedMessage && <div className="fleet-feedback" role="status"><p>{vehicleCreatedMessage}</p>{createdVehiclePhotoRef.current && !photoUploadPending && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.driverCreated || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved) && <button data-testid="fleet-create-continue-partial" type="button" className="fleet-button fleet-button-secondary" onClick={() => {
+          {vehicleCreatedMessage && <div className="fleet-feedback" role="status"><p>{vehicleCreatedMessage}</p>{createdVehiclePhotoRef.current && !photoUploadPending && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.driverCreated || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved || createdVehiclePhotoRef.current.policyCreated === false || createdVehiclePhotoRef.current.policyPublished === false) && <button data-testid="fleet-create-continue-partial" type="button" className="fleet-button fleet-button-secondary" onClick={() => {
             const workflow = createdVehiclePhotoRef.current;
-            const skipped = [!workflow?.driverCreated && "ملف السائق", !workflow?.driverLinked && "ربط السائق", !workflow?.photoSaved && "صورة المركبة", !workflow?.odometerRecorded && "قراءة العداد", !workflow?.evidenceSaved && "إثبات القراءة"].filter(Boolean).join("، ");
+            const skipped = [!workflow?.driverCreated && "ملف السائق", !workflow?.driverLinked && "ربط السائق", !workflow?.photoSaved && "صورة المركبة", !workflow?.odometerRecorded && "قراءة العداد", !workflow?.evidenceSaved && "إثبات القراءة", workflow?.policyCreated === false && "مسودة حدود الاستخدام", workflow?.policyPublished === false && "نشر حدود الاستخدام"].filter(Boolean).join("، ");
             setVehiclePhoto(null); setOdometerEvidencePhoto(null); setShowForm(false); setReason(""); setProblem("");
             commandRetryRef.current = null; createdVehiclePhotoRef.current = null; driverLinkRetryRef.current = null; driverCreateRetryRef.current = null; odometerRetryRef.current = null;
             setVehicleCreatedMessage(""); setMessage(`تم حفظ المركبة؛ لم تُستكمل: ${skipped || "خطوات اختيارية"}. يمكنك إضافة ما يلزم من أقسام الأسطول دون إعادة إنشاء المركبة.`);
@@ -1123,15 +1500,29 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             void refresh();
           }}>المتابعة دون استكمال الخطوات المتعذرة</button>}</div>}
           <div className="fleet-form-grid">{(fieldsByAction[command] ?? []).map(field => {
-          const optional = new Set(["modelYear", "chassisNumber", "internalCode", "phone", "endsAt", "previousCredentialId", "scheduledAt", "evidenceDocumentId", "supersedesEventId", "odometerEventId", "nextDueAt", "nextDueKm", "documentId", "credentialType"]);
+          const optional = new Set(["modelYear", "chassisNumber", "internalCode", "phone", "endsAt", "previousCredentialId", "scheduledAt", "evidenceDocumentId", "supersedesEventId", "odometerEventId", "nextDueAt", "nextDueKm", "documentId", "credentialType", "tankCapacityLiters", "fulfillmentMethod", "installationAddress", "pickupLocation", "fulfillmentContactName", "fulfillmentContactPhone"]);
           const isRequired = !optional.has(field) && !(field === "vehicleId" && command === "policy.create" && policyScope === "branch") && !(field === "branchId" && command === "policy.create" && policyScope === "vehicle");
           const defaultValue = field === "policyVersionId" ? formDefaults.id : field === "expectedVersion" ? formReferences.expectedVersion ?? formDefaults.version : field === "vehicleId" && isVehicleDetail ? formDefaults.id : field === "driverId" && isDriverDetail ? formDefaults.id : formDefaults[field];
           const dateTime = ["startsAt", "endsAt", "effectiveFrom", "scheduledAt", "recordedAt", "performedAt", "nextDueAt"].includes(field);
           const normalizedDefault = dateTime && typeof defaultValue === "string" ? defaultValue.slice(0, 16) : defaultValue;
-          const stepByField = field === "organizationId" || field === "branchId" ? 1 : field === "credentialType" ? 2 : 0;
+          const stepByField = field === "organizationId" || field === "branchId" ? 1 : field === "credentialType" || field.startsWith("fulfillment") || field === "installationAddress" || field === "pickupLocation" ? 2 : 0;
           const stepHidden = command === "vehicle.create" && formWizardStep < 3 && stepByField !== formWizardStep;
           const wizardRequired = command === "vehicle.create" && !stepHidden && (vehicleCreateRequiredByStep[formWizardStep] ?? []).includes(field);
-          const common = { name: field, required: command === "vehicle.create" ? wizardRequired : isRequired, "aria-invalid": Boolean(wizardErrors[field]), onChange: () => clearWizardError(field), dir: /id|code|plate|phone/i.test(field) ? "ltr" as const : undefined, ...(field === "expectedVersion" ? {} : { defaultValue: String(normalizedDefault ?? "") }), "data-testid": `fleet-field-${field}` };
+          const fulfillmentEnabled = ["vehicle.create", "credential.request"].includes(command) && vehicleCredentialChoice === "nfc";
+          const conditionalRequired = fulfillmentEnabled && (
+            field === "fulfillmentMethod" ||
+            (initialFulfillmentMethod === "install" && ["installationAddress", "fulfillmentContactPhone"].includes(field)) ||
+            (initialFulfillmentMethod === "pickup" && field === "pickupLocation")
+          );
+          const isOnboardingV2Field = field === "tankCapacityLiters" || field.startsWith("fulfillment") || field === "installationAddress" || field === "pickupLocation";
+          const fieldUnavailable = isOnboardingV2Field && !fleetOnboardingReady;
+          const deliveryFields = ["fulfillmentMethod", "installationAddress", "pickupLocation", "fulfillmentContactName", "fulfillmentContactPhone"];
+          const fulfillmentFieldHidden = deliveryFields.includes(field) && (
+            !fulfillmentEnabled ||
+            (field === "installationAddress" && initialFulfillmentMethod !== "install") ||
+            (field === "pickupLocation" && initialFulfillmentMethod !== "pickup")
+          );
+          const common = { name: field, required: command === "vehicle.create" ? wizardRequired || conditionalRequired : isRequired || conditionalRequired, disabled: fieldUnavailable, "aria-invalid": Boolean(wizardErrors[field]), onChange: () => clearWizardError(field), dir: /id|code|plate|phone/i.test(field) ? "ltr" as const : undefined, ...(field === "expectedVersion" ? {} : { defaultValue: String(normalizedDefault ?? "") }), "data-testid": `fleet-field-${field}` };
           const selectCommon = { ...common };
           delete selectCommon.defaultValue;
           const wizardHint = field === "plateOriginal" ? "أدخل اللوحة كما تظهر في المستند؛ تُشتق صيغة المطابقة بحذف المسافات فقط."
@@ -1141,12 +1532,14 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
                   : field === "brand" ? "ابحث بين أسماء الصانع المسجلة للشركة أو أدخل الاسم كما يظهر في المستند."
                     : field === "model" ? "ابحث بين طرازات الشركة المسجلة أو أدخل الطراز كما في المستند."
                       : field === "fuelType" ? "هذه فئة وقود المركبة (بنزين أو سولار أو غاز). درجة البنزين 80 أو 92 أو 95 تُحدد عند تسجيل التعبئة مستقبلًا."
+                        : field === "tankCapacityLiters" && !fleetOnboardingReady ? "هذا الحقل سيُتاح بعد تفعيل خيارات تسجيل المركبة الجديدة."
+                          : field === "tankCapacityLiters" ? "السعة كما في مستند المركبة، باللتر؛ لا تُستخدم كرصيد أو حد مالي."
                         : undefined;
           const companyValueOptions = ["category", "vehicleType", "brand", "model"].includes(field)
             ? [...new Set(formCompanyVehicles.map(record => String(record[field] ?? "").trim()).filter(Boolean))].slice(0, 30)
             : [];
           const companyValueListId = `fleet-company-values-${field}`;
-          const wrap = (node: ReactNode) => <div key={field} hidden={stepHidden}>{node}</div>;
+          const wrap = (node: ReactNode) => <div key={field} hidden={stepHidden || fulfillmentFieldHidden}>{node}</div>;
           if ((command === "vehicle.create" || command === "vehicle.update") && field === "plateStandard") {
             return wrap(<Field label="صيغة اللوحة للمطابقة"><span className="fleet-reference-fixed">تُشتق تلقائيًا من اللوحة الأصلية بحذف المسافات فقط.</span></Field>);
           }
@@ -1155,6 +1548,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             scope: [["branch", "نطاق فرع"], ["vehicle", "نطاق مركبة"]],
             fuelType: [["gasoline", "بنزين"], ["diesel", "سولار"], ["natural_gas", "غاز طبيعي"]],
             credentialType: [["qr", "QR"], ["nfc", "NFC"]],
+            fulfillmentMethod: [["install", "تركيب"], ["pickup", "استلام من الفرع"]],
             requestType: [["issue", "إصدار"], ["replace", "استبدال"]],
             maintenanceType: [["oil", "زيت"], ["parts", "قطع غيار"], ["battery", "بطارية"], ["filters", "فلاتر"], ["tires", "إطارات"], ["other", "أخرى"]],
             decision: command === "odometer.review" ? [["accepted", "مقبول"], ["rejected", "مرفوض"]] : [],
@@ -1199,8 +1593,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             }}/>);
           }
           if (fieldChoices.length) {
-            const controlled = field === "scope" || field === "credentialType";
-            return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><select {...selectCommon} {...(controlled ? { value: field === "scope" ? policyScope : vehicleCredentialChoice } : { defaultValue: String(normalizedDefault ?? "") })} onChange={event => { clearWizardError(field); if (field === "scope") setPolicyScope(event.target.value); else if (field === "credentialType") setVehicleCredentialChoice(event.target.value); }}>{field === "fuelType" && <option value="">اختر فئة الوقود من مستند المركبة</option>}{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{fieldChoices.map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && nfcIssuePriceMinor === null}>{field === "credentialType" && value === "nfc" ? `NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : label}</option>)}</select>{field === "credentialType" && <small>سعر إصدار الشريحة منفصل عن الاشتراك؛ الطلب لا يثبت التحصيل أو التركيب أو التفعيل.</small>}</Field>);
+            const controlled = field === "scope" || field === "credentialType" || field === "fulfillmentMethod";
+            const selectedValue = field === "scope" ? policyScope : field === "fulfillmentMethod" ? initialFulfillmentMethod : vehicleCredentialChoice;
+            return wrap(<Field label={labels[field] ?? field} required={wizardRequired || conditionalRequired} error={wizardErrors[field]} hint={wizardHint}><select {...selectCommon} {...(controlled ? { value: selectedValue } : { defaultValue: String(normalizedDefault ?? "") })} onChange={event => { clearWizardError(field); if (field === "scope") setPolicyScope(event.target.value); else if (field === "credentialType") setVehicleCredentialChoice(event.target.value); else if (field === "fulfillmentMethod") setInitialFulfillmentMethod(event.target.value as "install" | "pickup"); }}>{field === "fuelType" && <option value="">اختر فئة الوقود من مستند المركبة</option>}{field === "credentialType" && <option value="">بدون طلب إصدار الآن</option>}{field === "fulfillmentMethod" && <option value="">اختر طريقة التسليم</option>}{fieldChoices.map(([value, label]) => <option key={value} value={value} disabled={field === "credentialType" && value === "nfc" && (nfcIssuePriceMinor === null || !fleetOnboardingReady)}>{field === "credentialType" && value === "nfc" ? `NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : label}</option>)}</select>{field === "credentialType" && <small>{!fleetOnboardingReady ? "طلب NFC مع بيانات التركيب أو الاستلام سيظهر بعد تفعيل تحديث الأسطول." : "سعر إصدار الشريحة منفصل عن الاشتراك؛ الطلب لا يثبت التحصيل أو التركيب أو التفعيل."}</small>}{field === "fulfillmentMethod" && <small>يُحفظ كطلب فقط؛ لا يثبت السداد أو التركيب أو الاستلام.</small>}</Field>);
           }
           if (field === "expectedVersion") return wrap(<input type="hidden" name={field} value={formReferences.expectedVersion ?? String(defaultValue ?? "")} data-testid="fleet-current-record-version"/>);
           if (field === "pinCode") return wrap(<Field label={labels[field]}><input {...common} type="password" inputMode="numeric" autoComplete="new-password" pattern="[0-9]{4}" maxLength={4}/></Field>);
@@ -1209,8 +1604,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           if (field === "allowedMerchantBranchIds") return wrap(<div className="fleet-policy-branch-picker"><FleetReferencePicker kind="organization" label="اختر جهة لعرض فروعها" value={merchantBranchScope} onChange={value => { setMerchantBranchScope(value); setFormReferences(current => ({ ...current, [field]: "" })); }}/><FleetReferencePicker kind="branch" label={labels[field]} value="" multiple selectedValues={String(formReferences[field] ?? "").split(",").filter(Boolean)} organizationId={merchantBranchScope || undefined} onValuesChange={values => setFormReferences(current => ({ ...current, [field]: values.join(",") }))}/></div>);
           if (field === "startTime" || field === "endTime") return wrap(<Field label={labels[field]} required={wizardRequired} error={wizardErrors[field]}><input {...common} type="time"/></Field>);
           if (field === "notes") return wrap(<Field label={labels[field] ?? field}><textarea {...common}/></Field>);
-          const numeric = ["modelYear", "expectedVersion", "maxOperationMinor", "maxOperationQuantity", "dailyAmountLimitMinor", "weeklyAmountLimitMinor", "monthlyAmountLimitMinor", "dailyQuantityLimit", "weeklyQuantityLimit", "monthlyQuantityLimit", "readingKm", "nextDueKm"].includes(field);
-          return wrap(<Field label={labels[field] ?? field} required={wizardRequired} error={wizardErrors[field]} hint={wizardHint}><><input {...common} list={companyValueOptions.length ? companyValueListId : undefined} min={field === "modelYear" ? "1900" : undefined} max={field === "modelYear" ? String(new Date().getFullYear()) : undefined} minLength={["plateOriginal", "category", "vehicleType", "brand", "model"].includes(field) ? 2 : undefined} maxLength={["plateOriginal", "category", "vehicleType", "brand", "model"].includes(field) ? 80 : undefined} type={numeric ? "number" : dateTime ? "datetime-local" : "text"}/>{companyValueOptions.length > 0 && <datalist id={companyValueListId}>{companyValueOptions.map(option => <option key={option} value={option}/>)}</datalist>}</></Field>);
+          const numeric = ["modelYear", "expectedVersion", "maxOperationMinor", "maxOperationQuantity", "dailyAmountLimitMinor", "weeklyAmountLimitMinor", "monthlyAmountLimitMinor", "dailyQuantityLimit", "weeklyQuantityLimit", "monthlyQuantityLimit", "readingKm", "nextDueKm", "tankCapacityLiters"].includes(field);
+          return wrap(<Field label={labels[field] ?? field} required={wizardRequired || conditionalRequired} error={wizardErrors[field]} hint={wizardHint}><><input {...common} list={companyValueOptions.length ? companyValueListId : undefined} min={field === "modelYear" ? "1900" : field === "tankCapacityLiters" ? "0.1" : undefined} max={field === "modelYear" ? String(new Date().getFullYear()) : field === "tankCapacityLiters" ? "5000" : undefined} step={field === "tankCapacityLiters" ? "0.1" : undefined} minLength={["plateOriginal", "category", "vehicleType", "brand", "model"].includes(field) ? 2 : undefined} maxLength={["plateOriginal", "category", "vehicleType", "brand", "model"].includes(field) ? 80 : undefined} type={numeric ? "number" : dateTime ? "datetime-local" : "text"}/>{companyValueOptions.length > 0 && <datalist id={companyValueListId}>{companyValueOptions.map(option => <option key={option} value={option}/>)}</datalist>}</></Field>);
         })}</div>
         {command === "vehicle.update" && <details className="fleet-plate-correction"><summary>تصحيح استثنائي لصيغة المطابقة</summary><p>تُشتق الصيغة تلقائيًا من اللوحة. استخدم هذا التصحيح فقط إذا راجعت المستند، وستبقى اللوحة الأصلية محفوظة.</p><label><input type="checkbox" name="overridePlateStandard"/> أحتاج إلى تصحيح القيمة المشتقة</label><Field label="الصيغة المصححة"><input data-testid="fleet-field-plateStandardCorrection" name="plateStandardCorrection" dir="ltr" minLength={2} maxLength={80} onChange={() => clearWizardError("plateStandardCorrection")}/></Field></details>}
         {command === "vehicle.create" && <section className="fleet-create-optional" hidden={formWizardStep < 2}>
@@ -1218,13 +1613,58 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
             <Field label="اختيار السائق"><select data-testid="fleet-create-driver-mode" name="initialDriverMode" value={initialDriverMode} onChange={event => { const mode = event.target.value as "none" | "existing" | "new"; setInitialDriverMode(mode); if (mode !== "existing") setFormReferences(current => { const next = { ...current }; delete next.initialDriverId; return next; }); driverLinkRetryRef.current = null; }}><option value="none">بدون سائق الآن</option><option value="existing">استخدام سائق موجود</option><option value="new">إضافة سائق تشغيلي جديد</option></select></Field>
             {initialDriverMode === "existing" && <FleetReferencePicker kind="driver" name="initialDriverId" label="السائق التشغيلي" value={formReferences.initialDriverId ?? ""} organizationId={formOrganizationId || undefined} testId="fleet-create-existing-driver" required error={wizardErrors.initialDriverId} onChange={value => { clearWizardError("initialDriverId"); setFormReferences(current => ({ ...current, initialDriverId: value })); driverLinkRetryRef.current = null; }}/>}
             {initialDriverMode === "new" && <div className="fleet-form-grid"><Field label="الكود التشغيلي للسائق" required error={wizardErrors.newDriverCode}><input data-testid="fleet-create-driver-code" name="newDriverCode" autoComplete="off" dir="ltr" maxLength={80} onChange={() => clearWizardError("newDriverCode")}/></Field><Field label="اسم السائق" required error={wizardErrors.newDriverName}><input data-testid="fleet-create-driver-name" name="newDriverName" maxLength={160} onChange={() => clearWizardError("newDriverName")}/></Field><Field label="رقم الهاتف (اختياري)"><input data-testid="fleet-create-driver-phone" name="newDriverPhone" inputMode="tel" dir="ltr" maxLength={40}/></Field></div>}
-            {initialDriverMode !== "none" && <div className="fleet-create-link-fields"><p>رمز الربط اختياري. يمكنك توليد رمز جديد أو إدخاله؛ يُرسل مرة واحدة ولا يمكن استرجاع الرمز المحفوظ من البصمة الآمنة.</p><Field label="رمز ربط جديد من أربعة أرقام (اختياري)" error={wizardErrors.initialDriverPin}><input data-testid="fleet-create-driver-pin" type={revealInitialPin ? "text" : "password"} name="initialDriverPin" inputMode="numeric" autoComplete="new-password" pattern="[0-9]{4}" maxLength={4} onChange={event => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 4); clearWizardError("initialDriverPin"); }}/></Field><div className="fleet-actions"><button type="button" className="fleet-button fleet-quiet" onClick={() => { try { const input = dialogRef.current?.querySelector<HTMLInputElement>('[name="initialDriverPin"]'); if (!input) throw new Error("PIN input unavailable"); input.value = createSecureFourDigitPin(); input.dispatchEvent(new Event("input", { bubbles: true })); clearWizardError("initialDriverPin"); setProblem(""); } catch { setProblem("تعذر إنشاء رمز آمن. يمكنك إدخاله يدويًا أو المتابعة دون رمز."); } }}>توليد رمز جديد</button><button type="button" className="fleet-button fleet-quiet" onClick={() => setRevealInitialPin(value => !value)}>{revealInitialPin ? "إخفاء الرمز" : "إظهار الرمز الحالي"}</button></div><Field label="بداية الربط — مطلوبة عند إسناد السائق" required error={wizardErrors.initialLinkStartsAt}><input data-testid="fleet-create-link-starts-at" type="datetime-local" name="initialLinkStartsAt" onChange={() => clearWizardError("initialLinkStartsAt")}/></Field><Field label="نهاية الربط (اختياري)"><input data-testid="fleet-create-link-ends-at" type="datetime-local" name="initialLinkEndsAt"/></Field></div>}
+             {initialDriverMode !== "none" && <div className="fleet-create-link-fields"><p>رمز الربط اختياري. يمكنك توليد رمز جديد أو إدخاله؛ يُرسل مرة واحدة ولا يمكن استرجاع الرمز المحفوظ من البصمة الآمنة.</p><Field label="رمز ربط جديد من أربعة أرقام (اختياري)" error={wizardErrors.initialDriverPin}><input data-testid="fleet-create-driver-pin" type={revealInitialPin ? "text" : "password"} name="initialDriverPin" inputMode="numeric" autoComplete="new-password" pattern="[0-9]{4}" maxLength={4} onChange={event => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 4); clearWizardError("initialDriverPin"); }}/></Field><div className="fleet-actions"><button type="button" className="fleet-button fleet-quiet" onClick={() => { try { const input = dialogRef.current?.querySelector<HTMLInputElement>('[name="initialDriverPin"]'); if (!input) throw new Error("PIN input unavailable"); input.value = createSecureFourDigitPin(); input.dispatchEvent(new Event("input", { bubbles: true })); clearWizardError("initialDriverPin"); setProblem(""); } catch { setProblem("تعذر إنشاء رمز آمن. يمكنك إدخاله يدويًا أو المتابعة دون رمز."); } }}>توليد رمز جديد</button><button type="button" className="fleet-button fleet-quiet" onClick={() => setRevealInitialPin(value => !value)}>{revealInitialPin ? "إخفاء الرمز" : "إظهار الرمز الجديد"}</button></div><Field label="بداية الربط — مطلوبة عند إسناد السائق" required error={wizardErrors.initialLinkStartsAt}><input data-testid="fleet-create-link-starts-at" type="datetime-local" name="initialLinkStartsAt" onChange={() => clearWizardError("initialLinkStartsAt")}/></Field><Field label="نهاية الربط (اختياري)"><input data-testid="fleet-create-link-ends-at" type="datetime-local" name="initialLinkEndsAt"/></Field></div>}
           </div>
-          <div className="fleet-create-option-block"><h3>قراءة العداد الأولية (اختيارية)</h3><p>تُسجل قراءة مؤرخة من مسار العداد المعتمد؛ لا تُحسب كفاءة الوقود دون أحداث تعبئة فعلية.</p><Field label="قراءة العداد بالكيلومتر" error={wizardErrors.initialReadingKm}><input data-testid="fleet-create-odometer-reading" type="number" name="initialReadingKm" min="0" step="0.001" value={initialReadingInput} onChange={event => { setInitialReadingInput(event.target.value); clearWizardError("initialReadingKm"); }}/></Field><Field label="وقت تسجيل القراءة" error={wizardErrors.initialRecordedAt}><input data-testid="fleet-create-odometer-time" type="datetime-local" name="initialRecordedAt" value={initialReadingTimeInput} onChange={event => { setInitialReadingTimeInput(event.target.value); clearWizardError("initialRecordedAt"); }}/></Field><div className="fleet-create-photo"><div><ImagePlus size={18}/><div><b>إثبات القراءة (اختياري)</b><small>صورة PNG أو JPEG تُحفظ عبر مسار المستند الخاص.</small></div></div><input data-testid="fleet-create-odometer-evidence" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setOdometerEvidencePhoto(file); }}/></div></div>
+           <div className="fleet-create-option-block fleet-initial-policy">
+             <h3>حدود الاستخدام عند الإضافة (اختياري)</h3>
+             <p>إذا لم تُنشأ سياسة، لا يعني ذلك السماح بالخدمات. كل حد يُحفظ كنسخة مؤرخة مستقلة عن تمويل الشركة.</p>
+             {!fleetOnboardingReady && <div className="fleet-pending-banner" role="status">إعداد هذه الحدود ينتظر تفعيل خيارات الأسطول الجديدة؛ تبقى إضافة المركبة والسائق والعداد والصور متاحة.</div>}
+             <label className="fleet-policy-toggle"><input data-testid="fleet-create-policy-enabled" type="checkbox" name="onboardingPolicyEnabled" checked={initialPolicyEnabled} disabled={!fleetOnboardingReady} onChange={event => setInitialPolicyEnabled(event.target.checked)}/><b>إعداد سياسة لهذه المركبة الآن</b></label>
+             {initialPolicyEnabled && fleetOnboardingReady && <>
+               <div className="fleet-form-grid">
+                 <Field label="سريان السياسة من — بتوقيت القاهرة" required error={wizardErrors.onboardingEffectiveFrom}><input data-testid="fleet-create-policy-effective" name="onboardingEffectiveFrom" type="datetime-local" defaultValue={cairoLocalDateTimeAfterMinutes()} onChange={() => clearWizardError("onboardingEffectiveFrom")}/></Field>
+                 <Field label="بداية وقت الاستخدام" required error={wizardErrors.onboardingStartTime}><input data-testid="fleet-create-policy-start" name="onboardingStartTime" type="time" defaultValue="00:00" onChange={() => clearWizardError("onboardingStartTime")}/></Field>
+                 <Field label="نهاية وقت الاستخدام" required error={wizardErrors.onboardingEndTime}><input data-testid="fleet-create-policy-end" name="onboardingEndTime" type="time" defaultValue="23:59" onChange={() => clearWizardError("onboardingEndTime")}/></Field>
+               </div>
+               <fieldset className="fleet-weekday-picker"><legend>أيام الاستخدام المسموحة</legend><p>الأيام غير المحددة تمنع الاستخدام.</p><div>{[["1","الاثنين"],["2","الثلاثاء"],["3","الأربعاء"],["4","الخميس"],["5","الجمعة"],["6","السبت"],["7","الأحد"]].map(([day, name]) => <label key={day}><input data-testid={`fleet-create-policy-day-${day}`} type="checkbox" checked={initialPolicyWeekdays.includes(day)} onChange={event => setInitialPolicyWeekdays(current => event.target.checked ? [...current, day].sort() : current.filter(item => item !== day))}/>{name}</label>)}</div></fieldset>
+               <div className="fleet-form-grid fleet-policy-merchant-scope">
+                 <FleetReferencePicker kind="organization" organizationKinds={["station", "provider"]} label="الجهة التجارية المسموحة" value={initialPolicyMerchantOrgIds[0] ?? ""} required onChange={value => { setInitialPolicyMerchantOrgIds(value ? [value] : []); setInitialPolicyMerchantBranchIds([]); }}/>
+                 <FleetReferencePicker kind="branch" label="الفروع المسموحة" value="" organizationId={initialPolicyMerchantOrgIds[0]} multiple selectedValues={initialPolicyMerchantBranchIds} onValuesChange={values => setInitialPolicyMerchantBranchIds(values)}/>
+               </div>
+               <div className="fleet-form-grid">
+                 {[
+                   ["onboardingMaxOperationEgp", "سقف مبلغ العملية (جنيه)"],
+                   ["onboardingMaxOperationQuantity", "سقف كمية العملية"],
+                   ["onboardingDailyAmountEgp", "الحد اليومي للمبلغ (جنيه)"],
+                   ["onboardingDailyQuantity", "الحد اليومي للكمية"],
+                   ["onboardingWeeklyAmountEgp", "الحد الأسبوعي للمبلغ (جنيه)"],
+                   ["onboardingWeeklyQuantity", "الحد الأسبوعي للكمية"],
+                   ["onboardingMonthlyAmountEgp", "الحد الشهري للمبلغ (جنيه)"],
+                   ["onboardingMonthlyQuantity", "الحد الشهري للكمية"],
+                 ].map(([name, label]) => {
+                   const amount = name.includes("Amount") || name.includes("Egp");
+                   return <Field key={name} label={label} required error={wizardErrors[name]}><input data-testid={`fleet-create-${name}`} name={name} type="number" min={amount ? "0.01" : "0.001"} step={amount ? "0.01" : "0.001"} onChange={() => clearWizardError(name)}/></Field>;
+                 })}
+               </div>
+               <div className="fleet-policy-group-list">{policyGroups.map(group => {
+                 const enabled = initialPolicyRuleEnabled[group.id] === true;
+                 return <section key={group.id}>
+                   <label className="fleet-policy-toggle"><input data-testid={`fleet-create-policy-${group.id}`} type="checkbox" name={`onboardingRule_${group.id}_enabled`} checked={enabled} onChange={event => setInitialPolicyRuleEnabled(current => ({ ...current, [group.id]: event.target.checked }))}/><b>{group.title}</b><span>{enabled ? "مفعّلة بعد نشر السياسة" : "غير مفعّلة"}</span></label>
+                   <div className="fleet-policy-limit-grid">{policyRuleLimits.map(([field]) => {
+                     const amount = field.endsWith("Minor");
+                     const name = `onboardingRule_${group.id}_${field}`;
+                     return <Field key={field} label={onboardingRuleLabels[field]} error={wizardErrors[name]}><input data-testid={`fleet-create-${name}`} name={name} type="number" min={amount ? "0.01" : "0.001"} step={amount ? "0.01" : "0.001"} disabled={!enabled} onChange={() => clearWizardError(name)}/></Field>;
+                   })}</div>
+                 </section>;
+               })}</div>
+               <small>تُحفظ حدود الوقود والغسيل والزيوت والبطاريات والفلاتر والقطع والمستهلكات منفصلة؛ لا تنشئ هذه الإعدادات رصيدًا ولا تبدأ عملية خدمة.</small>
+             </>}
+           </div>
+           <div className="fleet-create-option-block"><h3>قراءة العداد الأولية (اختيارية)</h3><p>تُسجل قراءة مؤرخة من مسار العداد المعتمد؛ لا تُحسب كفاءة الوقود دون أحداث تعبئة فعلية.</p><Field label="قراءة العداد بالكيلومتر" error={wizardErrors.initialReadingKm}><input data-testid="fleet-create-odometer-reading" type="number" name="initialReadingKm" min="0" step="0.001" value={initialReadingInput} onChange={event => { setInitialReadingInput(event.target.value); clearWizardError("initialReadingKm"); }}/></Field><Field label="وقت تسجيل القراءة" error={wizardErrors.initialRecordedAt}><input data-testid="fleet-create-odometer-time" type="datetime-local" name="initialRecordedAt" value={initialReadingTimeInput} onChange={event => { setInitialReadingTimeInput(event.target.value); clearWizardError("initialRecordedAt"); }}/></Field><div className="fleet-create-photo"><div><ImagePlus size={18}/><div><b>إثبات القراءة (اختياري)</b><small>صورة PNG أو JPEG تُحفظ عبر مسار المستند الخاص.</small></div></div><input data-testid="fleet-create-odometer-evidence" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setOdometerEvidencePhoto(file); }}/>{odometerEvidencePreview && <img src={odometerEvidencePreview} alt="معاينة صورة العداد قبل الرفع"/>}</div></div>
           <div className="fleet-create-option-block"><h3>صورة المركبة (اختيارية)</h3><p>تُرفع بعد إنشاء المركبة إلى التخزين الخاص.</p><div className="fleet-create-photo"><input data-testid="fleet-create-vehicle-photo" type="file" accept="image/png,image/jpeg" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !["image/png", "image/jpeg"].includes(file.type)) { setProblem("اختر صورة PNG أو JPEG فقط."); event.target.value = ""; return; } if (file && file.size > 10 * 1024 * 1024) { setProblem("حجم الصورة يتجاوز الحد المسموح 10 ميغابايت."); event.target.value = ""; return; } setProblem(""); setVehiclePhoto(file); }}/>{vehiclePhotoPreview && <img src={vehiclePhotoPreview} alt="معاينة صورة المركبة قبل الرفع"/>}</div></div>
         </section>}
-         {command === "vehicle.create" && formWizardStep === 3 && <section className="fleet-create-review"><h3>مراجعة قبل الحفظ</h3><p>سيُنشأ سجل المركبة مرة واحدة. السائق والربط والعداد والملفات خطوات مستقلة؛ يمكن متابعة السجل إذا تعذرت خطوة لاحقة.</p><dl><div><dt>اللوحة</dt><dd>{text(formDefaults.plateOriginal) === "—" ? "أدخلت في الخطوة الأولى" : text(formDefaults.plateOriginal)}</dd></div><div><dt>الشركة والفرع</dt><dd>{formOrganizationId ? "محددان من القوائم" : "لم يُحددا"}</dd></div><div><dt>السائق التشغيلي</dt><dd>{initialDriverMode === "none" ? "بدون سائق" : initialDriverMode === "new" ? "سجل سائق جديد" : "سائق موجود"}</dd></div><div><dt>رمز الربط</dt><dd>{initialDriverMode === "none" ? "لا يوجد" : "اختياري؛ يُرسل مرة واحدة عند الربط"}</dd></div><div><dt>طلب تعريف المركبة</dt><dd>{vehicleCredentialChoice === "nfc" ? `طلب NFC · ${egpFromMinor(nfcIssuePriceMinor)}` : vehicleCredentialChoice === "qr" ? "طلب QR" : "لا يوجد طلب إصدار"}</dd></div><div><dt>قراءة العداد</dt><dd>{initialReadingInput ? `${initialReadingInput} كم · ${initialReadingTimeInput || "يلزم اختيار الوقت"}` : "لم تُسجل"}</dd></div><div><dt>إثبات العداد</dt><dd>{odometerEvidencePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div><div><dt>صورة المركبة</dt><dd>{vehiclePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div></dl><small>سعر NFC المعروض هو سعر الإصدار من إعدادات الخادم؛ لا يُحصّل هذا النموذج مبلغًا ولا يثبت أو ينشّط بطاقة.</small></section>}
-        {(command === "policy.create" || command === "policy.update") && <fieldset className="fleet-policy-rules"><legend>حدود مجموعات الخدمة</legend><p>تبدأ كل مجموعة غير مفعّلة. لا يؤدي ترك حد فارغ إلى سماح مفتوح.</p><div className="fleet-policy-group-list">{policyGroups.map(group => {
+         {command === "vehicle.create" && formWizardStep === 3 && <section className="fleet-create-review"><h3>مراجعة قبل الحفظ</h3><p>سيُنشأ سجل المركبة مرة واحدة. السائق والربط والعداد والملفات خطوات مستقلة؛ يمكن متابعة السجل إذا تعذرت خطوة لاحقة.</p><dl><div><dt>اللوحة</dt><dd>{text(formDefaults.plateOriginal) === "—" ? "أدخلت في الخطوة الأولى" : text(formDefaults.plateOriginal)}</dd></div><div><dt>الشركة والفرع</dt><dd>{formOrganizationId ? "محددان من القوائم" : "لم يُحددا"}</dd></div><div><dt>السائق التشغيلي</dt><dd>{initialDriverMode === "none" ? "بدون سائق" : initialDriverMode === "new" ? "سجل سائق جديد" : "سائق موجود"}</dd></div><div><dt>رمز الربط</dt><dd>{initialDriverMode === "none" ? "لا يوجد" : "اختياري؛ يُرسل مرة واحدة عند الربط"}</dd></div><div><dt>طلب تعريف المركبة</dt><dd>{vehicleCredentialChoice === "nfc" ? `طلب NFC · ${egpFromMinor(nfcIssuePriceMinor)} · ${initialFulfillmentMethod === "install" ? "تركيب" : "استلام من الفرع"}` : vehicleCredentialChoice === "qr" ? "طلب QR" : "لا يوجد طلب إصدار"}</dd></div><div><dt>قراءة العداد</dt><dd>{initialReadingInput ? `${initialReadingInput} كم · ${initialReadingTimeInput || "يلزم اختيار الوقت"}` : "لم تُسجل"}</dd></div><div><dt>إثبات العداد</dt><dd>{odometerEvidencePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div><div><dt>صورة المركبة</dt><dd>{vehiclePhoto ? "صورة مرفقة" : "بدون صورة"}</dd></div><div><dt>سياسة الحدود</dt><dd>{initialPolicyEnabled && fleetOnboardingReady ? `سياسة مؤرخة · ${policyGroups.filter(group => initialPolicyRuleEnabled[group.id]).map(group => group.title).join("، ")}` : "لا توجد سياسة مضافة"}</dd></div></dl><small>سعر NFC المعروض هو سعر الإصدار من إعدادات الخادم؛ لا يُحصّل هذا النموذج مبلغًا ولا يثبت أو ينشّط بطاقة.</small></section>}
+        {(command === "policy.create" || command === "policy.update") && <fieldset className="fleet-policy-rules"><legend>حدود مجموعات الخدمة</legend><p>تبدأ كل مجموعة غير مفعّلة. لا يؤدي ترك حد فارغ إلى سماح مفتوح.</p><div className="fleet-policy-group-list">{policyGroupsForSchema.map(group => {
           const currentRules = Array.isArray(formDefaults.rules) ? formDefaults.rules.map(fields) : [];
           const currentRule = currentRules.find(rule => text(get(rule, "serviceGroup", "service_group")) === group.id) ?? {};
           return <section key={group.id}><label className="fleet-policy-toggle"><input data-testid={`fleet-policy-rule-${group.id}`} type="checkbox" name={`rule_${group.id}_enabled`} defaultChecked={get(currentRule, "enabled") === true}/><b>{group.title}</b><span>غير مفعّل حتى الاعتماد</span></label><div className="fleet-policy-limit-grid">{policyRuleLimits.map(([field, label]) => <Field key={field} label={label}><input type="number" min="0" step="any" name={`rule_${group.id}_${field}`} defaultValue={String(get(currentRule, field, field.replace(/[A-Z]/g, value => `_${value.toLowerCase()}`)) ?? "")} placeholder="٠"/></Field>)}</div></section>;

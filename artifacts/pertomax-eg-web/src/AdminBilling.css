@@ -246,3 +246,30 @@
   .ab-billing .ac-table td { font-size:13px; }
   .ab-billing .ab-tabs { gap:12px; }
 }
+
+/* Governed plan-version editor */
+.ab-billing .ab-version-editor{padding:18px;border:1px solid hsl(var(--border));background:hsl(43 30% 95%);box-shadow:inset 0 3px 0 hsl(var(--primary)/.7)}
+.ab-billing .ab-version-editor>.ab-field{padding:2px}
+.ab-billing .ab-version-editor>.ab-field input{min-height:46px}
+.ab-billing .ab-version-price{border-color:hsl(var(--primary)/.25);background:hsl(var(--primary)/.045)}
+.ab-billing .ab-price-input input{font-variant-numeric:tabular-nums}
+.ab-billing .ab-version-price .ab-field small{font-size:12px;line-height:1.7}
+.ab-billing .ab-version-editor>.ab-form-note{padding:12px 14px;border:1px solid hsl(38 35% 78%);background:hsl(41 43% 94%);color:hsl(34 30% 35%);font-size:12px}
+.ab-billing .ab-form-panel{scroll-margin-top:24px}
+.ab-billing .ab-form-head{padding-bottom:12px;border-bottom:1px solid hsl(var(--border))}
+.ab-billing .ab-config-item{background:hsl(43 28% 98%)}
+.ab-billing .ab-version-actions .ac-button{min-height:38px;padding-inline:12px;font-size:12px}
+.ab-billing .ab-version{padding:14px 0}
+.ab-billing .ab-version > div:first-child b{font-size:14px}
+.ab-billing .ab-version small,.ab-billing .ab-rights{font-size:12px}
+.ab-billing .ab-version .ab-rights b{font-size:12px}
+.ab-billing .ab-form-actions .ac-button{min-height:44px;padding-inline:16px}
+.ab-billing .ab-form-actions .ac-button:disabled{cursor:wait}
+.ab-billing .ab-field input:invalid:not(:placeholder-shown){border-color:hsl(var(--destructive)/.6)}
+@media(max-width:520px){
+  .ab-billing .ab-version-editor{padding:13px}
+  .ab-billing .ab-version-price{padding:13px}
+  .ab-billing .ab-version-price-copy{align-items:flex-start}
+  .ab-billing .ab-form-actions{display:grid;grid-template-columns:1fr}
+  .ab-billing .ab-form-actions .ac-button{width:100%}
+}
