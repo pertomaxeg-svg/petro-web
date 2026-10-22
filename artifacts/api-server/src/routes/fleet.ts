@@ -5,13 +5,18 @@ import {
   ApplyAdminFleetImportBody,
   CreateAdminFleetDocumentUploadIntentBody,
   ExecuteAdminFleetCommandBody,
+  GetAdminFleetCardsQueryParams,
+  GetAdminFleetCardsResponse,
   GetAdminFleetCompanySummariesQueryParams,
   GetAdminFleetCatalogQueryParams,
   SetAdminFleetConsumptionRateBody,
+  RevealAdminFleetDriverPairPinBody,
+  RevealAdminFleetDriverPairPinResponse,
   VerifyAdminFleetDriverPairBody,
 } from "@workspace/api-zod";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
+import { decryptFleetPairPin, encryptFleetPairPin } from "../lib/fleetPinCrypto";
 
 const router: IRouter = Router();
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -128,8 +133,8 @@ function validateCommandPayload(action: string, payload: JsonRecord): string | n
     if (!startsAt || !Number.isFinite(startTime) || startTime > Date.now()) {
       return "أدخل تاريخ بداية ربط صحيحًا لا يتجاوز الوقت الحالي.";
     }
-    if (safeString(payload.pinCode) && !/^\d{4}$/.test(String(payload.pinCode))) {
-      return "رمز PIN اختياري، لكن عند إدخاله يجب أن يتكون من أربعة أرقام.";
+    if (!/^\d{4}$/.test(String(payload.pinCode ?? ""))) {
+      return "يجب تعيين رمز سري من أربعة أرقام مع ربط السائق بالمركبة.";
     }
   }
   if (action === "driver.pin.rotate" && (!uuid("linkId") || !uuid("vehicleId") || !/^\d{4}$/.test(String(payload.pinCode ?? "")))) {
@@ -161,8 +166,11 @@ function hmacPayload(action: string, payload: JsonRecord): JsonRecord {
     const pinCode = String(result["pinCode"] ?? "");
     const vehicleId = String(result["vehicleId"] ?? "");
     delete result["pinCode"];
-    if (pinCode) result["pinHmac"] = pairPinDigest(vehicleId, pinCode);
-    else delete result["pinHmac"];
+    if (!/^\d{4}$/.test(pinCode)) throw new Error("FLEET_PIN_INVALID");
+    const encryptedPin = encryptFleetPairPin(vehicleId, pinCode);
+    result["pinHmac"] = pairPinDigest(vehicleId, pinCode);
+    result["pinCiphertext"] = encryptedPin.ciphertext;
+    result["pinKeyVersion"] = encryptedPin.keyVersion;
   }
   return result;
 }
@@ -269,6 +277,42 @@ router.get("/admin/fleet/subscription-options", async (req: Request, res: Respon
   });
   if (error) return mapError(res, error);
   res.json(data ?? {});
+});
+
+router.get("/admin/fleet/cards", async (req: Request, res: Response): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const parsed = GetAdminFleetCardsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    fail(res, 400, "معايير إدارة البطاقات غير صالحة.");
+    return;
+  }
+  const filters = {
+    organizationId: parsed.data.organizationId ?? null,
+    vehicleId: parsed.data.vehicleId ?? null,
+    status: parsed.data.status ?? null,
+    search: parsed.data.search ?? null,
+    page: parsed.data.page,
+    pageSize: parsed.data.pageSize,
+  };
+  const { data, error } = parsed.data.view === "history"
+    ? await callRpc(session, "petro_admin_fleet_card_history", { p_filters: filters })
+    : await callRpc(session, "petro_admin_fleet_cards_catalog", {
+        p_view: parsed.data.view,
+        p_filters: filters,
+      });
+  if (error) {
+    mapError(res, error);
+    return;
+  }
+  const response = GetAdminFleetCardsResponse.safeParse(data ?? {});
+  if (!response.success) {
+    req.log.error({ error: response.error.message }, "Fleet card query returned an invalid response");
+    fail(res, 502, "تعذر قراءة بيانات إدارة البطاقات.");
+    return;
+  }
+  res.json(response.data);
 });
 
 router.get("/admin/fleet/stock-options", async (req: Request, res: Response) => {
@@ -380,6 +424,59 @@ router.post("/admin/fleet/driver-pairs/verify", async (req: Request, res: Respon
   });
   if (error) return mapError(res, error);
   res.json(data ?? { valid: false, locked: false });
+});
+
+router.post("/admin/fleet/driver-pairs/reveal", async (req: Request, res: Response): Promise<void> => {
+  setNoStore(res);
+  const session = await requireSession(req, res);
+  if (!session) return;
+  const parsed = RevealAdminFleetDriverPairPinBody.safeParse(req.body);
+  if (!parsed.success) {
+    fail(res, 400, "أدخل سببًا واضحًا لعرض الرمز.");
+    return;
+  }
+  const { data, error } = await callRpc(session, "petro_admin_fleet_pair_pin_reveal", {
+    p_link_id: parsed.data.linkId,
+    p_reason: parsed.data.reason,
+  });
+  if (error) {
+    mapError(res, error);
+    return;
+  }
+  if (!isRecord(data)) {
+    fail(res, 502, "تعذر تأكيد حالة الرمز.");
+    return;
+  }
+  if (data["resetRequired"] === true) {
+    res.status(409).json({ message: "الرمز السابق لا يمكن استعادته؛ أنشئ رمزًا جديدًا لهذا الإسناد." });
+    return;
+  }
+  const version = Number(data["keyVersion"]);
+  const vehicleId = safeString(data["vehicleId"]);
+  const ciphertext = safeString(data["ciphertext"]);
+  if (!vehicleId || !ciphertext) {
+    fail(res, 502, "تعذر قراءة بيانات الرمز المشفر.");
+    return;
+  }
+  let pinCode: string;
+  try {
+    pinCode = decryptFleetPairPin(vehicleId, version, ciphertext);
+  } catch {
+    req.log.error({ keyVersion: version }, "Fleet PIN decryption failed");
+    fail(res, 503, "تعذر فتح الرمز؛ تحقق من إعداد مفتاح التشفير وإصداره.");
+    return;
+  }
+  const response = RevealAdminFleetDriverPairPinResponse.safeParse({
+    resetRequired: false,
+    pinCode,
+    expiresInSeconds: 20,
+  });
+  if (!response.success) {
+    req.log.error("Fleet PIN response validation failed");
+    fail(res, 502, "تعذر تأكيد عرض الرمز.");
+    return;
+  }
+  res.json(response.data);
 });
 
 router.post("/admin/fleet/documents/upload-intent", async (req: Request, res: Response) => {

@@ -209,6 +209,37 @@ export interface CatalogImageDownload {
 
 export interface AdminFleetCatalog { [key: string]: unknown }
 
+export type AdminFleetCardsView = typeof AdminFleetCardsView[keyof typeof AdminFleetCardsView];
+
+
+export const AdminFleetCardsView = {
+  overview: 'overview',
+  requests: 'requests',
+  issued: 'issued',
+  stock: 'stock',
+  history: 'history',
+} as const;
+
+export type AdminFleetCardsItemsItem = { [key: string]: unknown };
+
+export type AdminFleetCardsSummary = {[key: string]: number};
+
+export interface AdminFleetCards {
+  view: AdminFleetCardsView;
+  items: AdminFleetCardsItemsItem[];
+  summary?: AdminFleetCardsSummary;
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  [key: string]: unknown;
+ }
+
 export type AdminFleetCompanySummariesItemsItem = { [key: string]: unknown };
 
 export type AdminFleetCompanySummariesCompany = { [key: string]: unknown };
@@ -397,6 +428,26 @@ export interface AdminFleetVerifyPairRequest {
   vehicleId: string;
   /** @pattern ^[0-9]{4}$ */
   pinCode: string;
+}
+
+export interface AdminFleetDriverPairPinRevealInput {
+  linkId: string;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface AdminFleetDriverPairPinRevealResult {
+  /** @pattern ^[0-9]{4}$ */
+  pinCode?: string;
+  resetRequired: boolean;
+  /**
+     * @minimum 1
+     * @maximum 60
+     */
+  expiresInSeconds?: number;
 }
 
 export interface AdminFleetVerifyPairResult {
@@ -2910,6 +2961,41 @@ page?: number;
  */
 pageSize?: number;
 };
+
+export type GetAdminFleetCardsParams = {
+view: GetAdminFleetCardsView;
+organizationId?: string;
+vehicleId?: string;
+/**
+ * @maxLength 32
+ */
+status?: string;
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminFleetCardsView = typeof GetAdminFleetCardsView[keyof typeof GetAdminFleetCardsView];
+
+
+export const GetAdminFleetCardsView = {
+  overview: 'overview',
+  requests: 'requests',
+  issued: 'issued',
+  stock: 'stock',
+  history: 'history',
+} as const;
 
 export type AuthCallbackParams = {
 code?: string;

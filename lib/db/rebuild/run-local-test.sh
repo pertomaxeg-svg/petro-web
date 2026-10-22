@@ -378,6 +378,24 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/catalog-services-smoke-test.sql" >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/finance-core-smoke-test.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-before-0023.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0023_fleet_card_center_and_driver_pin_recovery.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0023.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0023.txt" "$tmp_dir/default-acl-after-0023.txt"; then
+  echo "0023 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0023.txt" "$tmp_dir/default-acl-after-0023.txt" >&2 || true
+  exit 1
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0024.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0024_fleet_card_history_onboarding_requests.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0024.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0024.txt" "$tmp_dir/default-acl-after-0024.txt"; then
+  echo "0024 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0024.txt" "$tmp_dir/default-acl-after-0024.txt" >&2 || true
+  exit 1
+fi
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 node "$script_dir/finance-concurrency-smoke-test.mjs"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
@@ -399,6 +417,75 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0012:-}" ]; then
       's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0012"
 fi
+
+# Keep the UI browser's saved QR lifecycle isolated from the following 0023
+# SQL fixture, whose issued-card assertion is scoped to its synthetic card.
+# This cleanup runs only against this disposable local cluster.
+psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
+BEGIN;
+DO $cleanup_ui_qr$
+DECLARE
+  request_row record;
+BEGIN
+  FOR request_row IN
+    SELECT request.id
+    FROM public.petro_fleet_credential_requests request
+    JOIN public.petro_fleet_vehicles vehicle ON vehicle.id=request.vehicle_id
+    WHERE vehicle.plate_standard='TEST-UI-VEHICLE-01'
+      AND request.credential_type='qr'
+      AND request.request_type='issue'
+      AND request.reason='طلب QR اختباري معزول'
+  LOOP
+    DELETE FROM public.petro_vehicle_credentials
+      WHERE request_id=request_row.id AND credential_type='qr';
+    DELETE FROM public.petro_fleet_credential_requests
+      WHERE id=request_row.id;
+  END LOOP;
+END
+$cleanup_ui_qr$;
+COMMIT;
+SQL
+
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/fleet-cards-0023-smoke-test.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/rollback-0023-fleet-cards-and-pin.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0023-rollback.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0023.txt" "$tmp_dir/default-acl-after-0023-rollback.txt"; then
+  echo "0023 rollback unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0023.txt" "$tmp_dir/default-acl-after-0023-rollback.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
+DO $fleet_0023_rollback$
+BEGIN
+  IF to_regprocedure('public.petro_admin_fleet_command(text,jsonb,text,text)') IS NULL
+     OR to_regprocedure('public.petro_admin_fleet_command_legacy_0014(text,jsonb,text,text)') IS NOT NULL
+     OR to_regprocedure('public.petro_admin_fleet_cards_catalog(text,jsonb)') IS NOT NULL
+     OR to_regprocedure('public.petro_admin_fleet_pair_pin_reveal(uuid,text)') IS NOT NULL
+     OR NOT has_function_privilege('authenticated','public.petro_admin_fleet_command(text,jsonb,text,text)','EXECUTE')
+     OR has_function_privilege('anon','public.petro_admin_fleet_command(text,jsonb,text,text)','EXECUTE')
+     OR NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema='petro_private'
+         AND table_name='petro_fleet_driver_pair_secrets'
+         AND column_name='pin_ciphertext'
+     ) THEN
+    RAISE EXCEPTION '0023 rollback did not restore the old RPC safely or discarded retained data';
+  END IF;
+END
+$fleet_0023_rollback$;
+SQL
+echo "PASS: 0023 card catalog/PIN recovery smoke test and rollback (local PostgreSQL)"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/rollback-0024-fleet-card-history.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0024-rollback.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0024.txt" "$tmp_dir/default-acl-after-0024-rollback.txt"; then
+  echo "0024 rollback unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0024.txt" "$tmp_dir/default-acl-after-0024-rollback.txt" >&2 || true
+  exit 1
+fi
+echo "PASS: 0024 fleet card onboarding history and rollback (local PostgreSQL)"
 
 echo "Fresh baseline matched: 11 tables, 57 constraints, 22 indexes, 23 functions, 12 RLS policies, 11 RLS-enabled tables."
 echo "DB-01 baseline RLS checks passed; 0004 was applied once to the disposable baseline and DB-02 invitation checks passed."

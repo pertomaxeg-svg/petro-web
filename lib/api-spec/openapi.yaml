@@ -256,6 +256,44 @@ paths:
               schema: { $ref: "#/components/schemas/AdminFleetStockReservations" }
         "401": { description: Authentication required }
         "403": { description: Fleet management permission required }
+  /admin/fleet/cards:
+    get:
+      operationId: getAdminFleetCards
+      tags: [fleet]
+      summary: Read paginated central card requests, issued credentials, stock, and history
+      parameters:
+        - name: view
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [overview, requests, issued, stock, history]
+        - name: organizationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: vehicleId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string, maxLength: 32 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 160 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Authorized card data with actual database counts and paginated records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetCards" }
+        "401": { description: Authentication required }
+        "403": { description: Fleet management permission required }
   /admin/fleet/commands:
     post:
       operationId: executeAdminFleetCommand
@@ -294,6 +332,26 @@ paths:
               schema: { $ref: "#/components/schemas/AdminFleetVerifyPairResult" }
         "401": { description: Authentication required }
         "403": { description: Fleet permission or rate limit denied }
+  /admin/fleet/driver-pairs/reveal:
+    post:
+      operationId: revealAdminFleetDriverPairPin
+      tags: [fleet]
+      summary: Reveal an active driver-pair code to an authorized fleet administrator with a mandatory audit reason
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminFleetDriverPairPinRevealInput" }
+      responses:
+        "200":
+          description: Plain code returned once to the authorized session; never stored in logs or audit details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminFleetDriverPairPinRevealResult" }
+        "400": { description: Invalid link or missing reason }
+        "401": { description: Authentication required }
+        "403": { description: Fleet management permission required }
+        "404": { description: Active link or encrypted code not available }
   /admin/fleet/documents/upload-intent:
     post:
       operationId: createAdminFleetDocumentUploadIntent
@@ -2686,6 +2744,23 @@ components:
     AdminFleetCatalog:
       type: object
       additionalProperties: true
+    AdminFleetCards:
+      type: object
+      additionalProperties: true
+      required: [view, items, total, page, pageSize]
+      properties:
+        view:
+          type: string
+          enum: [overview, requests, issued, stock, history]
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        summary:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
     AdminFleetCompanySummaries:
       type: object
       additionalProperties: true
@@ -2813,6 +2888,21 @@ components:
         vehicleId: { type: string, format: uuid }
         pinCode: { type: string, pattern: "^[0-9]{4}$" }
       required: [linkId, vehicleId, pinCode]
+    AdminFleetDriverPairPinRevealInput:
+      type: object
+      additionalProperties: false
+      properties:
+        linkId: { type: string, format: uuid }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+      required: [linkId, reason]
+    AdminFleetDriverPairPinRevealResult:
+      type: object
+      additionalProperties: false
+      properties:
+        pinCode: { type: string, pattern: "^[0-9]{4}$" }
+        resetRequired: { type: boolean }
+        expiresInSeconds: { type: integer, minimum: 1, maximum: 60 }
+      required: [resetRequired]
     AdminFleetVerifyPairResult:
       type: object
       additionalProperties: true

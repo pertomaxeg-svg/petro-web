@@ -299,6 +299,50 @@ export const GetAdminFleetStockReservationsResponse = zod.object({
 
 
 /**
+ * @summary Read paginated central card requests, issued credentials, stock, and history
+ */
+export const getAdminFleetCardsQueryStatusMax = 32;
+
+export const getAdminFleetCardsQuerySearchMax = 160;
+
+export const getAdminFleetCardsQueryPageDefault = 1;
+export const getAdminFleetCardsQueryPageMax = 100000;
+
+export const getAdminFleetCardsQueryPageSizeDefault = 20;
+export const getAdminFleetCardsQueryPageSizeMax = 100;
+
+
+
+export const GetAdminFleetCardsQueryParams = zod.object({
+  "view": zod.enum(['overview', 'requests', 'issued', 'stock', 'history']),
+  "organizationId": zod.coerce.string().uuid().optional(),
+  "vehicleId": zod.coerce.string().uuid().optional(),
+  "status": zod.coerce.string().max(getAdminFleetCardsQueryStatusMax).optional(),
+  "search": zod.coerce.string().max(getAdminFleetCardsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getAdminFleetCardsQueryPageMax).default(getAdminFleetCardsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getAdminFleetCardsQueryPageSizeMax).default(getAdminFleetCardsQueryPageSizeDefault)
+})
+
+export const getAdminFleetCardsResponseSummaryMinOne = 0;
+
+export const getAdminFleetCardsResponseTotalMin = 0;
+
+
+export const getAdminFleetCardsResponsePageSizeMax = 100;
+
+
+
+export const GetAdminFleetCardsResponse = zod.object({
+  "view": zod.enum(['overview', 'requests', 'issued', 'stock', 'history']),
+  "items": zod.array(zod.record(zod.string(), zod.unknown())),
+  "summary": zod.record(zod.string(), zod.number().int().min(getAdminFleetCardsResponseSummaryMinOne)).optional(),
+  "total": zod.number().int().min(getAdminFleetCardsResponseTotalMin),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(getAdminFleetCardsResponsePageSizeMax)
+})
+
+
+/**
  * @summary Run an audited, idempotent central fleet command
  */
 export const executeAdminFleetCommandBodyReasonMin = 3;
@@ -336,6 +380,31 @@ export const VerifyAdminFleetDriverPairResponse = zod.object({
   "locked": zod.boolean(),
   "retryAt": zod.coerce.date().nullish(),
   "verificationId": zod.string().uuid().optional()
+})
+
+
+/**
+ * @summary Reveal an active driver-pair code to an authorized fleet administrator with a mandatory audit reason
+ */
+export const revealAdminFleetDriverPairPinBodyReasonMin = 3;
+export const revealAdminFleetDriverPairPinBodyReasonMax = 500;
+
+
+
+export const RevealAdminFleetDriverPairPinBody = zod.object({
+  "linkId": zod.string().uuid(),
+  "reason": zod.string().min(revealAdminFleetDriverPairPinBodyReasonMin).max(revealAdminFleetDriverPairPinBodyReasonMax)
+})
+
+export const revealAdminFleetDriverPairPinResponsePinCodeRegExp = new RegExp('^[0-9]{4}$');
+export const revealAdminFleetDriverPairPinResponseExpiresInSecondsMax = 60;
+
+
+
+export const RevealAdminFleetDriverPairPinResponse = zod.object({
+  "pinCode": zod.string().regex(revealAdminFleetDriverPairPinResponsePinCodeRegExp).optional(),
+  "resetRequired": zod.boolean(),
+  "expiresInSeconds": zod.number().int().min(1).max(revealAdminFleetDriverPairPinResponseExpiresInSecondsMax).optional()
 })
 
 

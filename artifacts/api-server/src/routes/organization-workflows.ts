@@ -692,12 +692,25 @@ router.put(
       .eq("id", documentId).maybeSingle();
     if (docError || !doc) { if (docError) mapWorkflowError(res, docError); else fail(res, 404, "لم يتم العثور على طلب رفع الملف."); return; }
     const bytes = req.body as Buffer;
-    if (doc.uploader_id !== session.userId || doc.status !== "pending_upload"
-      || new Date(doc.upload_expires_at).getTime() <= Date.now()
-      || bytes.length !== doc.byte_size || bytes.length > 10 * 1024 * 1024
-      || !fileSignatureMatches(doc.content_type, bytes)) {
+    if (doc.uploader_id !== session.userId) {
+      fail(res, 403, "لا تملك صلاحية رفع هذا الملف.");
+      return;
+    }
+    if (doc.status !== "pending_upload" || new Date(doc.upload_expires_at).getTime() <= Date.now()) {
       await session.supabase.rpc("petro_fail_document_upload", { p_document_id: documentId });
-      fail(res, 400, "لم يجتز الملف فحص النوع والحجم وبنية المحتوى.");
+      fail(res, 409, "انتهت صلاحية طلب رفع الملف أو استُخدم سابقًا. أنشئ طلب رفع جديدًا.");
+      return;
+    }
+    const declaredByteSize = Number(doc.byte_size);
+    if (!Number.isSafeInteger(declaredByteSize) || declaredByteSize !== bytes.length
+      || declaredByteSize > 10 * 1024 * 1024) {
+      await session.supabase.rpc("petro_fail_document_upload", { p_document_id: documentId });
+      fail(res, 400, "حجم الملف لا يطابق طلب الرفع أو يتجاوز الحد المسموح.");
+      return;
+    }
+    if (!fileSignatureMatches(doc.content_type, bytes)) {
+      await session.supabase.rpc("petro_fail_document_upload", { p_document_id: documentId });
+      fail(res, 400, "محتوى الملف لا يطابق صيغة الصورة المختارة.");
       return;
     }
     const checksum = createHash("sha256").update(bytes).digest("hex");

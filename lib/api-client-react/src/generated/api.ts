@@ -30,6 +30,7 @@ import type {
   AdminFinancePage,
   AdminFinanceResult,
   AdminFinanceSummary,
+  AdminFleetCards,
   AdminFleetCatalog,
   AdminFleetCommandRequest,
   AdminFleetCommandResult,
@@ -38,6 +39,8 @@ import type {
   AdminFleetDocumentUploadIntent,
   AdminFleetDocumentUploadIntentRequest,
   AdminFleetDriverDetail,
+  AdminFleetDriverPairPinRevealInput,
+  AdminFleetDriverPairPinRevealResult,
   AdminFleetImportApplyRequest,
   AdminFleetReferenceOptions,
   AdminFleetStockReservations,
@@ -101,6 +104,7 @@ import type {
   FleetConsumptionRateInput,
   FuelPreviewRequest,
   FuelPreviewResult,
+  GetAdminFleetCardsParams,
   GetAdminFleetCatalogParams,
   GetAdminFleetCompanySummariesParams,
   GetAdminFleetConsumptionRatesParams,
@@ -331,10 +335,10 @@ export function useSupabaseHealthCheck<TData = Awaited<ReturnType<typeof supabas
 
   const queryOptions = getSupabaseHealthCheckQueryOptions(options)
 
-   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
-   return withQueryKey(query, queryOptions.queryKey);
- }
+  return withQueryKey(query, queryOptions.queryKey);
+}
 export const getGetAdminFleetCatalogUrl = (params: GetAdminFleetCatalogParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -1004,6 +1008,90 @@ export function useGetAdminFleetStockReservations<TData = Awaited<ReturnType<typ
 
 
 
+export const getGetAdminFleetCardsUrl = (params: GetAdminFleetCardsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/fleet/cards?${stringifiedParams}` : `/api/admin/fleet/cards`
+}
+
+/**
+ * @summary Read paginated central card requests, issued credentials, stock, and history
+ */
+export const getAdminFleetCards = async (params: GetAdminFleetCardsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetCards> => {
+
+  return customFetch<AdminFleetCards>(getGetAdminFleetCardsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFleetCardsQueryKey = (params?: GetAdminFleetCardsParams,) => {
+    return [
+    `/api/admin/fleet/cards`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminFleetCardsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFleetCards>>, TError = ErrorType<void>>(params: GetAdminFleetCardsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFleetCardsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFleetCards>>> = ({ signal }) => getAdminFleetCards(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFleetCardsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFleetCards>>>
+export type GetAdminFleetCardsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read paginated central card requests, issued credentials, stock, and history
+ */
+
+export function useGetAdminFleetCards<TData = Awaited<ReturnType<typeof getAdminFleetCards>>, TError = ErrorType<void>>(
+ params: GetAdminFleetCardsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFleetCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFleetCardsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getExecuteAdminFleetCommandUrl = () => {
 
 
@@ -1178,6 +1266,94 @@ export const useVerifyAdminFleetDriverPair = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getVerifyAdminFleetDriverPairMutationOptions(options));
+    }
+
+export const getRevealAdminFleetDriverPairPinUrl = () => {
+
+
+
+
+  return `/api/admin/fleet/driver-pairs/reveal`
+}
+
+/**
+ * @summary Reveal an active driver-pair code to an authorized fleet administrator with a mandatory audit reason
+ */
+export const revealAdminFleetDriverPairPin = async (adminFleetDriverPairPinRevealInput: AdminFleetDriverPairPinRevealInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminFleetDriverPairPinRevealResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminFleetDriverPairPinRevealResult>(getRevealAdminFleetDriverPairPinUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminFleetDriverPairPinRevealInput)
+  }
+);}
+
+
+
+
+
+export const getRevealAdminFleetDriverPairPinMutationKey = () => ['revealAdminFleetDriverPairPin'] as const;
+
+export const getRevealAdminFleetDriverPairPinMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revealAdminFleetDriverPairPin>>, TError,RevealAdminFleetDriverPairPinMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revealAdminFleetDriverPairPin>>, TError,RevealAdminFleetDriverPairPinMutationVariables, TContext> => {
+
+const mutationKey = getRevealAdminFleetDriverPairPinMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revealAdminFleetDriverPairPin>>, RevealAdminFleetDriverPairPinMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  revealAdminFleetDriverPairPin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevealAdminFleetDriverPairPinMutationResult = NonNullable<Awaited<ReturnType<typeof revealAdminFleetDriverPairPin>>>
+    export type RevealAdminFleetDriverPairPinMutationBody = BodyType<AdminFleetDriverPairPinRevealInput>
+    export type RevealAdminFleetDriverPairPinMutationError = ErrorType<void>
+    export type RevealAdminFleetDriverPairPinMutationVariables = {data: BodyType<AdminFleetDriverPairPinRevealInput>}
+
+    /**
+ * @summary Reveal an active driver-pair code to an authorized fleet administrator with a mandatory audit reason
+ */
+export const useRevealAdminFleetDriverPairPin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revealAdminFleetDriverPairPin>>, TError,RevealAdminFleetDriverPairPinMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revealAdminFleetDriverPairPin>>,
+        TError,
+        RevealAdminFleetDriverPairPinMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevealAdminFleetDriverPairPinMutationOptions(options));
     }
 
 export const getCreateAdminFleetDocumentUploadIntentUrl = () => {
