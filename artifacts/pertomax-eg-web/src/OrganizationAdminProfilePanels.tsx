@@ -16,6 +16,7 @@ import {
   useListAdminFinanceTransfers,
   useListAdminOrganizationMemberships,
 } from "@workspace/api-client-react";
+import { FleetCardRequestsPanel } from "./FleetCardRequestsPanel";
 
 type Row = Record<string, unknown>;
 type OrgKind = "company" | "station" | "provider";
@@ -238,7 +239,7 @@ export function OrganizationMembersPanel({ organizationId }: { organizationId: s
 }
 
 export function OrganizationFleetPanel({ organizationId }: { organizationId: string }) {
-  const [section, setSection] = useState<"vehicles" | "drivers" | "credentials">("vehicles");
+  const [section, setSection] = useState<"vehicles" | "drivers" | "credentials" | "requests">("vehicles");
   const [page, setPage] = useState(1);
   const vehicleParams = { view: "vehicles" as const, organizationId, page, pageSize: 10, sort: "plate" as const };
   const driverParams = { view: "drivers" as const, organizationId, page, pageSize: 10, sort: "name" as const };
@@ -257,17 +258,19 @@ export function OrganizationFleetPanel({ organizationId }: { organizationId: str
     text(branch["name"], "اسم الفرع غير متاح"),
   ]));
   const totalPages = Math.max(1, num(record(activeQuery.data)["totalPages"]) ?? 1);
-  return <section className="co-profile-panel">
+  return <section className="co-profile-panel" data-testid="organization-fleet-panel">
     <SectionHeading title="أسطول الشركة" description="بيانات المركبات والسائقين والبطاقات المربوطة بهذه الشركة فقط." />
     <SectionTabs value={section} options={[
       { value: "vehicles", label: "المركبات" },
       { value: "drivers", label: "السائقون" },
       { value: "credentials", label: "البطاقات" },
+      { value: "requests", label: "طلبات التعريف" },
     ]} onChange={(value) => { setPage(1); setSection(value); }} />
-    <QueryState loading={activeQuery.isLoading} failed={activeQuery.isError} empty={!activeQuery.isLoading && !activeQuery.isError && rows.length === 0}>
+    {section === "requests" && <FleetCardRequestsPanel organizationId={organizationId} />}
+    {section !== "requests" && <QueryState loading={activeQuery.isLoading} failed={activeQuery.isError} empty={!activeQuery.isLoading && !activeQuery.isError && rows.length === 0}>
       {section === "vehicles" ? "لا توجد مركبات مسجلة لهذه الشركة." : section === "drivers" ? "لا يوجد سائقون مسجلون لهذه الشركة." : "لا توجد بطاقات مرتبطة بهذه الشركة."}
-    </QueryState>
-    {!activeQuery.isLoading && !activeQuery.isError && rows.length > 0 && <div className="co-data-table-wrap"><table className="co-profile-table">
+    </QueryState>}
+    {section !== "requests" && !activeQuery.isLoading && !activeQuery.isError && rows.length > 0 && <div className="co-data-table-wrap"><table className="co-profile-table">
       <thead>{section === "vehicles"
         ? <tr><th>المركبة</th><th>الفرع</th><th>الحالة</th><th>التغطية</th><th>التفاصيل</th></tr>
         : section === "drivers"
@@ -295,7 +298,7 @@ export function OrganizationFleetPanel({ organizationId }: { organizationId: str
       })}</tbody>
     </table></div>}
     {section === "vehicles" && branchSummary.isError && <p className="co-inline-note" role="status">تعذر تحميل أسماء الفروع المرتبطة؛ بيانات المركبات ما زالت مقيدة بالشركة.</p>}
-    <Pager page={page} totalPages={totalPages} onPage={setPage} />
+    {section !== "requests" && <Pager page={page} totalPages={totalPages} onPage={setPage} />}
   </section>;
 }
 

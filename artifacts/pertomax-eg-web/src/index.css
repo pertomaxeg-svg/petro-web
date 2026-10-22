@@ -1347,6 +1347,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .co-profile-callout small { color:hsl(var(--muted-foreground)); font-size:13px; }
 .co-profile-panel { margin-top:16px; }
 .co-profile-panel>.co-profile-section-title { align-items:center; }
+.fleet-card-requests .co-profile-section-title p { max-width:760px; }
+.fleet-card-requests-state { display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:52px; margin:0; padding:14px 16px; border:1px dashed hsl(var(--border)); border-radius:9px; color:hsl(208 29% 25%); background:hsl(42 35% 98%); }
+.fleet-card-requests-state.is-error { border-style:solid; border-color:hsl(var(--destructive)/.35); color:hsl(var(--destructive)); background:hsl(var(--destructive)/.04); }
+.fleet-card-requests-table { min-width:900px; }
+.fleet-card-request-links { display:flex; flex-wrap:wrap; gap:10px; white-space:nowrap; }
+.fleet-card-request-links a { color:hsl(var(--primary)); font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.fleet-card-requests-pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:14px; color:hsl(var(--muted-foreground)); font-size:13px; }
+@media(max-width:640px) {
+  .fleet-card-requests .co-profile-section-title { align-items:flex-start; flex-direction:column; }
+  .fleet-card-requests-state { align-items:flex-start; flex-direction:column; }
+}
 .co-result-count { flex:0 0 auto; padding:5px 10px; border-radius:99px; background:hsl(42 35% 96%); color:hsl(var(--muted-foreground)); font-size:13px; }
 .co-subtabs,.ow-record-tabs { display:flex; gap:5px; margin:0 0 14px; padding:4px; border-bottom:1px solid hsl(var(--border)); overflow-x:auto; }
 .co-subtabs button,.ow-record-tabs button { min-height:39px; padding-inline:13px; }
