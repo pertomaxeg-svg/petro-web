@@ -253,6 +253,21 @@ BEGIN
      OR cards_result::text ILIKE '%token_sha256%' THEN
     RAISE EXCEPTION 'issued card list did not return only safe metadata: %',cards_result;
   END IF;
+  UPDATE public.petro_vehicle_credentials c SET status='revoked',revoked_at=now()
+    WHERE c.vehicle_id=fleet_cards_0023.vehicle_id;
+  cards_result := public.petro_admin_fleet_cards_catalog('issued',jsonb_build_object(
+    'vehicleId',vehicle_id,'status','inactive','page',1,'pageSize',10
+  ));
+  IF (cards_result->>'total')::integer<>1
+     OR cards_result->'items'->0->>'status'<>'revoked' THEN
+    RAISE EXCEPTION 'inactive card category must include revoked issued cards: %',cards_result;
+  END IF;
+  cards_result := public.petro_admin_fleet_cards_catalog('issued',jsonb_build_object(
+    'vehicleId',vehicle_id,'status','active','page',1,'pageSize',10
+  ));
+  IF (cards_result->>'total')::integer<>0 THEN
+    RAISE EXCEPTION 'active category must exclude revoked cards';
+  END IF;
   cards_result := public.petro_admin_fleet_cards_catalog('stock','{}'::jsonb);
   IF (cards_result->>'total')::integer<>1 THEN
     RAISE EXCEPTION 'stock list omitted real local stock fixture: %',cards_result;

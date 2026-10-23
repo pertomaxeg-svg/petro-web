@@ -75,7 +75,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Start isolated real Supabase services
         run: |
-          pnpm dlx supabase@2.58.5 start --workdir ci/auth-storage --exclude studio,postgres-meta,realtime,imgproxy,edge-runtime,logflare,vector,supavisor
+          pnpm dlx supabase@2.58.5 start --workdir ci/auth-storage --exclude studio,postgres-meta,realtime,imgproxy,edge-runtime,logflare,vector,supavisor > "$RUNNER_TEMP/pertomax-supabase-start.log" 2>&1 || { tail -60 "$RUNNER_TEMP/pertomax-supabase-start.log" | sed -E '/[Kk]ey:|Database URL:/d'; exit 1; }
           pnpm dlx supabase@2.58.5 status --workdir ci/auth-storage --output json > "$RUNNER_TEMP/pertomax-local-status.json"
       - name: Exercise actual Auth, project RPC and Storage
         env:
