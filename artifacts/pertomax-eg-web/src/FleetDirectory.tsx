@@ -18,6 +18,8 @@ import type {
   GetAdminFleetConsumptionRatesParams,
 } from "@workspace/api-client-react";
 import { FleetReferencePicker } from "./FleetReferencePicker";
+import { PrivateFleetImage } from "./PrivateFleetImage";
+import { formatFleetField } from "./fleetDisplay";
 
 type Row = Record<string, unknown>;
 const row = (value: unknown): Row => value && typeof value === "object" && !Array.isArray(value) ? value as Row : {};
@@ -187,9 +189,9 @@ export function FleetDirectory({ canMutate, branchOnly = false }: { canMutate: b
         <label className="fleet-inline-filter">الترتيب<select data-testid="fleet-branch-sort" value={vehicleSort} onChange={event => setVehicleSort(event.target.value as "plate" | "updatedAt")}><option value="plate">رقم اللوحة</option><option value="updatedAt">آخر تحديث</option></select></label>
         <span>{formatCount(total)} <small>مركبة</small></span>
       </div>
-      {items.length ? <div className="fleet-table-scroll"><table><thead><tr>{companyVehiclesMatch && <th>الفرع</th>}<th>اللوحة</th><th>الفئة والنوع</th><th>الماركة والطراز</th><th>سنة الصنع</th><th>الوقود</th><th>الحالة</th><th>الملف</th></tr></thead><tbody>{items.map((item, index) => {
+      {items.length ? <div className="fleet-table-scroll"><table className="fleet-record-table"><thead><tr><th>الصورة</th>{companyVehiclesMatch && <th>الفرع</th>}<th>اللوحة</th><th>الفئة والنوع</th><th>الماركة والطراز</th><th>سنة الصنع</th><th>الوقود</th><th>الحالة</th><th>الملف</th></tr></thead><tbody>{items.map((item, index) => {
         const id = String(item.id ?? "");
-        return <tr key={id} data-testid={`fleet-branch-vehicle-${index + 1}`}>{companyVehiclesMatch && <td>{display(item.branchName)}</td>}<td><bdi dir="ltr">{display(item.plateOriginal ?? item.plateStandard)}</bdi></td><td>{[display(item.category), display(item.vehicleType)].filter(x => x !== "—").join(" · ") || "—"}</td><td>{[display(item.brand), display(item.model)].filter(x => x !== "—").join(" · ") || "—"}</td><td>{display(item.modelYear)}</td><td>{display(item.fuelType)}</td><td><span className={`fleet-status status-${String(item.status ?? "")}`}>{statusLabel(item.status)}</span></td><td><Link className="fleet-row-action" href={`/admin/fleet/vehicles/${encodeURIComponent(id)}`} data-testid={`fleet-branch-vehicle-open-${index + 1}`}>ملف المركبة</Link></td></tr>;
+        return <tr key={id} data-testid={`fleet-branch-vehicle-${index + 1}`}><td data-label="الصورة">{typeof item.photoDocumentId === "string" ? <PrivateFleetImage compact documentId={item.photoDocumentId} label={`صورة المركبة ${display(item.plateOriginal)}`}/> : <span className="fleet-muted">لا توجد صورة محفوظة</span>}</td>{companyVehiclesMatch && <td data-label="الفرع">{display(item.branchName)}</td>}<td data-label="اللوحة"><bdi dir="ltr">{display(item.plateOriginal ?? item.plateStandard)}</bdi></td><td data-label="الفئة والنوع">{[display(item.category), display(item.vehicleType)].filter(x => x !== "—").join(" · ") || "—"}</td><td data-label="الماركة والطراز">{[display(item.brand), display(item.model)].filter(x => x !== "—").join(" · ") || "—"}</td><td data-label="سنة الصنع">{display(item.modelYear)}</td><td data-label="الوقود">{formatFleetField("fuelType", item.fuelType)}</td><td data-label="الحالة"><span className={`fleet-status status-${String(item.status ?? "")}`}>{statusLabel(item.status)}</span></td><td data-label="الملف"><Link className="fleet-row-action" href={`/admin/fleet/vehicles/${encodeURIComponent(id)}`} data-testid={`fleet-branch-vehicle-open-${index + 1}`}>ملف المركبة</Link></td></tr>;
       })}</tbody></table></div> : <EmptyState title="لا توجد مركبات للعرض" detail={companyVehiclesMatch ? "لا توجد مركبات مسجلة لهذه الشركة وفق البحث الحالي." : "لا توجد نتائج في هذا الفرع وفق مرشحات البحث الحالية."}/>}
       {total !== null && total > pageSize && <Pagination page={page} pages={totalPages} onPage={setPage} label="مركبات"/>}
     </section>}
@@ -210,7 +212,6 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
   const cache = useQueryClient();
   const [scopeBranchId, setScopeBranchId] = useState(fixedBranchId ?? "");
   const [liters, setLiters] = useState("");
-  const [reason, setReason] = useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState("");
   const params = useMemo<GetAdminFleetConsumptionRatesParams>(() => ({ organizationId, ...(scopeBranchId ? { branchId: scopeBranchId } : {}) }), [organizationId, scopeBranchId]);
@@ -225,22 +226,21 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
     setFormError("");
     setSuccess("");
     const rate = Number(liters);
-    if (!Number.isFinite(rate) || rate <= 0 || reason.trim().length < 3) {
-      setFormError("أدخل معدلًا أكبر من صفر وسببًا موثقًا من ٣ أحرف على الأقل.");
+    if (!Number.isFinite(rate) || rate <= 0) {
+      setFormError("أدخل معدل استهلاك أكبر من صفر.");
       return;
     }
     const payload: FleetConsumptionRateInput = {
       organizationId,
       branchId: scopeBranchId || null,
       litersPer100Km: rate,
-      reason: reason.trim(),
+      reason: "تسجيل آلي: تحديث معدل استهلاك الوقود المتوقع",
       idempotencyKey: crypto.randomUUID(),
     };
     try {
       await save.mutateAsync({ data: payload });
       setSuccess("أُضيف إصدار جديد للمعدل؛ تبقى الإصدارات السابقة محفوظة.");
       setLiters("");
-      setReason("تسجيل آلي: إجراء إداري من لوحة التحكم");
       await cache.invalidateQueries({ queryKey: getGetAdminFleetConsumptionRatesQueryKey(params) });
     } catch (error) {
       setFormError(errorText(error));

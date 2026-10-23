@@ -340,3 +340,18 @@
 .fleet-verify>summary{display:flex;align-items:center;gap:8px;color:#315a50;font-size:14px;font-weight:700;cursor:pointer;min-height:36px}
 .fleet-verify>summary:focus-visible{outline:3px solid #23695e;outline-offset:3px}
 .fleet-verify[open]>summary{margin-bottom:16px}
+
+/* Shared private previews in paginated vehicle and driver directories. */
+.fleet-private-image.is-compact{width:148px;max-width:100%;padding:5px}
+.fleet-private-image.is-compact img{height:88px}
+.fleet-private-image.is-compact .fleet-private-image-empty{min-height:88px;font-size:12px}
+.fleet-private-image.is-compact figcaption{display:block;font-size:11px;white-space:normal}
+.fleet-private-image.is-compact figcaption button{display:block;font-size:11px;min-height:32px}
+.fleet-assigned-vehicles{display:grid;gap:12px}
+.fleet-assigned-vehicles article{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.fleet-assigned-vehicles article>div{display:grid;gap:4px}
+.fleet-assigned-vehicles small{color:#52685d}
+dialog.fleet-image-lightbox{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;color:white}
+dialog.fleet-image-lightbox::backdrop{background:rgba(16,24,20,.92)}
+.fleet-private-image.is-compact .fleet-image-lightbox img{width:auto;height:auto;max-height:88vh}
+@media(max-width:767px){.fleet-record-table td:has(.fleet-private-image),.fleet-record-table td:has(.fleet-assigned-vehicles){grid-template-columns:minmax(0,1fr)}}

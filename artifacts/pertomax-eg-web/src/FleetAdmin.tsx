@@ -17,6 +17,7 @@ import {
 import type { GetAdminFleetCatalogParams, GetAdminFleetCompanySummariesParams } from "@workspace/api-client-react";
 import { FleetReferencePicker } from "./FleetReferencePicker";
 import { FleetDirectory, FleetFuelRate } from "./FleetDirectory";
+import { PrivateFleetImage } from "./PrivateFleetImage";
 import { FleetCardsAdmin } from "./FleetCardsAdmin";
 import { FleetCardRequestsPanel } from "./FleetCardRequestsPanel";
 import { formatFleetDate, formatFleetField } from "./fleetDisplay";
@@ -161,6 +162,7 @@ const labels: Record<string, string> = {
   fuelType: "فئة الوقود", status: "الحالة", coverage: "التغطية", eligibility: "الأهلية", activeCredentials: "الرموز النشطة",
   version: "نسخة السجل", expectedVersion: "نسخة السجل الحالية", organizationId: "الشركة", branchId: "الفرع",
   isCovered: "تغطية سارية", activeCredentialCount: "الرموز النشطة", activeLinkCount: "الروابط النشطة",
+  photoDocumentId: "صورة المركبة",
   driverCode: "كود السائق", fullName: "اسم السائق", phone: "الهاتف", vehicleId: "المركبة", driverId: "السائق",
   startsAt: "يبدأ في", endsAt: "ينتهي في", effectiveFrom: "ساري من", effectiveTo: "ساري حتى",
   updatedAt: "آخر تحديث", at: "وقت الحدث", reason: "سبب الإجراء", reviewReason: "سبب المراجعة",
@@ -191,7 +193,7 @@ const labels: Record<string, string> = {
   maintenanceType: "نوع الصيانة", dueAt: "موعد الاستحقاق", dueOdometer: "العداد عند الاستحقاق",
   jobId: "رقم المهمة", rowCount: "عدد الصفوف", issueCount: "عدد الملاحظات", createdAt: "أُنشئ في",
   branchCount: "عدد الفروع", vehicleCount: "عدد المركبات", totalVehicles: "إجمالي المركبات",
-  activeVehicleCount: "المركبات النشطة", activeVehicles: "المركبات النشطة",
+  activeVehicleCount: "المركبات النشطة", activeVehicles: "المركبات المسندة",
   activeDriverCount: "السائقون المرتبطون النشطون", activeDrivers: "السائقون النشطون",
   coveredVehicleCount: "المركبات المغطاة", coveredVehicles: "المركبات المغطاة",
   total: "الإجمالي", totalCount: "إجمالي النتائج", page: "الصفحة", pageSize: "عدد النتائج في الصفحة",
@@ -312,38 +314,6 @@ function Field({ label, children, wide = false, required = false, error, hint }:
 function Reason(_props: { value: string; onChange: (value: string) => void }) { return null; }
 function Skeleton() { return <div className="fleet-skeleton" aria-label="جارٍ تحميل سجلات الأسطول"><i/><i/><i/><i/></div>; }
 function State({ error = false, title, children, retry }: { error?: boolean; title: string; children?: ReactNode; retry?: () => void }) { return <section className={`fleet-state ${error ? "fleet-state-error" : ""}`} role={error ? "alert" : "status"}><span>{error ? <RefreshCw size={19}/> : <Truck size={19}/>}</span><b>{title}</b>{children && <p>{children}</p>}{retry && <button data-testid="fleet-state-retry" className="fleet-button fleet-quiet" onClick={retry}><RefreshCw size={15}/> إعادة المحاولة</button>}</section>; }
-function PrivateFleetImage({ documentId, label }: { documentId: string; label: string }) {
-  const [url, setUrl] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  useEffect(() => {
-    if (!expanded) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setExpanded(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [expanded]);
-  const load = async () => {
-    setLoading(true); setError("");
-    try {
-      const response = await fetch(`/api/documents/${encodeURIComponent(documentId)}/download`, { credentials: "include" });
-      const data = fields(await response.json().catch(() => ({})));
-      if (!response.ok || typeof data.url !== "string") throw new Error("تعذر فتح الصورة الخاصة بصلاحية المستخدم الحالية.");
-      setUrl(data.url);
-    } catch (reason) {
-      setUrl("");
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل الصورة.");
-    } finally { setLoading(false); }
-  };
-  useEffect(() => { void load(); }, [documentId]);
-  return <figure className="fleet-private-image">
-    {url ? <button type="button" className="fleet-private-image-zoom" aria-label={`تكبير ${label}`} onClick={() => setExpanded(true)}><img src={url} alt={label} loading="lazy" onError={() => { setUrl(""); setError("انتهت صلاحية رابط المعاينة؛ أعد فتح الصورة."); }}/></button> : <div className="fleet-private-image-empty" role={error ? "alert" : "status"}>{loading ? "جارٍ تحميل الصورة…" : error || "الصورة غير متاحة"}</div>}
-    <figcaption>{label}<button type="button" className="fleet-row-action" onClick={() => void load()} disabled={loading}>{loading ? "جارٍ التحميل…" : "تحديث المعاينة"}</button></figcaption>
-    {expanded && url && <div className="fleet-image-lightbox" role="dialog" aria-modal="true" aria-label={`تكبير ${label}`} onClick={() => setExpanded(false)}><button type="button" onClick={() => setExpanded(false)}>إغلاق الصورة</button><img src={url} alt={label} onClick={event => event.stopPropagation()}/></div>}
-  </figure>;
-}
 function VehiclePhotoGallery({ documents, odometer }: { documents: Row[]; odometer: Row[] }) {
   const candidates: Array<{ id?: unknown; documentType: string; recordedAt?: unknown }> = [
     ...documents
@@ -1483,8 +1453,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const totalPages = numericTotal !== undefined ? Math.max(1, Math.ceil(numericTotal / Number(get(pageInfo, "pageSize") ?? 20))) : undefined;
   const tableHeaders = useMemo(() => {
     const preferred = view === "vehicles"
-      ? ["plateOriginal", "brand", "model", "fuelType", "status", "isCovered", "activeDriverCount", "activeCredentialCount"]
-      : view === "drivers" ? ["fullName", "phone", "status", "activeLinkCount", "createdAt"] : null;
+      ? ["photoDocumentId", "plateOriginal", "brand", "model", "fuelType", "status", "isCovered", "activeDriverCount"]
+      : view === "drivers" ? ["fullName", "phone", "activeVehicles", "status"] : null;
     if (preferred) return preferred.filter(key => entries.some(row => key in row));
     const keys: string[] = [];
     for (const row of entries) for (const key of Object.keys(row)) {
@@ -1565,8 +1535,11 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
               const id = text(get(row, "id", "vehicleId", "driverId", "policyId", "documentId", "eventId", "jobId"));
               const opensRecord = (view === "vehicles" || view === "drivers") && id !== "—";
               const openRecord = () => { if (view === "vehicles") navigate(`/admin/fleet/vehicles/${encodeURIComponent(id)}`); else if (view === "drivers") navigate(`/admin/fleet/drivers/${encodeURIComponent(id)}`); };
-              return <tr key={`${id}-${index}`} data-testid={`row-fleet-${view}-${index + 1}`} tabIndex={opensRecord ? 0 : undefined} role={opensRecord ? "link" : undefined} aria-label={opensRecord ? `فتح سجل ${view === "vehicles" ? "المركبة" : "السائق"} ${text(get(row, "plateOriginal", "fullName", "driverCode"))}` : undefined} onKeyDown={event => { if (opensRecord && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); openRecord(); } }} onClick={() => { if (opensRecord) openRecord(); }}>
-                {tableHeaders.map(key => <td key={key} data-label={labels[key] ?? key}>{key.toLowerCase().includes("status") ? <span className={`fleet-status status-${String(row[key] ?? "").toLowerCase()}`}>{formatFleetField(key, row[key])}</span> : <bdi dir={/plate|phone|code/i.test(key) ? "ltr" : undefined}>{typeof row[key] === "object" ? readable(row[key], key) : formatFleetField(key, row[key])}</bdi>}</td>)}
+              return <tr key={`${id}-${index}`} data-testid={`row-fleet-${view}-${index + 1}`} tabIndex={opensRecord ? 0 : undefined} role={opensRecord ? "link" : undefined} aria-label={opensRecord ? `فتح سجل ${view === "vehicles" ? "المركبة" : "السائق"} ${text(get(row, "plateOriginal", "fullName", "driverCode"))}` : undefined} onKeyDown={event => { if (opensRecord && event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); openRecord(); } }} onClick={() => { if (opensRecord) openRecord(); }}>
+                {tableHeaders.map(key => <td key={key} data-label={labels[key] ?? key}>{key === "photoDocumentId" ? (UUID_RE.test(String(row[key] ?? "")) ? <PrivateFleetImage compact documentId={String(row[key])} label={`صورة المركبة ${text(row.plateOriginal)}`}/> : <span className="fleet-muted">لا توجد صورة محفوظة</span>) : key === "activeVehicles" ? <div className="fleet-assigned-vehicles">{Array.isArray(row[key]) && row[key].length ? row[key].map((item, linkedIndex) => { const vehicle = fields(item); return <article key={String(vehicle.id ?? linkedIndex)}>
+                  {UUID_RE.test(String(vehicle.photoDocumentId ?? "")) && <PrivateFleetImage compact documentId={String(vehicle.photoDocumentId)} label={`صورة المركبة ${text(vehicle.plate)}`}/>}
+                  <div>{UUID_RE.test(String(vehicle.id ?? "")) ? <Link href={`/admin/fleet/vehicles/${encodeURIComponent(String(vehicle.id))}`} onClick={event => event.stopPropagation()}><bdi dir="ltr">{text(vehicle.plate)}</bdi></Link> : <bdi dir="ltr">{text(vehicle.plate)}</bdi>}<small>{text(vehicle.branchName)}</small></div>
+                </article>; }) : <span className="fleet-muted">لا توجد مركبة مسندة حاليًا</span>}</div> : key.toLowerCase().includes("status") ? <span className={`fleet-status status-${String(row[key] ?? "").toLowerCase()}`}>{formatFleetField(key, row[key])}</span> : <bdi dir={/plate|phone|code/i.test(key) ? "ltr" : undefined}>{typeof row[key] === "object" ? readable(row[key], key) : formatFleetField(key, row[key])}</bdi>}</td>)}
                    <td>{view === "policies" && canMutate ? <div className="fleet-row-actions"><button data-testid={`fleet-policy-edit-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); openAction(text(get(row, "status")) === "draft" ? "policy.update" : "policy.create", row); }}>{text(get(row, "status")) === "draft" ? "تعديل المسودة" : "نسخة جديدة"}</button>{text(get(row, "status")) === "draft" && <button data-testid={`fleet-policy-publish-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); openAction("policy.publish", row); }}>نشر</button>}</div> : view === "documents" && id !== "—" ? <div className="fleet-row-actions"><button data-testid={`fleet-document-download-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); void fetch(`/api/documents/${encodeURIComponent(id)}/download`, { credentials: "include" }).then(async response => { if (!response.ok) throw Object.assign(new Error("تعذر تنزيل المستند."), { status: response.status }); const body = await response.json() as Row; const href = text(get(body, "url", "downloadUrl")); if (href !== "—") window.location.assign(href); }).catch(error => setProblem(apiError(error))); }}>تنزيل</button>{canMutate && ["pending_review", "needs_completion"].includes(String(row.status)) && <button data-testid={`fleet-document-review-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); setDocumentReview(row); setDocumentDecision(""); setDocumentReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); }}>مراجعة</button>}</div> : view === "imports" ? <button data-testid={`fleet-import-details-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); setImportPreview(row); }}>تفاصيل المهمة</button> : <span className="fleet-row-action-text">{view === "vehicles" || view === "drivers" ? "فتح الملف" : statusText(get(row, "status"))}</span>}</td>
               </tr>;
             })}</tbody></table></div>}
