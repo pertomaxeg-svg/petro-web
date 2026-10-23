@@ -57,6 +57,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: admin-browser-evidence
-          path: /tmp/pertomax-admin-cards-ui-smoke.png
+          path: |
+            /tmp/pertomax-admin-cards-ui-smoke.png
+            /tmp/pertomax-fleet-*.png
           if-no-files-found: ignore
           retention-days: 7

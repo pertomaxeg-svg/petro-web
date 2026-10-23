@@ -299,6 +299,34 @@
 .fleet-create-option-block>p{margin:0;color:#71817a;font-size:11px;line-height:1.75}
 .fleet-create-link-fields{display:grid;grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:10px;padding:11px;border-inline-start:2px solid #c89a7c;background:#f7f4ec}
 .fleet-create-link-fields>p{grid-column:1/-1;margin:0;color:#71817a;font-size:10px;line-height:1.75}
+.fleet-dialog{width:min(920px,100%);border-radius:14px;background:#fff}
+.fleet-dialog>header{background:#f5f8f5}
+.fleet-dialog .fleet-form{gap:20px;padding:24px}
+.fleet-dialog .fleet-form-grid{gap:18px 24px}
+.fleet-dialog .fleet-field{color:#40594e;font-size:14px;line-height:1.6}
+.fleet-dialog .fleet-field input,.fleet-dialog .fleet-field select,.fleet-dialog .fleet-field textarea{min-height:44px;border-radius:7px;background:#fff;font-size:14px}
+.fleet-dialog .fleet-field small{color:#52685d;font-size:12px}
+.fleet-dialog .fleet-field input[type="checkbox"],.fleet-dialog .fleet-field input[type="radio"]{width:20px;min-height:20px}
+.fleet-dialog .fleet-create-option-block{padding:18px;border-radius:10px;background:#f8faf8}
+.fleet-dialog .fleet-create-option-block h3{font-size:15px}
+.fleet-dialog-actions .fleet-button,.fleet-dialog .fleet-icon-button{min-height:44px}
+.fleet-record-table th{font-size:12px;white-space:normal}
+.fleet-record-table td,.fleet-record-table td bdi{font-size:14px}
+.fleet-record-table td{white-space:normal;overflow-wrap:anywhere;line-height:1.65}
+.fleet-record-table tbody tr[role="link"]:focus-visible{outline:3px solid #23695e;outline-offset:-3px}
+@media(max-width:767px){
+  .fleet-dialog-backdrop{padding:8px}
+  .fleet-dialog .fleet-form{padding:16px;gap:16px}
+  .fleet-dialog .fleet-field input,.fleet-dialog .fleet-field select,.fleet-dialog .fleet-field textarea{font-size:16px}
+  .fleet-record-table,.fleet-record-table tbody{display:block;width:100%}
+  .fleet-record-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .fleet-record-table tbody{padding:12px;background:#f4f7f4}
+  .fleet-record-table tbody tr{display:block;margin-bottom:12px;padding:6px 14px;border:1px solid #dbe5dd;border-radius:10px;background:#fff}
+  .fleet-record-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);align-items:center;gap:12px;padding:10px 0;white-space:normal}
+  .fleet-record-table td[data-label]::before{content:attr(data-label);color:#52685d;font-size:13px}
+  .fleet-record-table td:last-child{display:flex;justify-content:flex-end}
+  .fleet-record-table td .fleet-status{justify-self:start}
+}
 .fleet-reference-state.is-error{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .fleet-reference-state.is-error button{flex:0 0 auto;padding:3px 7px;border:1px solid #dfc4b9;background:#fff9f3;color:#884d3c;font:600 10px var(--app-font-sans);cursor:pointer}
 .fleet-reference-state.is-error button:focus-visible{outline:2px solid #a65e43;outline-offset:2px}
