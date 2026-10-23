@@ -135,7 +135,7 @@ const formValidationEvents = {
     if(target instanceof HTMLInputElement||target instanceof HTMLSelectElement||target instanceof HTMLTextAreaElement)target.setCustomValidity("");
   },
 };
-function AuditReason() { return <Field label="ملاحظة تدقيق (اختيارية)"><textarea name="reason" minLength={3} maxLength={500} rows={2} placeholder="يسجل النظام الفاعل والوقت والتغيير تلقائيًا."/></Field>; }
+function AuditReason() { return <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>; }
 
 function useCatalogCommandSender() {
   const command = useExecuteCatalogCommand();
@@ -162,7 +162,7 @@ function CategoryAdminPanel({ categories, units, canManage, onSend, onError, onN
   const [editCategoryId,setEditCategoryId]=useState("");
   const [editCategoryName,setEditCategoryName]=useState("");
   const [busy,setBusy]=useState(false);
-  const [reason,setReason]=useState("");
+  const [reason,setReason]=useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const groupName=categoryGroupName;
   async function submit(e:FormEvent<HTMLFormElement>, action:CatalogCommandRequestAction) {
     e.preventDefault(); const form=e.currentTarget; const d=new FormData(form); const why=String(d.get("reason")??"").trim();
@@ -187,7 +187,7 @@ function CategoryAdminPanel({ categories, units, canManage, onSend, onError, onN
         ? {categoryId:category.id,expectedVersion:category.version,status:category.active===true?"suspended":"active"}
         : {categoryId:category.id,expectedVersion:category.version,nameAr:editCategoryName};
       await onSend(action,payload,statusOnly?reason.trim():(reason.trim()||undefined));
-      setReason("");setEditCategoryId("");setEditCategoryName("");onNotice(statusOnly?"تم تحديث حالة التصنيف.":"تم تحديث اسم التصنيف.");
+      setReason("تسجيل آلي: إجراء إداري من لوحة التحكم");setEditCategoryId("");setEditCategoryName("");onNotice(statusOnly?"تم تحديث حالة التصنيف.":"تم تحديث اسم التصنيف.");
     } catch(x) { onError(errText(x)); } finally { setBusy(false); }
   }
   async function updateUnit(unit:Row) {
@@ -195,7 +195,7 @@ function CategoryAdminPanel({ categories, units, canManage, onSend, onError, onN
     setBusy(true);onError("");
     try {
       await onSend("unit.status",{code:unit.code,status:unit.active===true?"suspended":"active"},reason.trim());
-      setReason("");onNotice("تم تحديث حالة وحدة القياس.");
+      setReason("تسجيل آلي: إجراء إداري من لوحة التحكم");onNotice("تم تحديث حالة وحدة القياس.");
     } catch(x) { onError(errText(x)); } finally { setBusy(false); }
   }
   return <section className="cat-panel cat-taxonomy">
@@ -214,7 +214,7 @@ function CategoryAdminPanel({ categories, units, canManage, onSend, onError, onN
     <div className="cat-taxonomy-grid"><div className="cat-table-scroll"><table className="cat-table"><thead><tr><th>التصنيف</th><th>المجموعة</th><th>النوع</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>
        {categories.map((c,i)=>{const id=str(c.id,str(c.code,String(i)));return <tr key={id}><td>{editCategoryId===id?<input value={editCategoryName} onChange={e=>setEditCategoryName(e.target.value)} aria-label="اسم التصنيف"/>:<b>{str(c.nameAr,"اسم التصنيف غير متاح")}</b>}<small dir="ltr">{str(c.code,"")}</small></td><td>{groupName[str(c.serviceGroup)]??"مجموعة غير معروفة"}</td><td>{Array.isArray(c.allowedItemKinds)?c.allowedItemKinds.map(kind=>itemKindName[String(kind)]??"نوع غير معروف").join("، "):"بيانات الأنواع غير متاحة"}</td><td>{c.active===true?"نشط":"موقوف"}</td><td>{canManage&&<div className="cat-actions">{editCategoryId===id?<><button className="cat-text-button" disabled={busy} onClick={()=>void updateCategory(c,false)}>حفظ</button><button className="cat-text-button" onClick={()=>{setEditCategoryId("");setEditCategoryName("");}}>إلغاء</button></>:<button className="cat-text-button" onClick={()=>{setEditCategoryId(id);setEditCategoryName(str(c.nameAr,""));}}>تعديل الاسم</button>}<button className="cat-text-button" disabled={busy} onClick={()=>void updateCategory(c,true)}>{c.active===true?"إيقاف":"تفعيل"}</button></div>}</td></tr>})}
      </tbody></table></div><div className="cat-unit-list"><h3>وحدات القياس</h3>{units.map((u,i)=><div key={str(u.code,String(i))}><span><b>{str(u.nameAr,"اسم الوحدة غير متاح")}</b><small dir="ltr">{str(u.code)} · {num(u.quantityScale)?.toLocaleString("ar-EG") ?? "دقة غير متاحة"} خانات عشرية</small></span><span>{u.active===true?"نشط":"موقوف"}</span>{canManage&&!["litre","piece","service","pack"].includes(str(u.code))&&<button className="cat-text-button" disabled={busy} onClick={()=>void updateUnit(u)}>{u.active===true?"إيقاف":"تفعيل"}</button>}</div>)}</div></div>
-    {canManage&&<div className="cat-reason-inline"><label>سبب التصنيف أو الوحدة<input value={reason} onChange={e=>setReason(e.target.value)} placeholder="سبب الإجراء"/></label></div>}
+    {canManage&&<div className="cat-reason-inline"></div>}
   </section>;
 }
 
@@ -357,7 +357,7 @@ function FuelPriceEditor({ fuel, units, canManage, initialDraft = false, onSave,
   const [draft, setDraft] = useState(initialDraft);
   const [editType, setEditType] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [actionReason,setActionReason]=useState("");
+  const [actionReason,setActionReason]=useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [editFamily,setEditFamily]=useState(str(fuel.vehicleFuelFamily,""));
   const [editUnit,setEditUnit]=useState(str(fuel.unitCode,""));
   const history = rows(fuel.priceHistory);
@@ -386,7 +386,7 @@ function FuelPriceEditor({ fuel, units, canManage, initialDraft = false, onSave,
     {scheduledVersion&&<div className="cat-scheduled-price"><span className="cat-dot cat-dot-scheduled"/><span><b>سعر مجدول</b><strong>{fuelMoney(scheduledVersion.pricePerUnit)} / {unitName(fuel.unitCode,units)}</strong><small>يبدأ في {date(scheduledVersion.validFrom)}</small></span></div>}
     {canManage&&<div className="cat-actions cat-type-actions"><button type="button" className="cat-button cat-quiet" onClick={()=>setEditType(!editType)}>{editType?"إغلاق":"تعديل تعريف الوقود"}</button><span className="cat-type-state">{fuel.active===false?"موقوف":"نشط"}</span><button type="button" className="cat-text-button" onClick={()=>void changeTypeStatus()}>{fuel.active===false?"إعادة تفعيل النوع":"إيقاف النوع"}</button></div>}
      {editType&&canManage&&<form className="cat-form" {...formValidationEvents} onSubmit={saveType}><div className="cat-form-grid"><Field label="الاسم بالعربية"><input name="nameAr" required defaultValue={str(fuel.nameAr,"")}/></Field><Field label="الكود"><input name="code" required defaultValue={str(fuel.code,"")} dir="ltr" pattern="[a-z][a-z0-9_]{1,39}"/></Field><Field label="عائلة الوقود للمركبة"><select name="family" required value={editFamily} onChange={e=>{const family=e.target.value;setEditFamily(family);setEditUnit(str(fuelUnitsForFamily(family,units)[0]?.code,""));}}><option value="gasoline">بنزين</option><option value="diesel">ديزل</option><option value="natural_gas" disabled>غاز طبيعي — وحدة غير معتمدة</option><option value="other" disabled>أخرى — وحدة غير معتمدة</option></select></Field><Field label="الوحدة"><select name="unitCode" required value={editUnit} onChange={e=>setEditUnit(e.target.value)} disabled={!selectableUnits.length}><option value="">لا توجد وحدة معتمدة</option>{selectableUnits.map((u,i)=><option key={str(u.code,String(i))} value={str(u.code,"")} disabled={u.active!==true}>{str(u.nameAr)}</option>)}</select></Field></div><p className="cat-scope">البنزين والسولار باللتر. لا تضبط الغاز أو نوعًا آخر قبل اعتماد وحدة متوافقة.</p><AuditReason/><button className="cat-button" disabled={busy}>حفظ التعديل</button></form>}
-    {canManage&&<div className="cat-pending-price cat-action-reason"><label>سبب الإجراء على النوع أو السعر (مطلوب للنشر والإيقاف)<input value={actionReason} onChange={e=>setActionReason(e.target.value)} minLength={3} maxLength={500} placeholder="ثلاثة أحرف على الأقل"/></label></div>}
+    {canManage&&<div className="cat-pending-price cat-action-reason"></div>}
      {draft && canManage && !pendingVersion && <form className="cat-form" {...formValidationEvents} onSubmit={action}><div className="cat-form-grid"><Field label={`السعر بالجنيه لكل ${unitName(fuel.unitCode,units)}`}><input name="price" type="number" min="0.000001" step="0.000001" inputMode="decimal" aria-describedby="fuel-price-help" required/></Field><Field label="بدء السريان بتوقيت القاهرة"><input name="effectiveAt" type="datetime-local" required/></Field></div><p id="fuel-price-help" className="cat-field-help">أدخل قيمة السعر المعتمدة فقط. تُحفظ المسودة دون تغيير السعر الحالي إلى أن تنشرها.</p><AuditReason/><button className="cat-button" disabled={busy}>{busy?"جارٍ حفظ المسودة…":"حفظ مسودة السعر"}</button></form>}
     {pendingVersion && canManage && <div className="cat-pending-price"><span className="cat-draft-summary"><i className="cat-dot cat-dot-draft"/><span><b>مسودة غير منشورة · نسخة {str(pendingVersion.version)}</b><strong>{fuelMoney(pendingVersion.pricePerUnit)} / {unitName(fuel.unitCode,units)}</strong><small>تاريخ السريان المحدد: {date(pendingVersion.validFrom)}</small></span></span><span className="cat-pending-actions"><button type="button" disabled={busy} onClick={()=>void status("fuel.price.publish")}>نشر أو جدولة</button><button type="button" disabled={busy} onClick={()=>void status("fuel.price.cancel")}>إلغاء المسودة</button></span></div>}
     {history.length>0 && <div className="cat-history"><b>الإصدارات المحفوظة</b>{history.map((h,i)=><div key={str(h.id,String(i))}><span>نسخة {str(h.version)}</span><strong>{fuelMoney(h.pricePerUnit)} / {unitName(fuel.unitCode,units)}</strong><small>{statusName[str(h.status)]??str(h.status)} · {date(h.validFrom)}</small></div>)}</div>}
@@ -456,7 +456,7 @@ export function OrganizationCatalogPanel({ organizationId, organizationKind, org
 function CatalogItemEditor({itemId,organizationKind,onError,onNotice,onRefresh}:{itemId:string;organizationKind:string;onError:(s:string)=>void;onNotice:(s:string)=>void;onRefresh:(id?:string)=>Promise<void>}) {
   const detail=useGetCatalogItem(itemId,{query:{queryKey:getGetCatalogItemQueryKey(itemId),retry:false,refetchOnMount:"always"}});
   const {command,send:sendCommand}=useCatalogCommandSender();const uploadPng=useUploadCatalogImageContent({request:{headers:{"Content-Type":"image/png"}}});const uploadJpeg=useUploadCatalogImageContent({request:{headers:{"Content-Type":"image/jpeg"}}});const cache=useQueryClient();
-  const [edit,setEdit]=useState(false);const [branchId,setBranchId]=useState("");const [enabled,setEnabled]=useState(true);const [price,setPrice]=useState("");const [effective,setEffective]=useState("");const [imageBusy,setImageBusy]=useState(false);const [statusReason,setStatusReason]=useState("");
+  const [edit,setEdit]=useState(false);const [branchId,setBranchId]=useState("");const [enabled,setEnabled]=useState(true);const [price,setPrice]=useState("");const [effective,setEffective]=useState("");const [imageBusy,setImageBusy]=useState(false);const [statusReason,setStatusReason]=useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const data=row(detail.data);const item=row(data.item ?? data); const availability=rows(data.availability); const prices=rows(data.prices); const images=rows(data.images ?? data.readyImages);
   const branches=rows(data.manageableBranches);const canManage=item.canManage===true;const canManageOrganization=item.canManageOrganization===true;const canReview=item.canReview===true;
   async function send(action:CatalogCommandRequestAction,payload:Row,why:string){const result=await sendCommand(action,payload,why);await onRefresh(itemId);await cache.invalidateQueries({queryKey:getGetCatalogItemQueryKey(itemId)});return result;}
@@ -479,8 +479,8 @@ function CatalogItemEditor({itemId,organizationKind,onError,onNotice,onRefresh}:
   if(detail.isError||!detail.data)return <State error title="تعذر تحميل تفاصيل الصنف" detail={detail.isError?errText(detail.error):"الصنف غير متاح"} retry={()=>void detail.refetch()}/>;
   return <section className="cat-item-detail" aria-label="تفاصيل الصنف">
      <div className="cat-detail-head"><div><span className="cat-kicker">تفاصيل الصنف · الإصدار {str(item.version)}</span><h3>{str(item.name)}</h3><small>{str(item.categoryName)} · {str(item.kind==="service"?"خدمة":"منتج")} · {str(item.unitCode)}</small></div><div className="cat-actions">{canManageOrganization&&<button className="cat-text-button" onClick={()=>setEdit(!edit)}>{edit?"إغلاق":"تعديل الصنف"}</button>}{canReview?<button type="button" className="cat-text-button" disabled={item.centralSuspended===true&&item.reviewStatus!=="approved"} onClick={()=>void changeStatus()}>{item.centralSuspended===true?"رفع الإيقاف المركزي":"إيقاف مركزي"}</button>:canManage&&!item.centralSuspended&&<button type="button" className="cat-text-button" disabled={item.status!=="active"&&item.reviewStatus!=="approved"} onClick={()=>void changeStatus()}>{item.status==="active"?"إيقاف العرض":"إعادة العرض"}</button>}</div></div>
-    {(canManage||canReview)&&<div className="cat-item-status-action"><input value={statusReason} onChange={e=>setStatusReason(e.target.value)} placeholder="سبب الإجراء أو قرار المراجعة" aria-label="سبب الإجراء أو قرار المراجعة"/></div>}
-    {canReview&&item.reviewStatus!=="approved"&&<div className="cat-actions"><button type="button" className="cat-button" onClick={()=>void review("approved")}>اعتماد للمراجعة</button><button type="button" className="cat-button cat-quiet" onClick={()=>void review("rejected")}>رفض مع السبب</button></div>}
+    {(canManage||canReview)&&<div className="cat-item-status-action"></div>}
+    {canReview&&item.reviewStatus!=="approved"&&<div className="cat-actions"><button type="button" className="cat-button" onClick={()=>void review("approved")}>اعتماد للمراجعة</button><button type="button" className="cat-button cat-quiet" onClick={()=>void review("rejected")}>رفض</button></div>}
     {edit&&canManageOrganization&&<form className="cat-form" {...formValidationEvents} onSubmit={update}><div className="cat-form-grid"><Field label="الاسم"><input name="name" defaultValue={str(item.name,"")} required/></Field><Field label="الكود الداخلي"><input name="internalCode" defaultValue={str(item.internalCode,"")}/></Field><Field label="الباركود"><input name="barcode" defaultValue={str(item.barcode,"")}/></Field><Field label="العلامة التجارية"><input name="brandName" defaultValue={str(item.brandName,"")}/></Field><Field label="الوصف" className="wide"><textarea name="description" defaultValue={str(item.description,"")} rows={3}/></Field><CatalogAttributeFields categoryCode={str(item.categoryCode)} attributes={row(item.attributes)}/></div><AuditReason/><button className="cat-button" disabled={command.isPending}>حفظ التعديلات</button></form>}
     <div className="cat-detail-grid"><article><span>الحالة</span><b>{statusName[str(item.status)]??str(item.status)}</b></article><article><span>مراجعة</span><b>{statusName[str(item.reviewStatus)]??str(item.reviewStatus)}</b></article><article><span>السعر الحالي</span><b>{money(item.priceMinor)}</b></article><article><span>نطاق السعر</span><b>{priceScopeName[str(item.priceScope)]??"لا يوجد سعر"}</b></article><article><span>آخر تحديث</span><b>{date(item.updatedAt)}</b></article></div>
     <div className="cat-management-grid">
@@ -495,9 +495,9 @@ function CatalogItemEditor({itemId,organizationKind,onError,onNotice,onRefresh}:
   </section>;
 }
 function PriceRow({price,itemId,branchName,canManage,onCommand,onRefresh,onError,onNotice}:{price:Row;itemId:string;branchName:string;canManage:boolean;onCommand:(a:CatalogCommandRequestAction,p:Row,r:string)=>Promise<unknown>;onRefresh:(id?:string)=>Promise<void>;onError:(s:string)=>void;onNotice:(s:string)=>void}) {
-  const [reason,setReason]=useState(""); const [busy,setBusy]=useState(false);
+  const [reason,setReason]=useState("تسجيل آلي: إجراء إداري من لوحة التحكم"); const [busy,setBusy]=useState(false);
   async function action(actionName:CatalogCommandRequestAction){if(reason.trim().length<3){onError("سبب الإجراء مطلوب.");return;}setBusy(true);try{await onCommand(actionName,{priceVersionId:price.id},reason.trim());await onRefresh(itemId);onNotice(actionName==="item.price.publish"?"تم نشر نسخة السعر.":"تم إلغاء نسخة السعر.");}catch(x){onError(errText(x));}finally{setBusy(false);}}
-  return <div className="cat-price-row"><span>نسخة {str(price.version)} · {branchName} · {statusName[str(price.status)]??str(price.status)}</span><b>{money(price.priceMinor)}</b><small>{date(price.validFrom)}</small>{str(price.reason,"")&&<small>{str(price.reason)}</small>}{canManage&&price.status==="draft"&&<><input value={reason} onChange={e=>setReason(e.target.value)} placeholder="سبب الإجراء" aria-label="سبب إجراء السعر"/><button disabled={busy} onClick={()=>void action("item.price.publish")}>نشر</button><button disabled={busy} onClick={()=>void action("item.price.cancel")}>إلغاء</button></>}</div>;
+  return <div className="cat-price-row"><span>نسخة {str(price.version)} · {branchName} · {statusName[str(price.status)]??str(price.status)}</span><b>{money(price.priceMinor)}</b><small>{date(price.validFrom)}</small>{str(price.reason,"")&&<small>{str(price.reason)}</small>}{canManage&&price.status==="draft"&&<><button disabled={busy} onClick={()=>void action("item.price.publish")}>نشر</button><button disabled={busy} onClick={()=>void action("item.price.cancel")}>إلغاء</button></>}</div>;
 }
 
 function CatalogAttributeFields({categoryCode,attributes}:{categoryCode:string;attributes:Row}) {

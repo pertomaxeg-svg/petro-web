@@ -128,9 +128,7 @@ function StateMessage({ title, children, error, retry }: { title: string; childr
 }
 function Skeletons() { return <div className="af-skeletons" aria-label="جارٍ تحميل السجلات"><i/><i/><i/><i/></div>; }
 function Status({ value }: { value: unknown }) { return <span className={`af-status af-status-${String(value ?? "unknown")}`}><i/>{statusName(value)}</span>; }
-function Reason({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <label className="af-field af-wide">سبب موثّق <small>من ٥ إلى ٥٠٠ حرف</small><textarea required minLength={5} maxLength={500} value={value} onChange={event => onChange(event.target.value)} placeholder="اكتب سبب الإجراء بما يسمح بتتبّعه." /></label>;
-}
+function Reason({ value, onChange }: { value: string; onChange: (value: string) => void }) { return null; }
 function Field({ title, children, wide = false }: { title: string; children: ReactNode; wide?: boolean }) { return <label className={`af-field ${wide ? "af-wide" : ""}`}>{title}{children}</label>; }
 
 export function AdminFinancePage({ roles }: { roles: string[] }) {
@@ -155,7 +153,7 @@ export function AdminFinancePage({ roles }: { roles: string[] }) {
   const [action, setAction] = useState<ActionKind>(null);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [selected, setSelected] = useState<Row | null>(null);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [message, setMessage] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
@@ -246,7 +244,7 @@ export function AdminFinancePage({ roles }: { roles: string[] }) {
     ]);
   };
   const openAction = (kind: Exclude<ActionKind, null>, row?: Row) => {
-    setAction(kind); setSelected(row ?? null); setReason(""); setProblem(""); setMessage(""); setFile(null);
+    setAction(kind); setSelected(row ?? null); setReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); setProblem(""); setMessage(""); setFile(null);
     setIdempotencyKey(newKey());
     setReceiptRecorded(false); setPendingReceiptEvidence("");
     setAllocateReceiptId("");

@@ -210,7 +210,7 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
   const cache = useQueryClient();
   const [scopeBranchId, setScopeBranchId] = useState(fixedBranchId ?? "");
   const [liters, setLiters] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState("");
   const params = useMemo<GetAdminFleetConsumptionRatesParams>(() => ({ organizationId, ...(scopeBranchId ? { branchId: scopeBranchId } : {}) }), [organizationId, scopeBranchId]);
@@ -240,7 +240,7 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
       await save.mutateAsync({ data: payload });
       setSuccess("أُضيف إصدار جديد للمعدل؛ تبقى الإصدارات السابقة محفوظة.");
       setLiters("");
-      setReason("");
+      setReason("تسجيل آلي: إجراء إداري من لوحة التحكم");
       await cache.invalidateQueries({ queryKey: getGetAdminFleetConsumptionRatesQueryKey(params) });
     } catch (error) {
       setFormError(errorText(error));
@@ -255,7 +255,7 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
     {!fixedBranchId && canMutate && <FleetReferencePicker kind="branch" value={scopeBranchId} onChange={value => setScopeBranchId(value)} organizationId={organizationId} label="فرع لتحديد نطاق المعدل (اختياري)" emptyLabel="ابحث باسم الفرع" allowAll testId="fleet-rate-branch-picker"/>}
     {canMutate && <form className="fleet-rate-form" onSubmit={submit}>
       <label className="fleet-field">معدل متوقع (لتر / ١٠٠ كم)<input data-testid="fleet-rate-value" type="number" min="0.01" step="0.01" value={liters} onChange={event => setLiters(event.target.value)} required placeholder="أدخل القيمة"/></label>
-      <label className="fleet-field fleet-wide">سبب التغيير<input data-testid="fleet-rate-reason" value={reason} onChange={event => setReason(event.target.value)} minLength={3} maxLength={500} required placeholder="سبب موثق للمراجعة"/></label>
+
       <button data-testid="fleet-rate-submit" className="fleet-button" disabled={save.isPending}>{save.isPending ? "جارٍ حفظ الإصدار…" : "إضافة إصدار للمعدل"}</button>
     </form>}
     {formError && <p className="fleet-feedback is-error" role="alert">{formError}</p>}

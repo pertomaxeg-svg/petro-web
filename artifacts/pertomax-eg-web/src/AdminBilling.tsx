@@ -160,15 +160,11 @@ function CatalogState({ error, retry }: { error: unknown; retry: () => void }) {
 }
 
 function ReasonField() {
-  return <label className="ab-field ab-wide">سبب موثق (5–500 حرف)
-    <textarea name="reason" minLength={5} maxLength={500} required placeholder="اكتب سبب القرار أو التغيير بوضوح."/>
-  </label>;
+  return <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>;
 }
 
 function AuditNoteField() {
-  return <label className="ab-field ab-wide">ملاحظة تدقيق (اختيارية)
-    <textarea name="reason" minLength={5} maxLength={500} placeholder="يمكنك إضافة سياق مختصر؛ يسجل النظام الفاعل والوقت والتغيير تلقائيًا."/>
-  </label>;
+  return <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>;
 }
 
 function optionalAuditNote(data: FormData): string | undefined {

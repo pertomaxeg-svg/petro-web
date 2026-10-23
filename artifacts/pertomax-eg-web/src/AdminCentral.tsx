@@ -336,7 +336,7 @@ function PlatformUserCreateForm({
           </label>)}</div>}
         {selectedPermissions.length>0&&<div className="ac-selected-permissions"><b>الأقسام التي ستُسند لهذا الحساب</b><ul>{selectedPermissions.map(permission=><li key={permission.code}>{permission.label}</li>)}</ul></div>}
       </fieldset>
-      <label className="ac-create-user-reason">سبب إنشاء الحساب وتفويضه <b aria-hidden="true">*</b><textarea name="reason" required minLength={5} maxLength={500} rows={3} placeholder="مثال: مسؤول متابعة طلبات الجهات خلال فترة التشغيل الحالية."/></label>
+      <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>
       {error&&<div className="ac-inline-notice ac-inline-notice-warning" role="alert"><CircleAlert size={17}/><span>{error}</span></div>}
       <div className="ac-create-user-actions"><button className="ac-button ac-button-primary" type="submit" disabled={create.isPending||loadingRoles||!roleCatalog.length}>{create.isPending?"جارٍ إنشاء الحساب…":"إنشاء الحساب وإسناد الأدوار"}</button><button className="ac-button ac-button-quiet" type="button" onClick={onCancel} disabled={create.isPending}>إلغاء</button></div>
     </form>
@@ -356,7 +356,7 @@ function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: str
   const cache = useQueryClient();
   const [editRoles, setEditRoles] = useState(false);
   const [draftRoles, setDraftRoles] = useState<PlatformRole[]>([]);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [actionError, setActionError] = useState("");
   const [success, setSuccess] = useState("");
   const [statusIntent, setStatusIntent] = useState<"active"|"suspended"|null>(null);
@@ -375,14 +375,14 @@ function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: str
   function openRoleEditor() {
     if (isSelf) return;
     setDraftRoles([...(detail?.user.platformRoles ?? [])]);
-    setReason(""); setActionError(""); setSuccess(""); setEditRoles(true); setStatusIntent(null);
+    setReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); setActionError(""); setSuccess(""); setEditRoles(true); setStatusIntent(null);
   }
   async function saveRoles(event: FormEvent) {
     event.preventDefault(); setActionError(""); setSuccess("");
     if (reason.trim().length < 5 || reason.trim().length > 500) { setActionError("سبب التغيير مطلوب، من 5 إلى 500 حرف."); return; }
     try {
       await roleMutation.mutateAsync({ userId, data: { roles: draftRoles, reason: reason.trim() } });
-      setEditRoles(false); setSuccess("تم تحديث أدوار المنصة وتسجيل السبب في سجل التدقيق."); setReason(""); await refresh();
+      setEditRoles(false); setSuccess("تم تحديث أدوار المنصة وتسجيل السبب في سجل التدقيق."); setReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); await refresh();
     } catch (err) { setActionError(errorInfo(err)?.status === 409 ? "تعارض حماية: تعذر تطبيق التغيير لأنه قد يترك المنصة بلا مالك نشط. حدّث السجل وراجع الأدوار الحالية." : apiMessage(err)); await query.refetch(); }
   }
   async function saveStatus(event: FormEvent) {
@@ -390,7 +390,7 @@ function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: str
     if (reason.trim().length < 5 || reason.trim().length > 500) { setActionError("سبب الإجراء مطلوب، من 5 إلى 500 حرف."); return; }
     try {
       await statusMutation.mutateAsync({ userId, data: { status: statusIntent, reason: reason.trim() } });
-      setSuccess(statusIntent === "suspended" ? "تم إيقاف الحساب وتسجيل السبب." : "تم تفعيل الحساب وتسجيل السبب."); setStatusIntent(null); setReason(""); await refresh();
+      setSuccess(statusIntent === "suspended" ? "تم إيقاف الحساب وتسجيل السبب." : "تم تفعيل الحساب وتسجيل السبب."); setStatusIntent(null); setReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); await refresh();
     } catch (err) { setActionError(errorInfo(err)?.status === 409 ? "تعارض حماية: تعذر الإجراء للحفاظ على آخر مالك نشط. حدّث السجل قبل المتابعة." : apiMessage(err)); await query.refetch(); }
   }
   return <div className="ac-page-enter">
@@ -408,7 +408,7 @@ function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: str
           {editRoles && <form className="ac-action-form" onSubmit={saveRoles}><div className="ac-action-title"><div><b>تحديث أدوار المنصة</b><small>راجع الصلاحيات المسجلة لكل دور قبل حفظ التغيير.</small></div><button type="button" className="ac-icon-button" onClick={()=>setEditRoles(false)} aria-label="إلغاء"><X size={17}/></button></div><div className="ac-role-picker">{detail.roleCatalog.map(item=><label key={item.role} className={draftRoles.includes(item.role)?"checked":""}><input type="checkbox" checked={draftRoles.includes(item.role)} onChange={e=>setDraftRoles(current=>e.target.checked?[...current,item.role]:current.filter(r=>r!==item.role))}/><span><b>{item.label}</b><small>{item.permissions.map(p=>p.label).join(" · ") || "لا توجد قدرات مسجلة"}</small></span><i>{draftRoles.includes(item.role)&&<Check size={14}/>}</i></label>)}</div><ReasonField reason={reason} setReason={setReason}/>{actionError&&<InlineAlert error>{actionError}</InlineAlert>}<div className="ac-form-actions"><button className="ac-button" disabled={roleMutation.isPending||reason.trim().length<5}>{roleMutation.isPending?"جارٍ تسجيل الأدوار…":"حفظ الأدوار"}</button><button type="button" className="ac-button ac-button-quiet" onClick={()=>setEditRoles(false)}>إلغاء</button></div></form>}
           {statusIntent&&<form className="ac-action-form" onSubmit={saveStatus}><div className="ac-action-title"><div><b>{statusIntent==="suspended"?"إيقاف الحساب":"تفعيل الحساب"}</b><small>سيُحفظ هذا الإجراء مع سبب واضح في سجل التدقيق.</small></div><button type="button" className="ac-icon-button" onClick={()=>setStatusIntent(null)} aria-label="إلغاء"><X size={17}/></button></div><ReasonField reason={reason} setReason={setReason}/>{actionError&&<InlineAlert error>{actionError}</InlineAlert>}<div className="ac-form-actions"><button className={statusIntent==="suspended"?"ac-button ac-button-danger":"ac-button"} disabled={statusMutation.isPending||reason.trim().length<5}>{statusMutation.isPending?"جارٍ تسجيل الحالة…":statusIntent==="suspended"?"تأكيد إيقاف الحساب":"تأكيد تفعيل الحساب"}</button><button type="button" className="ac-button ac-button-quiet" onClick={()=>setStatusIntent(null)}>إلغاء</button></div></form>}
         </article>
-        <aside className="ac-panel ac-account-actions"><span className="ac-eyebrow">حالة الوصول</span><h2>إجراءات الحساب</h2><p>تغيير الحالة يؤثر في تسجيل الدخول، ولا يغيّر عضويات الجهات.</p>{isSelf ? <InlineAlert error>لا يمكن تغيير أدوار حسابك أو حالته من الجلسة نفسها.</InlineAlert> : detail.user.accountStatus==="suspended" ? <button className="ac-button" onClick={()=>{setStatusIntent("active");setReason("");setActionError("");setEditRoles(false)}}>تفعيل الحساب</button> : <button className="ac-button ac-button-danger-outline" onClick={()=>{setStatusIntent("suspended");setReason("");setActionError("");setEditRoles(false)}}>إيقاف الحساب</button>}{success&&<InlineAlert>{success}</InlineAlert>}<div className="ac-separation-note"><LockKeyhole size={15}/><span>أدوار المنصة منفصلة عن عضويات الجهات ونطاقات الفروع.</span></div></aside>
+        <aside className="ac-panel ac-account-actions"><span className="ac-eyebrow">حالة الوصول</span><h2>إجراءات الحساب</h2><p>تغيير الحالة يؤثر في تسجيل الدخول، ولا يغيّر عضويات الجهات.</p>{isSelf ? <InlineAlert error>لا يمكن تغيير أدوار حسابك أو حالته من الجلسة نفسها.</InlineAlert> : detail.user.accountStatus==="suspended" ? <button className="ac-button" onClick={()=>{setStatusIntent("active");setReason("تسجيل آلي: إجراء إداري من لوحة التحكم");setActionError("");setEditRoles(false)}}>تفعيل الحساب</button> : <button className="ac-button ac-button-danger-outline" onClick={()=>{setStatusIntent("suspended");setReason("تسجيل آلي: إجراء إداري من لوحة التحكم");setActionError("");setEditRoles(false)}}>إيقاف الحساب</button>}{success&&<InlineAlert>{success}</InlineAlert>}<div className="ac-separation-note"><LockKeyhole size={15}/><span>أدوار المنصة منفصلة عن عضويات الجهات ونطاقات الفروع.</span></div></aside>
       </section>
       <section className="ac-panel ac-membership-panel" aria-labelledby="ac-memberships-title">
         <div className="ac-panel-head">
@@ -452,9 +452,7 @@ function ProfileData({ userId, actorUserId }: { userId: string; actorUserId: str
     </>}
   </div>;
 }
-function ReasonField({ reason, setReason }: { reason: string; setReason: (value: string)=>void }) {
-  return <label className="ac-reason-field">سبب موثق <span>5–500 حرف</span><textarea value={reason} onChange={e=>setReason(e.target.value)} minLength={5} maxLength={500} required placeholder="اذكر سبب القرار بوضوح، وسيظهر في سجل التدقيق."/><small>{reason.trim().length} / 500</small></label>;
-}
+function ReasonField({ reason, setReason }: { reason: string; setReason: (value: string)=>void }) { return null; }
 function InlineAlert({ children, error=false }: { children: string; error?: boolean }) {
   return <div className={error?"ac-inline-alert ac-inline-error":"ac-inline-alert"} role={error?"alert":"status"}>{error?<CircleAlert size={15}/>:<Check size={15}/>}<span>{children}</span></div>;
 }

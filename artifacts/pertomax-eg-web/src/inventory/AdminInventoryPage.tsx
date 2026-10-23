@@ -369,7 +369,7 @@ export function AdminInventoryPage({ canManageInventory = false }: { canManageIn
                     <Field label="الفرع"><select name="branchId" required defaultValue=""><option value="" disabled>اختر فرعًا بالاسم</option>{branchRows.map((branch) => <option key={rowId(branch)} value={rowId(branch)}>{text(branch.name)} · {text(branch.code)}</option>)}</select></Field>
                     <Field label="اسم الموقع"><input name="name" required minLength={2} maxLength={120}/></Field>
                     <Field label="نوع الموقع"><select name="kind" required defaultValue="sellable"><option value="sellable">مخزون صالح</option><option value="quarantine">منطقة مرتجعات</option><option value="damaged">منطقة تالف</option><option value="transit">مخزون منقول</option></select></Field>
-                    <Field label="سبب الإنشاء" wide><textarea name="reason" required minLength={5} maxLength={500} placeholder="اذكر الغرض من إنشاء موقع التخزين"/></Field>
+                    <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>
                   </div>
                   <p className="inv-subtle">يجب أن يكون الفرع فعالًا وتابعًا للجهة المحددة. لا ينشئ هذا الإجراء فرعًا جديدًا.</p>
                   <div className="inv-actions"><button className="inv-button inv-button-primary" disabled={command.isPending || branches.isLoading || branchRows.length === 0}><Plus size={15}/> إنشاء الموقع</button><button className="inv-button" type="button" onClick={() => setShowLocationForm(false)}>إلغاء</button></div>
@@ -414,7 +414,7 @@ export function AdminInventoryPage({ canManageInventory = false }: { canManageIn
         <div className="inv-form-grid">
           <Field label="الصنف"><select name="itemId" required defaultValue={reorderDefaults.itemId}><option value="" disabled>اختر صنفًا من الجهة</option>{itemRows.map((item, index) => <option key={rowId(item) || index} value={text(item.itemId, "")}>{text(item.name)} · {unitText(item.unitCode)}</option>)}</select></Field>
           <Field label="حد إعادة الطلب"><input name="reorderLevel" type="number" min="0" step="any" required defaultValue={reorderDefaults.level} placeholder="مثال: 5"/></Field>
-          <Field label="سبب التغيير" wide><textarea name="reason" required minLength={5} maxLength={500} placeholder="سبب إعداد حد التنبيه أو تعديله"/></Field>
+          <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>
         </div>
         <p className="inv-subtle">القيمة صفر تعني التنبيه عند النفاد فقط. لا يوجد حد تلقائي عند ترك الصنف دون إعداد.</p>
         <div className="inv-actions"><button className="inv-button inv-button-primary" disabled={command.isPending || catalogItems.isLoading || !selectedLocationId}><Check size={15}/> حفظ الحد</button><button className="inv-button" type="button" onClick={() => setShowReorderForm(false)}>إلغاء</button></div>
@@ -430,7 +430,7 @@ export function AdminInventoryPage({ canManageInventory = false }: { canManageIn
           {(documentType === "transfer" || documentType === "damage" || documentType === "return") && <Field label={documentType === "damage" ? "موقع التالف" : documentType === "return" ? "منطقة المرتجعات" : "موقع الوجهة"}>
             <select name="targetLocationId" required defaultValue=""><option value="" disabled>اختر موقعًا</option>{locationRows.filter((location) => rowId(location) !== selectedLocationId && (documentType === "damage" ? location.kind === "damaged" : documentType === "return" ? location.kind === "quarantine" : true)).map((location, index) => <option key={rowId(location) || index} value={rowId(location)}>{text(location.name)} · {text(location.branchName)}</option>)}</select>
           </Field>}
-          <Field label="سبب المستند" wide><textarea name="reason" required minLength={5} maxLength={500} placeholder="سبب تشغيلي واضح لا يقل عن 5 أحرف"/></Field>
+          <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>
         </div>
         <div className="inv-lines">
           <div className="inv-panel-head"><div><h2>الأصناف والكميات</h2><p>الأصناف النشطة والمعتمدة في كتالوج الجهة فقط.</p></div><button className="inv-button inv-button-quiet" type="button" onClick={() => { setDocumentLineIds((ids) => [...ids, nextLineId]); setNextLineId((id) => id + 1); }}><Plus size={15}/> إضافة سطر</button></div>
@@ -553,7 +553,7 @@ function DocumentDetail({ document, lines, busy, canReview, onReview }: {
     {pending && !canReview && <p className="inv-subtle">المستند ينتظر قرار مراجع مخوّل. يمكنك عرض التفاصيل دون اعتمادها.</p>}
     {pending && canReview && <form className="inv-form" onSubmit={(e) => { e.preventDefault(); void onReview(e.currentTarget); }}>
       <div className="inv-panel-head"><div><span className="inv-eyebrow">إجراء مراجعة</span><h2>قرار المراجع</h2><p>الإجراء سيُسجل ضمن سجل التدقيق مع السبب.</p></div></div>
-      <div className="inv-form-grid"><Field label="قرار المراجعة"><select name="decision" required defaultValue=""><option value="" disabled>اختر قرارًا</option><option value="approve">اعتماد</option><option value="reject">رفض</option></select></Field><Field label="سبب القرار" wide><textarea name="reason" required minLength={5} maxLength={500}/></Field></div>
+      <div className="inv-form-grid"><Field label="قرار المراجعة"><select name="decision" required defaultValue=""><option value="" disabled>اختر قرارًا</option><option value="approve">اعتماد</option><option value="reject">رفض</option></select></Field><input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/></div>
       <button className="inv-button inv-button-primary" disabled={busy}><Check size={15}/> إرسال قرار المراجعة</button>
     </form>}
   </div>;

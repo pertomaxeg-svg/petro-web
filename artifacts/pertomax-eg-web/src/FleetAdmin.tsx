@@ -72,15 +72,14 @@ const onboardingQuantityLabels: Record<string, string> = {
   oils: "أقصى كمية زيت في العملية (حسب الوحدة)",
   parts: "أقصى عدد قطع في العملية",
 };
-const onboardingReasonActions = new Set(["vehicle.create", "driver.create", "driver.link.create", "policy.create", "policy.update"]);
-const requiresUserReason = (action: string) => !onboardingReasonActions.has(action);
+const requiresUserReason = (_action: string) => false;
 const automaticReason = (action: string) => ({
   "vehicle.create": "إضافة مركبة من الإدارة",
   "driver.create": "إضافة سجل سائق تشغيلي",
   "driver.link.create": "إسناد السائق عند إنشاء المركبة",
   "policy.create": "إعداد حدود استخدام للمركبة",
   "policy.update": "تعديل حدود الاستخدام",
-}[action] ?? "إجراء إداري");
+}[action] ?? "تسجيل آلي: إجراء إداري من لوحة الأسطول");
 const fields = (obj: unknown): Row => obj && typeof obj === "object" && !Array.isArray(obj) ? obj as Row : {};
 const get = (row: Row, ...keys: string[]) => keys.map(key => row[key]).find(value => value !== undefined && value !== null);
 const text = (value: unknown) => typeof value === "string" || typeof value === "number" ? String(value) : "—";
@@ -310,7 +309,7 @@ function Field({ label, children, wide = false, required = false, error, hint }:
     : children;
   return <label className={`fleet-field ${wide ? "fleet-wide" : ""}`}><span className="fleet-field-label">{label}{required && <b className="fleet-required-mark">مطلوب</b>}</span>{control}{hint && <small className="fleet-field-hint">{hint}</small>}{error && <small className="fleet-field-error" role="alert">{error}</small>}</label>;
 }
-function Reason({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <Field label="سبب موثّق — مطلوب (٣ إلى ٥٠٠ حرف)" wide><textarea data-testid="fleet-reason" required minLength={3} maxLength={500} value={value} onChange={event => onChange(event.target.value)} placeholder="اكتب سبب الإجراء لتسجيله في التدقيق."/></Field>; }
+function Reason(_props: { value: string; onChange: (value: string) => void }) { return null; }
 function Skeleton() { return <div className="fleet-skeleton" aria-label="جارٍ تحميل سجلات الأسطول"><i/><i/><i/><i/></div>; }
 function State({ error = false, title, children, retry }: { error?: boolean; title: string; children?: ReactNode; retry?: () => void }) { return <section className={`fleet-state ${error ? "fleet-state-error" : ""}`} role={error ? "alert" : "status"}><span>{error ? <RefreshCw size={19}/> : <Truck size={19}/>}</span><b>{title}</b>{children && <p>{children}</p>}{retry && <button data-testid="fleet-state-retry" className="fleet-button fleet-quiet" onClick={retry}><RefreshCw size={15}/> إعادة المحاولة</button>}</section>; }
 function PrivateFleetImage({ documentId, label }: { documentId: string; label: string }) {
@@ -432,8 +431,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [initialPolicyEnabled, setInitialPolicyEnabled] = useState(false);
   const [initialPolicyWeekdays, setInitialPolicyWeekdays] = useState<string[]>([]);
   const [initialPolicyRuleEnabled, setInitialPolicyRuleEnabled] = useState<Record<string, boolean>>({});
-  const [initialPolicyMerchantOrgIds, setInitialPolicyMerchantOrgIds] = useState<string[]>([]);
-  const [initialPolicyMerchantBranchIds, setInitialPolicyMerchantBranchIds] = useState<string[]>([]);
   const [revealInitialPin, setRevealInitialPin] = useState(false);
   const [initialReadingInput, setInitialReadingInput] = useState("");
   const [initialReadingTimeInput, setInitialReadingTimeInput] = useState("");
@@ -448,17 +445,16 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   const [selectedRecord, setSelectedRecord] = useState<Row>({});
   const [problem, setProblem] = useState("");
   const [message, setMessage] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [documentReview, setDocumentReview] = useState<Row | null>(null);
   const [documentDecision, setDocumentDecision] = useState("");
-  const [documentReason, setDocumentReason] = useState("");
+  const [documentReason, setDocumentReason] = useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [pairPin, setPairPin] = useState("");
   const [pairResult, setPairResult] = useState("");
-  const [pairPinRevealReasons, setPairPinRevealReasons] = useState<Record<string, string>>({});
   const [revealedPairPin, setRevealedPairPin] = useState<{ linkId: string; pinCode: string } | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<Row | null>(null);
-  const [importReason, setImportReason] = useState("");
+  const [importReason, setImportReason] = useState("تسجيل آلي: إجراء إداري من لوحة التحكم");
   const [command, setCommand] = useState("");
   const [vehicleCredentialChoice, setVehicleCredentialChoice] = useState("");
   const [policyScope, setPolicyScope] = useState("branch");
@@ -528,7 +524,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   }, [revealedPairPin]);
   useEffect(() => {
     setRevealedPairPin(null);
-    setPairPinRevealReasons({});
   }, [path]);
   const params = useMemo<GetAdminFleetCatalogParams>(() => ({
     view, page, pageSize: 20,
@@ -646,11 +641,10 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
     focusable?.focus();
   };
   const openAction = (action: string, row: Row = {}) => {
-    setSelectedRecord(row); setCommand(action); setVehicleCredentialChoice(""); setReason(""); setProblem(""); setWizardErrors({}); setMessage(""); setOneTimeToken(""); setOneTimeDriverPin(""); initialDriverPinRetryRef.current = "";
+    setSelectedRecord(row); setCommand(action); setVehicleCredentialChoice(""); setReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); setProblem(""); setWizardErrors({}); setMessage(""); setOneTimeToken(""); setOneTimeDriverPin(""); initialDriverPinRetryRef.current = "";
     setVehicleCreatedMessage(""); setFormWizardStep(0); setInitialDriverMode("none"); setRevealInitialPin(false); setInitialReadingInput(""); setInitialReadingTimeInput(""); setVehiclePhoto(null); setOdometerEvidencePhoto(null);
     setInitialFulfillmentMethod("install"); setInitialFulfillmentDetails({ installationAddress: "", pickupLocation: "", contactName: "", contactPhone: "" }); setInitialPolicyEnabled(false); setInitialPolicyWeekdays([]);
     setInitialPolicyRuleEnabled(Object.fromEntries(policyGroups.map(({ id }) => [id, false])));
-    setInitialPolicyMerchantOrgIds([]); setInitialPolicyMerchantBranchIds([]);
     createdVehiclePhotoRef.current = null; driverLinkRetryRef.current = null; driverCreateRetryRef.current = null; odometerRetryRef.current = null;
     commandRetryRef.current = null; onboardingPolicyRetryRef.current = null;
     const contextRow = Object.keys(row).length ? row : isVehicleDetail ? fields(root.vehicle) : isDriverDetail ? (records.find(item => String(item.id ?? "") === detailId) ?? {}) : {};
@@ -907,10 +901,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           setProblem("اختر يومًا واحدًا على الأقل؛ الأيام غير المحددة تمنع الاستخدام.");
           return;
         }
-        if (!initialPolicyMerchantOrgIds.length || !initialPolicyMerchantBranchIds.length) {
-          setProblem("اختر جهة تجارية وفرعًا مسموحًا بهما؛ لا يفتح غياب النطاق السماح لجميع الجهات.");
-          return;
-        }
         if (!fleetPolicySimplificationReady) {
           setProblem("تحديث سياسة الحدود المطلوب غير مطبق على قاعدة البيانات بعد؛ أكمل باقي بيانات المركبة دون تفعيل السياسة.");
           return;
@@ -923,6 +913,11 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         for (const { id, title } of activePolicyGroups) {
           const field = `onboardingRule_${id}_maxOperationQuantity`;
           const quantity = Number(form.get(field));
+          const tankCapacity = Number(form.get("tankCapacityLiters"));
+          if (id === "fuel" && (!Number.isFinite(tankCapacity) || tankCapacity <= 0 || quantity > tankCapacity)) {
+            reportWizardError(field, "أدخل سعة الخزان أولًا؛ أقصى كمية تعبئة لا تتجاوز سعة الخزان.");
+            return;
+          }
           if (!Number.isFinite(quantity) || quantity <= 0) {
             reportWizardError(field, `أدخل حدًا موجبًا للكمية في خدمة ${title}.`);
             return;
@@ -1050,9 +1045,9 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       const maxOperationQuantity = Math.max(0, ...Object.values(groupQuantities));
       if (!fleetPolicySimplificationReady || !effectiveFrom
           || dailyAmount === null || dailyAmount <= 0 || weeklyAmount === null || weeklyAmount < dailyAmount
-          || !initialPolicyWeekdays.length || !initialPolicyMerchantOrgIds.length || !initialPolicyMerchantBranchIds.length
+          || !initialPolicyWeekdays.length
           || !activeGroups.length || invalidGroupQuantity) {
-        setProblem("تعذر التحقق من سياسة الحدود. راجع السريان والأيام والجهة والفروع والحدود المطلوبة.");
+        setProblem("تعذر التحقق من حدود المركبة. راجع السريان والأيام والخدمات والمبالغ.");
         return;
       }
       const globalAmounts = {
@@ -1075,8 +1070,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         allowedWeekdays: initialPolicyWeekdays.map(Number),
         startTime: "00:00",
         endTime: "24:00",
-        allowedMerchantOrganizationIds: initialPolicyMerchantOrgIds,
-        allowedMerchantBranchIds: initialPolicyMerchantBranchIds,
+        inheritBranchMerchantScope: true,
         ...globalAmounts,
         ...globalQuantities,
         rules: policyGroupsForSchema.map(({ id }) => ({
@@ -1349,7 +1343,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       if (driverPinInput) driverPinInput.value = "";
       driverPinRetryRef.current = null;
       setRevealInitialPin(false);
-      setShowForm(false); setReason("");
+      setShowForm(false); setReason("تسجيل آلي: إجراء إداري من لوحة التحكم");
       commandRetryRef.current = null;
       createdVehiclePhotoRef.current = null;
       setVehicleCreatedMessage("");
@@ -1382,7 +1376,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
   }
   async function revealDriverPairPin(link: Row) {
     const linkId = String(link.id ?? "");
-    const reason = String(pairPinRevealReasons[linkId] ?? "").trim();
+    const reason = "تسجيل آلي: عرض رمز التعبئة بواسطة مستخدم مخول";
     if (!UUID_RE.test(linkId) || reason.length < 3) {
       setProblem("أدخل سببًا واضحًا لعرض الرمز.");
       return;
@@ -1396,7 +1390,6 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
         return;
       }
       setRevealedPairPin({ linkId, pinCode: result.pinCode });
-      setPairPinRevealReasons(current => ({ ...current, [linkId]: "" }));
       setMessage("سُجل عرض الرمز في سجل التدقيق؛ سيختفي خلال 20 ثانية.");
     } catch (error) {
       setProblem(apiError(error));
@@ -1436,7 +1429,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       ? importApplyRetryRef.current.key
       : crypto.randomUUID();
     importApplyRetryRef.current = { signature, key: idempotencyKey };
-    try { await applyMutation.mutateAsync({ jobId, data: { reason: importReason.trim(), idempotencyKey } }); setMessage("تم إرسال التطبيق الذري للمهمة."); setImportPreview(null); setImportReason(""); importApplyRetryRef.current = null; await refresh(); }
+    try { await applyMutation.mutateAsync({ jobId, data: { reason: importReason.trim(), idempotencyKey } }); setMessage("تم إرسال التطبيق الذري للمهمة."); setImportPreview(null); setImportReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); importApplyRetryRef.current = null; await refresh(); }
     catch (error) { setProblem(apiError(error)); }
   }
   async function copyToken() {
@@ -1462,7 +1455,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
       });
       if (!response.ok) throw Object.assign(new Error("تعذر تسجيل قرار المستند."), { status: response.status });
       setMessage("سُجل قرار مراجعة المستند.");
-      setDocumentReview(null); setDocumentReason(""); setDocumentDecision("");
+      setDocumentReview(null); setDocumentReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); setDocumentDecision("");
       await refresh();
     } catch (error) { setProblem(apiError(error)); }
   }
@@ -1540,7 +1533,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
            {isVehicleDetail && <section className="fleet-efficiency-panel"><div><small>آخر قراءة مقبولة</small><b>{latestAcceptedReading ? `${text(latestAcceptedReading.readingKm)} كم` : "لا توجد قراءة مقبولة"}</b></div><div><small>المسافة بين آخر قراءتين مقبولتين</small><b>{acceptedDistanceKm !== null && Number.isFinite(acceptedDistanceKm) && acceptedDistanceKm >= 0 ? `${acceptedDistanceKm.toLocaleString("ar-EG")} كم` : "غير متاح"}</b></div><div><small>كفاءة الوقود الفعلية</small><b>غير متاحة</b><p>لا توجد أحداث تعبئة بكمية وقود فعلية لحساب كم/لتر أو لتر/١٠٠ كم.</p></div></section>}
           {isVehicleDetail && UUID_RE.test(String(vehicleRecord.organizationId ?? "")) && <FleetFuelRate organizationId={String(vehicleRecord.organizationId)} branchId={UUID_RE.test(String(vehicleRecord.branchId ?? "")) ? String(vehicleRecord.branchId) : undefined} canMutate={canMutate}/>}
           {isDriverDetail && <section className="fleet-panel fleet-record-detail">
-             <div className="fleet-panel-head"><div><span className="fleet-eyebrow">سائق / ملف</span><h2>{driverRecord ? text(driverRecord.fullName) : "بيانات السائق"}</h2><p>رمز التعبئة مخفي افتراضيًا؛ يمكن للمخول عرضه بسبب موثق، ويختفي تلقائيًا بعد 20 ثانية.</p></div></div>
+             <div className="fleet-panel-head"><div><span className="fleet-eyebrow">سائق / ملف</span><h2>{driverRecord ? text(driverRecord.fullName) : "بيانات السائق"}</h2><p>رمز التعبئة مخفي افتراضيًا؛ يمكن للمخول عرضه مع تسجيل العرض تلقائيًا، ويختفي تلقائيًا بعد 20 ثانية.</p></div></div>
             {driverDetail.isLoading ? <Skeleton/> : driverDetail.isError ? <State error title="تعذر تحميل ملف السائق" retry={() => void driverDetail.refetch()}>{apiError(driverDetail.error)}</State> : driverRecord ? <>
               <div className="fleet-facts">{Object.entries(driverRecord).filter(([key, value]) => key !== "links" && !isHiddenKey(key) && Boolean(labels[key]) && (value === null || typeof value !== "object")).map(([key, value]) => <div key={key}><small>{labels[key]}</small><b>{formatFleetField(key, value)}</b></div>)}</div>
               <div className="fleet-detail-list"><h3>إسنادات المركبات</h3>{driverLinks.length ? <div className="fleet-facts">{driverLinks.map((link, index) => <div key={`driver-link-${String(link.id ?? index)}`}>
@@ -1551,10 +1544,8 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
                 <span><small>نهاية الإسناد</small><b>{link.endsAt ? date(link.endsAt) : "مستمر"}</b></span>
                  {Boolean(link.vehicleId) && <Link className="fleet-row-action" href={`/admin/fleet/vehicles/${encodeURIComponent(String(link.vehicleId))}`}>فتح ملف المركبة</Link>}
                  {canMutate && String(link.status) === "active" && UUID_RE.test(String(link.id ?? "")) && <div className="fleet-pin-reveal">
-                   <label htmlFor={`driver-pin-reason-${String(link.id)}`}>سبب عرض رمز التعبئة
-                     <input id={`driver-pin-reason-${String(link.id)}`} value={pairPinRevealReasons[String(link.id)] ?? ""} maxLength={500} onChange={event => setPairPinRevealReasons(current => ({ ...current, [String(link.id)]: event.target.value }))} placeholder="اكتب سببًا تشغيليًا" />
-                   </label>
-                   <button type="button" className="fleet-row-action" disabled={revealPairPinMutation.isPending || String(pairPinRevealReasons[String(link.id)] ?? "").trim().length < 3} onClick={() => void revealDriverPairPin(link)}>
+
+                   <button data-pair-link-id={String(link.id)} type="button" className="fleet-row-action" disabled={revealPairPinMutation.isPending} onClick={() => void revealDriverPairPin(link)}>
                      <KeyRound size={14}/>{revealPairPinMutation.isPending ? "جارٍ التحقق…" : "عرض الرمز"}
                    </button>
                    {revealedPairPin?.linkId === String(link.id) && <span role="status" className="fleet-pin-value"><small>رمز مؤقت — لا تحفظه في ملاحظات أو تقارير</small><code dir="ltr">{revealedPairPin.pinCode}</code></span>}
@@ -1572,7 +1563,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
               const openRecord = () => { if (view === "vehicles") navigate(`/admin/fleet/vehicles/${encodeURIComponent(id)}`); else if (view === "drivers") navigate(`/admin/fleet/drivers/${encodeURIComponent(id)}`); };
               return <tr key={`${id}-${index}`} data-testid={`row-fleet-${view}-${index + 1}`} tabIndex={opensRecord ? 0 : undefined} role={opensRecord ? "link" : undefined} aria-label={opensRecord ? `فتح سجل ${view === "vehicles" ? "المركبة" : "السائق"} ${text(get(row, "plateOriginal", "fullName", "driverCode"))}` : undefined} onKeyDown={event => { if (opensRecord && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); openRecord(); } }} onClick={() => { if (opensRecord) openRecord(); }}>
                 {tableHeaders.map(key => <td key={key}>{key.toLowerCase().includes("status") ? <span className={`fleet-status status-${String(row[key] ?? "").toLowerCase()}`}>{formatFleetField(key, row[key])}</span> : <bdi dir={/plate|phone|code/i.test(key) ? "ltr" : undefined}>{typeof row[key] === "object" ? readable(row[key], key) : formatFleetField(key, row[key])}</bdi>}</td>)}
-                   <td>{view === "policies" && canMutate ? <div className="fleet-row-actions"><button data-testid={`fleet-policy-edit-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); openAction(text(get(row, "status")) === "draft" ? "policy.update" : "policy.create", row); }}>{text(get(row, "status")) === "draft" ? "تعديل المسودة" : "نسخة جديدة"}</button>{text(get(row, "status")) === "draft" && <button data-testid={`fleet-policy-publish-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); openAction("policy.publish", row); }}>نشر</button>}</div> : view === "documents" && id !== "—" ? <div className="fleet-row-actions"><button data-testid={`fleet-document-download-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); void fetch(`/api/documents/${encodeURIComponent(id)}/download`, { credentials: "include" }).then(async response => { if (!response.ok) throw Object.assign(new Error("تعذر تنزيل المستند."), { status: response.status }); const body = await response.json() as Row; const href = text(get(body, "url", "downloadUrl")); if (href !== "—") window.location.assign(href); }).catch(error => setProblem(apiError(error))); }}>تنزيل</button>{canMutate && ["pending_review", "needs_completion"].includes(String(row.status)) && <button data-testid={`fleet-document-review-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); setDocumentReview(row); setDocumentDecision(""); setDocumentReason(""); }}>مراجعة</button>}</div> : view === "imports" ? <button data-testid={`fleet-import-details-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); setImportPreview(row); }}>تفاصيل المهمة</button> : <span className="fleet-row-action-text">{view === "vehicles" || view === "drivers" ? "فتح الملف" : statusText(get(row, "status"))}</span>}</td>
+                   <td>{view === "policies" && canMutate ? <div className="fleet-row-actions"><button data-testid={`fleet-policy-edit-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); openAction(text(get(row, "status")) === "draft" ? "policy.update" : "policy.create", row); }}>{text(get(row, "status")) === "draft" ? "تعديل المسودة" : "نسخة جديدة"}</button>{text(get(row, "status")) === "draft" && <button data-testid={`fleet-policy-publish-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); openAction("policy.publish", row); }}>نشر</button>}</div> : view === "documents" && id !== "—" ? <div className="fleet-row-actions"><button data-testid={`fleet-document-download-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); void fetch(`/api/documents/${encodeURIComponent(id)}/download`, { credentials: "include" }).then(async response => { if (!response.ok) throw Object.assign(new Error("تعذر تنزيل المستند."), { status: response.status }); const body = await response.json() as Row; const href = text(get(body, "url", "downloadUrl")); if (href !== "—") window.location.assign(href); }).catch(error => setProblem(apiError(error))); }}>تنزيل</button>{canMutate && ["pending_review", "needs_completion"].includes(String(row.status)) && <button data-testid={`fleet-document-review-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); setDocumentReview(row); setDocumentDecision(""); setDocumentReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); }}>مراجعة</button>}</div> : view === "imports" ? <button data-testid={`fleet-import-details-${index + 1}`} className="fleet-row-action" onClick={event => { event.stopPropagation(); setImportPreview(row); }}>تفاصيل المهمة</button> : <span className="fleet-row-action-text">{view === "vehicles" || view === "drivers" ? "فتح الملف" : statusText(get(row, "status"))}</span>}</td>
               </tr>;
             })}</tbody></table></div>}
             {!["overview", "vehicle"].includes(view) && entries.length > 0 && <div className="fleet-pagination"><span>عرض {entries.length.toLocaleString("ar-EG")} من {text(totalRecords ?? records.length)} سجل</span><div><button data-testid="fleet-prev-page" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>السابق</button><b>{page.toLocaleString("ar-EG")} / {totalPages?.toLocaleString("ar-EG") ?? "—"}</b><button data-testid="fleet-next-page" disabled={totalPages !== undefined ? page >= totalPages : entries.length < 20} onClick={() => setPage(value => value + 1)}>التالي</button></div></div>}
@@ -1587,7 +1578,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
           {vehicleCreatedMessage && <div className="fleet-feedback" role="status"><p>{vehicleCreatedMessage}</p>{createdVehiclePhotoRef.current && !photoUploadPending && (!createdVehiclePhotoRef.current.driverLinked || !createdVehiclePhotoRef.current.driverCreated || !createdVehiclePhotoRef.current.photoSaved || !createdVehiclePhotoRef.current.odometerRecorded || !createdVehiclePhotoRef.current.evidenceSaved || createdVehiclePhotoRef.current.policyCreated === false || createdVehiclePhotoRef.current.policyPublished === false) && <button data-testid="fleet-create-continue-partial" type="button" className="fleet-button fleet-button-secondary" onClick={() => {
             const workflow = createdVehiclePhotoRef.current;
             const skipped = [!workflow?.driverCreated && "ملف السائق", !workflow?.driverLinked && "ربط السائق", !workflow?.photoSaved && "صورة المركبة", !workflow?.odometerRecorded && "قراءة العداد", !workflow?.evidenceSaved && "إثبات القراءة", workflow?.policyCreated === false && "مسودة حدود الاستخدام", workflow?.policyPublished === false && "نشر حدود الاستخدام"].filter(Boolean).join("، ");
-            setVehiclePhoto(null); setOdometerEvidencePhoto(null); setShowForm(false); setReason(""); setProblem("");
+            setVehiclePhoto(null); setOdometerEvidencePhoto(null); setShowForm(false); setReason("تسجيل آلي: إجراء إداري من لوحة التحكم"); setProblem("");
       commandRetryRef.current = null; createdVehiclePhotoRef.current = null; driverLinkRetryRef.current = null; initialDriverPinRetryRef.current = ""; driverCreateRetryRef.current = null; odometerRetryRef.current = null;
             setVehicleCreatedMessage(""); setMessage(`تم حفظ المركبة؛ لم تُستكمل: ${skipped || "خطوات اختيارية"}. يمكنك إضافة ما يلزم من أقسام الأسطول دون إعادة إنشاء المركبة.`);
             if (path === "/admin/fleet/vehicles/new") navigate("/admin/fleet/vehicles");
@@ -1723,13 +1714,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
                   <p className="fleet-muted">تسري طوال اليوم في أيام الاستخدام التي تحددها، وفق توقيت القاهرة.</p>
                </div>
                <fieldset className="fleet-weekday-picker"><legend>أيام الاستخدام المسموحة</legend><p>الأيام غير المحددة تمنع الاستخدام.</p><div>{[["1","الاثنين"],["2","الثلاثاء"],["3","الأربعاء"],["4","الخميس"],["5","الجمعة"],["6","السبت"],["7","الأحد"]].map(([day, name]) => <label key={day}><input data-testid={`fleet-create-policy-day-${day}`} type="checkbox" checked={initialPolicyWeekdays.includes(day)} onChange={event => setInitialPolicyWeekdays(current => event.target.checked ? [...current, day].sort() : current.filter(item => item !== day))}/>{name}</label>)}</div></fieldset>
-               <div className="fleet-form-grid fleet-policy-merchant-scope">
-                  <FleetReferencePicker kind="organization" organizationKinds={["station", "provider"]} testId="fleet-create-policy-merchant-organization" label="الجهة التجارية المسموحة" value={initialPolicyMerchantOrgIds[0] ?? ""} required onChange={value => { setInitialPolicyMerchantOrgIds(value ? [value] : []); setInitialPolicyMerchantBranchIds([]); }}/>
-                   {initialPolicyMerchantOrgIds[0]
-                     ? <FleetReferencePicker kind="branch" testId="fleet-create-policy-merchant-branch" label="فروع الجهة المختارة فقط" value="" organizationId={initialPolicyMerchantOrgIds[0]} multiple selectedValues={initialPolicyMerchantBranchIds} onValuesChange={values => setInitialPolicyMerchantBranchIds(values)}/>
-                     : <Field label="فروع الجهة"><span className="fleet-reference-fixed">اختر جهة أولًا لعرض فروعها.</span></Field>}
-               </div>
-                <p className="fleet-muted">اختر جهة تجارية واحدة وفروعها المسموحة. حدود المبلغ إجمالية للمركبة عبر الخدمات المختارة؛ لا تعني إضافة رصيد.</p>
+               <p className="fleet-muted">تستخدم المركبة نقاط الخدمة المعتمدة لفرعها تلقائيًا. الحد اليومي والأسبوعي إجمالي عبر الخدمات المختارة.</p>
                 <div className="fleet-form-grid">
                  {[
                    ["onboardingDailyAmountEgp", "الحد اليومي للمبلغ (جنيه)"],
@@ -1751,7 +1736,7 @@ export function FleetAdminPage({ canMutate, isOwner }: { canMutate: boolean; isO
                         if (tankCapacity && quantityInput && !quantityInput.value) quantityInput.value = tankCapacity;
                       }
                     }}/><b>{group.title}</b><span>{enabled ? "مفعّلة عند نشر السياسة" : "غير مفعّلة"}</span></label>
-                    <Field label={onboardingQuantityLabels[group.id]} required={enabled} error={wizardErrors[quantityField]} hint={group.id === "fuel" ? "يبدأ من سعة الخزان المسجلة، ويمكن تعديله حسب التفويض." : undefined}><input data-testid={`fleet-create-${quantityField}`} name={quantityField} type="number" min={group.id === "fuel" || group.id === "oils" ? "0.001" : "1"} step={quantityStep} disabled={!enabled} onChange={() => clearWizardError(quantityField)}/></Field>
+                    <Field label={onboardingQuantityLabels[group.id]} required={enabled} error={wizardErrors[quantityField]} hint={group.id === "fuel" ? "لا يتجاوز سعة الخزان المسجلة. الحد المالي اليومي يطبّق أيضًا على كل تعبئة." : undefined}><input data-testid={`fleet-create-${quantityField}`} name={quantityField} type="number" min={group.id === "fuel" || group.id === "oils" ? "0.001" : "1"} step={quantityStep} disabled={!enabled} onChange={() => clearWizardError(quantityField)}/></Field>
                  </section>;
                })}</div>
                 <small>لا توجد فئة تعاقدية معتمدة مستقلة في هذا النموذج، لذلك لا يُشتق مبلغ تلقائي منها. سعة الخزان تهيئ حد الوقود باللتر فقط؛ حدود المبلغ يحددها المخول.</small>

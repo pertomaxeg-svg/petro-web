@@ -18,6 +18,8 @@ import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 import { decryptFleetPairPin, encryptFleetPairPin } from "../lib/fleetPinCrypto";
 
+import { selectBranchMerchantScope } from "../lib/fleetPolicyScope";
+
 const router: IRouter = Router();
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -373,6 +375,7 @@ router.post("/admin/fleet/commands", async (req: Request, res: Response) => {
   const payload = { ...parsed.data.payload };
   if (action === "driver.create" && !safeString(payload.driverCode)) {
     const organizationId = safeString(payload.organizationId);
+    if (!organizationId || !UUID_RE.test(organizationId)) return fail(res, 400, "اختر الشركة.");
     payload.driverCode = `AUTO-${createHash("sha256")
       .update("fleet-driver-code\0")
       .update(organizationId)
@@ -384,6 +387,36 @@ router.post("/admin/fleet/commands", async (req: Request, res: Response) => {
   }
   const payloadError = validateCommandPayload(action, payload);
   if (payloadError) return fail(res, 400, payloadError);
+
+  // The vehicle inherits its branch's explicit service network; an empty
+  // selection never grants access to all merchants.
+  if ((action === "policy.create" || action === "policy.update") && payload.inheritBranchMerchantScope === true) {
+    const branchId = safeString(payload.branchId);
+    const organizationId = safeString(payload.organizationId);
+    const effectiveAt = Date.parse(String(payload.effectiveFrom ?? ""));
+    if (!branchId || !organizationId || !UUID_RE.test(branchId) || !UUID_RE.test(organizationId)
+        || !Number.isFinite(effectiveAt) || payload.scope !== "vehicle") {
+      return fail(res, 400, "اختر الشركة والفرع وحدد سريان حدود المركبة.");
+    }
+    const candidatePolicies: JsonRecord[] = [];
+    for (let page = 1; ; page++) {
+      const result = await callRpc(session, "petro_admin_fleet_catalog", {
+        p_view: "policies", p_filters: { organizationId, branchId, page, pageSize: 100 },
+      });
+      if (result.error) return mapError(res, result.error);
+      const catalog = isRecord(result.data) ? result.data : {};
+      const policies = Array.isArray(catalog.items) ? catalog.items.filter(isRecord) : [];
+      candidatePolicies.push(...policies);
+      if (policies.length < 100 || page * 100 >= Number(catalog.total ?? 0)) break;
+    }
+    const scope = selectBranchMerchantScope(candidatePolicies, organizationId, branchId, effectiveAt);
+    if (!scope) {
+      return fail(res, 400, "لم يُعتمد نطاق خدمات للفرع بعد. اضبط سياسة الفرع أولًا، ثم أعد حفظ حدود المركبة.");
+    }
+    payload.allowedMerchantOrganizationIds = scope.organizationIds;
+    payload.allowedMerchantBranchIds = scope.branchIds;
+    delete payload.inheritBranchMerchantScope;
+  }
 
   let oneTimeToken: string | undefined;
   let rpcPayload: JsonRecord;
