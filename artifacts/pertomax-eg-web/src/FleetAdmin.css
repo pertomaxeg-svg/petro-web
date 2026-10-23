@@ -357,3 +357,5 @@ dialog.fleet-image-lightbox::backdrop{background:rgba(16,24,20,.92)}
 @media(max-width:767px){.fleet-record-table td:has(.fleet-private-image),.fleet-record-table td:has(.fleet-assigned-vehicles){grid-template-columns:minmax(0,1fr)}}
 
 dialog.fleet-image-lightbox:not([open]){display:none}
+
+.fleet-extra-facts{margin:12px 0;border:1px solid var(--fleet-line);border-radius:10px;padding:12px}.fleet-extra-facts summary{cursor:pointer;font-weight:600;color:var(--fleet-teal);min-height:32px}.fleet-extra-facts[open] summary{margin-bottom:12px}
