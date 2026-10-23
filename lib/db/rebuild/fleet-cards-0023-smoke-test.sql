@@ -246,6 +246,23 @@ BEGIN
      OR cards_result::text ILIKE '%pin_hmac%' THEN
     RAISE EXCEPTION 'card request list scope, fulfillment, or secret filtering failed: %',cards_result;
   END IF;
+  cards_result := public.petro_admin_fleet_cards_catalog('requests',jsonb_build_object(
+    'vehicleId',vehicle_id,'fulfillmentMethod','install','page',1,'pageSize',1
+  ));
+  IF (cards_result->>'total')::integer<>0 OR jsonb_array_length(cards_result->'items')<>0 THEN
+    RAISE EXCEPTION 'Installation request filter included a pickup request: %',cards_result;
+  END IF;
+  cards_result := public.petro_admin_fleet_cards_catalog('requests',jsonb_build_object(
+    'vehicleId',vehicle_id,'fulfillmentMethod','pickup','page',1,'pageSize',1
+  ));
+  IF (cards_result->>'total')::integer<>1 OR jsonb_array_length(cards_result->'items')<>1 THEN
+    RAISE EXCEPTION 'Pickup request filter lost its real total or page: %',cards_result;
+  END IF;
+  BEGIN
+    PERFORM public.petro_admin_fleet_cards_catalog('requests','{"fulfillmentMethod":"unknown"}'::jsonb);
+    RAISE EXCEPTION 'Unknown fulfillment method was accepted';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
   cards_result := public.petro_admin_fleet_cards_catalog('issued',jsonb_build_object(
     'organizationId','00000000-0000-4000-8000-000000002311',
     'vehicleId',vehicle_id,'page',1,'pageSize',10
