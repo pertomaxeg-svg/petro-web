@@ -207,7 +207,7 @@ BEGIN
     RAISE EXCEPTION 'fleet onboarding capability version was not reported: %',summary_row;
   END IF;
   IF pg_catalog.strpos(pg_catalog.pg_get_functiondef(
-      'public.petro_fleet_reserve_usage(uuid,uuid,uuid,uuid,uuid,text,bigint,numeric,text,text,uuid)'::regprocedure
+      'petro_private.fleet_check_usage_policy_at(uuid,uuid,uuid,uuid,text,bigint,numeric,timestamptz)'::regprocedure
     ), '(v_vehicle_policy.monthly_amount_limit_minor>0 AND v_month_amount+p_amount_minor>v_vehicle_policy.monthly_amount_limit_minor)')=0 THEN
     RAISE EXCEPTION 'optional monthly cap is still evaluated as zero in the reservation routine';
   END IF;

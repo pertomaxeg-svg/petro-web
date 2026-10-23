@@ -33,7 +33,7 @@ ALTER TABLE public.petro_fleet_policy_rules
 
 DO $fleet_onboarding_limit_contract$
 DECLARE
-  reserve_definition text;
+  policy_definition text;
   summaries_definition text;
   target text;
   replacement text;
@@ -57,18 +57,18 @@ DECLARE
     ARRAY['v_month_quantity+p_quantity>v_branch_rule.monthly_quantity_limit','(v_branch_rule.monthly_quantity_limit>0 AND v_month_quantity+p_quantity>v_branch_rule.monthly_quantity_limit)']
   ];
 BEGIN
-  reserve_definition := pg_catalog.pg_get_functiondef(
-    'public.petro_fleet_reserve_usage(uuid,uuid,uuid,uuid,uuid,text,bigint,numeric,text,text,uuid)'::regprocedure
+  policy_definition := pg_catalog.pg_get_functiondef(
+    'petro_private.fleet_check_usage_policy_at(uuid,uuid,uuid,uuid,text,bigint,numeric,timestamptz)'::regprocedure
   );
   FOREACH pair SLICE 1 IN ARRAY replacements LOOP
     target := pair[1];
     replacement := pair[2];
-    IF pg_catalog.strpos(reserve_definition, target) = 0 THEN
+    IF pg_catalog.strpos(policy_definition, target) = 0 THEN
       RAISE EXCEPTION '0025 could not locate optional-limit check: %', target;
     END IF;
-    reserve_definition := pg_catalog.replace(reserve_definition, target, replacement);
+    policy_definition := pg_catalog.replace(policy_definition, target, replacement);
   END LOOP;
-  EXECUTE reserve_definition;
+  EXECUTE policy_definition;
 
   summaries_definition := pg_catalog.pg_get_functiondef(
     'public.petro_admin_fleet_company_summaries(uuid,text,integer,integer)'::regprocedure
