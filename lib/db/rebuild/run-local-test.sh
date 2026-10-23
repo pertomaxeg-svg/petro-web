@@ -111,12 +111,8 @@ SQL
 # Compare the imported baseline before applying any later migration.
 pg_dump --no-owner --schema-only --schema=public --schema=petro_private \
   >"$tmp_dir/rebuilt-baseline.sql"
-sed -E \
-  's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
-  "$schema_dump" >"$tmp_dir/source-normalized.sql"
-sed -E \
-  's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
-  "$tmp_dir/rebuilt-baseline.sql" >"$tmp_dir/rebuilt-normalized.sql"
+node "$script_dir/normalize-pg-dump.mjs" "$schema_dump" >"$tmp_dir/source-normalized.sql"
+node "$script_dir/normalize-pg-dump.mjs" "$tmp_dir/rebuilt-baseline.sql" >"$tmp_dir/rebuilt-normalized.sql"
 if ! cmp -s "$tmp_dir/source-normalized.sql" "$tmp_dir/rebuilt-normalized.sql"; then
   echo "Fresh baseline differs from the saved schema snapshot:" >&2
   diff -u "$tmp_dir/source-normalized.sql" "$tmp_dir/rebuilt-normalized.sql" |
@@ -181,8 +177,7 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0006:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0006")"
   pg_dump --no-owner --no-privileges --schema-only \
     --schema=public --schema=petro_private |
-    sed -E \
-      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    node "$script_dir/normalize-pg-dump.mjs" \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0006"
 fi
 default_acl_snapshot >"$tmp_dir/default-acl-before-0007.txt"
@@ -204,8 +199,7 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0007:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0007")"
   pg_dump --no-owner --no-privileges --schema-only \
     --schema=public --schema=petro_private |
-    sed -E \
-      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    node "$script_dir/normalize-pg-dump.mjs" \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0007"
 fi
 
@@ -247,8 +241,7 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0008:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0008")"
   pg_dump --no-owner --no-privileges --schema-only \
     --schema=public --schema=petro_private |
-    sed -E \
-      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    node "$script_dir/normalize-pg-dump.mjs" \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0008"
 fi
 default_acl_snapshot >"$tmp_dir/default-acl-before-0012.txt"
@@ -414,16 +407,14 @@ if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0011:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0011")"
   pg_dump --no-owner --no-privileges --schema-only \
     --schema=public --schema=petro_private |
-    sed -E \
-      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    node "$script_dir/normalize-pg-dump.mjs" \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0011"
 fi
 if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0012:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0012")"
   pg_dump --no-owner --no-privileges --schema-only \
     --schema=public --schema=petro_private |
-    sed -E \
-      's/-- Dumped from database version [0-9.]+/-- Dumped from database version NORMALIZED/; s/-- Dumped by pg_dump version [0-9.]+/-- Dumped by pg_dump version NORMALIZED/' \
+    node "$script_dir/normalize-pg-dump.mjs" \
     >"$PERTOMAX_EXPECTED_SCHEMA_DUMP_0012"
 fi
 

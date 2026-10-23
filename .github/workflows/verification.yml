@@ -45,7 +45,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - name: Unit checks
-        run: node --test artifacts/api-server/src/lib/*.test.mjs
+        run: node --test artifacts/api-server/src/lib/*.test.mjs lib/db/rebuild/normalize-pg-dump.test.mjs
       - name: Build API and web
         run: |
           pnpm --filter @workspace/api-server run build
