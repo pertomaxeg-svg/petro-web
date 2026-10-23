@@ -13,4 +13,8 @@ Preflight baseline: current live migration 0026; catalog definition MD5 `308dc1e
 
 Rollback restores the exact original predicate without rewriting data. Test definition/ACL restoration in GitHub Actions before deployment.
 
-Status: prepared; not yet applied.
+Status: applied alone on 23 October 2026, ledger version `20261023150540`.
+Full isolated SQL/API/browser acceptance and exact rollback passed in GitHub run 39973972305 (acceptance job 120483648240). Fresh live preflight matched 0026 and the reviewed fingerprints. Postflight catalog MD5 `bd041ff8a089cced5cc5a6370e34333d`; inactive predicate present, catalog ACL `{postgres=X/postgres,authenticated=X/postgres}`, all 24 default ACL scopes/hash and legacy definition unchanged. No business rows or credentials created or updated.
+The separate real Auth/Storage job passed in prior run 39973147561; the first attempt of 39973972305 hit a public container-registry quota before tests and was retried once. This does not prove production runtime readiness.
+
+Retry outcome: run 39973972305 attempt 2, real-auth-storage job 120488006449, passed actual isolated Auth/PostgREST/Storage acceptance and cleanup.
