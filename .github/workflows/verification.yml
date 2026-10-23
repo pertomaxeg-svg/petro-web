@@ -62,3 +62,25 @@ jobs:
             /tmp/pertomax-fleet-*.png
           if-no-files-found: ignore
           retention-days: 7
+
+  real-auth-storage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - name: Start isolated real Supabase services
+        run: |
+          pnpm dlx supabase@2.58.5 start --workdir ci/auth-storage --exclude studio,postgres-meta,realtime,imgproxy,edge-runtime,logflare,vector,supavisor
+          pnpm dlx supabase@2.58.5 status --workdir ci/auth-storage --output json > "$RUNNER_TEMP/pertomax-local-status.json"
+      - name: Exercise actual Auth, project RPC and Storage
+        env:
+          PERTOMAX_LOCAL_STATUS_FILE: ${{ runner.temp }}/pertomax-local-status.json
+        run: node lib/db/rebuild/real-auth-storage-smoke-test.mjs
+      - name: Stop disposable services
+        if: always()
+        run: pnpm dlx supabase@2.58.5 stop --workdir ci/auth-storage --no-backup
