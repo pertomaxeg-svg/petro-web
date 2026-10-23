@@ -30,6 +30,7 @@ export function PrivateFleetImage({ documentId, label, compact = false }: { docu
   useEffect(() => {
     if (!expanded || !url || !dialog.current) return;
     const element = dialog.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     element.showModal();
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setExpanded(false);
@@ -38,6 +39,7 @@ export function PrivateFleetImage({ documentId, label, compact = false }: { docu
     return () => {
       window.removeEventListener("keydown", closeOnEscape);
       element.close();
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, [expanded, url]);
   const failedImage = () => { setExpanded(false); setUrl(""); setError("انتهت صلاحية رابط المعاينة؛ أعد فتح الصورة."); };

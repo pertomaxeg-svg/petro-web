@@ -415,6 +415,8 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0028
 default_acl_snapshot >"$tmp_dir/default-acl-after-0028.txt"
 cmp "$tmp_dir/default-acl-before-0028.txt" "$tmp_dir/default-acl-after-0028.txt"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/fleet-directory-photo-0028-smoke-test.sql" >/dev/null
+echo "PASS: rejected and unfinished directory photos excluded"
 node "$script_dir/finance-concurrency-smoke-test.mjs"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/fleet-finance-integration-setup.sql" >/dev/null
