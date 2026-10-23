@@ -1,0 +1,62 @@
+name: Pertomax independent verification
+
+on:
+  push:
+    branches: [pertomax-central-orgs-20261015, main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      BASE_PATH: /
+      PORT: '25467'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned package manager
+        run: npm install --global pnpm@11.25.0
+      - name: Install PostgreSQL 17 from the official PGDG repository
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-17 postgresql-client-17
+          echo '/usr/lib/postgresql/17/bin' >> "$GITHUB_PATH"
+      - name: Select preinstalled browser
+        run: |
+          browser_path="$(command -v google-chrome || command -v chromium || true)"
+          test -n "$browser_path"
+          echo "CHROMIUM_PATH=$browser_path" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - name: Unit checks
+        run: node --test artifacts/api-server/src/lib/*.test.mjs
+      - name: Build API and web
+        run: |
+          pnpm --filter @workspace/api-server run build
+          pnpm --filter @workspace/pertomax-eg-web run build
+      - name: Isolated SQL, API and browser acceptance
+        run: bash lib/db/rebuild/run-local-test.sh
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-browser-evidence
+          path: /tmp/pertomax-admin-cards-ui-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7
