@@ -1,4 +1,4 @@
--- Synthetic integration checks for 0022. Run only inside run-local-test.sh's
+-- Synthetic integration checks for the current fleet onboarding contract. Run only inside run-local-test.sh's
 -- disposable PostgreSQL cluster; never run against Supabase.
 BEGIN;
 
@@ -156,10 +156,10 @@ BEGIN
     'maxOperationQuantity',CASE WHEN group_name='batteries' THEN 1 ELSE 0 END,
     'dailyAmountLimitMinor',CASE WHEN group_name='batteries' THEN 20000 ELSE 0 END,
     'weeklyAmountLimitMinor',CASE WHEN group_name='batteries' THEN 50000 ELSE 0 END,
-    'monthlyAmountLimitMinor',CASE WHEN group_name='batteries' THEN 100000 ELSE 0 END,
-    'dailyQuantityLimit',CASE WHEN group_name='batteries' THEN 2 ELSE 0 END,
-    'weeklyQuantityLimit',CASE WHEN group_name='batteries' THEN 5 ELSE 0 END,
-    'monthlyQuantityLimit',CASE WHEN group_name='batteries' THEN 10 ELSE 0 END
+     'monthlyAmountLimitMinor',0,
+     'dailyQuantityLimit',0,
+     'weeklyQuantityLimit',0,
+     'monthlyQuantityLimit',0
   ) ORDER BY group_name) INTO policy_rules
   FROM (VALUES ('fuel'),('wash'),('oils'),('batteries'),('filters'),('parts'),('consumables')) groups(group_name);
   IF jsonb_array_length(policy_rules)<>7 THEN RAISE EXCEPTION 'test policy rules fixture is incomplete'; END IF;
@@ -175,8 +175,8 @@ BEGIN
       'allowedMerchantBranchIds',jsonb_build_array('00000000-0000-4000-8000-000000002222'),
       'maxOperationMinor',100000,
       'maxOperationQuantity',100,'dailyAmountLimitMinor',200000,
-      'weeklyAmountLimitMinor',500000,'monthlyAmountLimitMinor',1000000,
-      'dailyQuantityLimit',200,'weeklyQuantityLimit',500,'monthlyQuantityLimit',1000,
+       'weeklyAmountLimitMinor',500000,'monthlyAmountLimitMinor',0,
+       'dailyQuantityLimit',0,'weeklyQuantityLimit',0,'monthlyQuantityLimit',0,
       'rules',policy_rules
     ),
     'اختبار سياسة حدود مؤرخة',
@@ -193,7 +193,9 @@ BEGIN
      OR NOT EXISTS (
        SELECT 1 FROM public.petro_fleet_policy_rules
        WHERE policy_version_id=(policy_result->>'id')::uuid
-         AND service_group='batteries' AND enabled
+          AND service_group='batteries' AND enabled
+          AND monthly_amount_limit_minor=0
+          AND daily_quantity_limit=0 AND weekly_quantity_limit=0 AND monthly_quantity_limit=0
      ) THEN
     RAISE EXCEPTION 'policy service groups were not stored and published separately';
   END IF;
@@ -201,8 +203,13 @@ BEGIN
   summary_row := public.petro_admin_fleet_company_summaries(
     '00000000-0000-4000-8000-000000002211',NULL,1,10
   );
-  IF summary_row->>'onboardingCapabilitiesVersion'<>'2' THEN
+  IF summary_row->>'onboardingCapabilitiesVersion'<>'3' THEN
     RAISE EXCEPTION 'fleet onboarding capability version was not reported: %',summary_row;
+  END IF;
+  IF pg_catalog.strpos(pg_catalog.pg_get_functiondef(
+      'public.petro_fleet_reserve_usage(uuid,uuid,uuid,uuid,uuid,text,bigint,numeric,text,text,uuid)'::regprocedure
+    ), '(v_vehicle_policy.monthly_amount_limit_minor>0 AND v_month_amount+p_amount_minor>v_vehicle_policy.monthly_amount_limit_minor)')=0 THEN
+    RAISE EXCEPTION 'optional monthly cap is still evaluated as zero in the reservation routine';
   END IF;
 END
 $fleet_onboarding_0022$;

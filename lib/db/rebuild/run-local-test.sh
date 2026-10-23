@@ -357,9 +357,6 @@ if ! cmp -s "$tmp_dir/default-acl-before-0022.txt" "$tmp_dir/default-acl-after-0
   exit 1
 fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
-  --file="$script_dir/fleet-onboarding-0022-smoke-test.sql" >/dev/null
-echo "PASS: 0022 fleet onboarding smoke test (local PostgreSQL)"
-psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/inventory-smoke-test.sql" >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/platform-user-provisioning-smoke-test.sql" >/dev/null
@@ -396,6 +393,18 @@ if ! cmp -s "$tmp_dir/default-acl-before-0024.txt" "$tmp_dir/default-acl-after-0
   diff -u "$tmp_dir/default-acl-before-0024.txt" "$tmp_dir/default-acl-after-0024.txt" >&2 || true
   exit 1
 fi
+default_acl_snapshot >"$tmp_dir/default-acl-before-0025.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0025_fleet_onboarding_limit_contract.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0025.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0025.txt" "$tmp_dir/default-acl-after-0025.txt"; then
+  echo "0025 unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0025.txt" "$tmp_dir/default-acl-after-0025.txt" >&2 || true
+  exit 1
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$script_dir/fleet-onboarding-0022-smoke-test.sql" >/dev/null
+echo "PASS: fleet onboarding policy-contract smoke test (local PostgreSQL)"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 node "$script_dir/finance-concurrency-smoke-test.mjs"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
@@ -477,6 +486,16 @@ END
 $fleet_0023_rollback$;
 SQL
 echo "PASS: 0023 card catalog/PIN recovery smoke test and rollback (local PostgreSQL)"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0025-rollback.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/rollback/0025_fleet_onboarding_limit_contract.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0025-rollback.txt"
+if ! cmp -s "$tmp_dir/default-acl-before-0025.txt" "$tmp_dir/default-acl-after-0025-rollback.txt"; then
+  echo "0025 rollback unexpectedly changed one or more default ACLs:" >&2
+  diff -u "$tmp_dir/default-acl-before-0025.txt" "$tmp_dir/default-acl-after-0025-rollback.txt" >&2 || true
+  exit 1
+fi
+echo "PASS: 0025 optional policy limits rollback (local PostgreSQL)"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/rollback-0024-fleet-card-history.sql" >/dev/null
 default_acl_snapshot >"$tmp_dir/default-acl-after-0024-rollback.txt"

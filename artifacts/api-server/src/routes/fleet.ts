@@ -122,16 +122,16 @@ function validateCommandPayload(action: string, payload: JsonRecord): string | n
     return "حالة المركبة غير صالحة.";
   }
   if (action === "driver.create" || action === "driver.update") {
-    if (!required(["driverCode", "fullName"])) return "أكمل اسم السائق والكود التشغيلي.";
+    if (action === "driver.create" && !required(["fullName"])) return "أدخل اسم السائق.";
+    if (action === "driver.update" && !required(["driverCode", "fullName"])) return "أكمل بيانات السائق المطلوبة.";
     if (action === "driver.create" && !uuid("organizationId")) return "اختر الشركة.";
     if (action === "driver.update" && (!uuid("driverId") || !safeString(payload.expectedVersion))) return "تعذر التحقق من نسخة السائق.";
   }
   if (action === "driver.link.create") {
-    const startsAt = safeString(payload.startsAt);
-    const startTime = startsAt ? new Date(startsAt).getTime() : Number.NaN;
     if (!uuid("vehicleId") || !uuid("driverId")) return "اختر المركبة والسائق من القوائم.";
-    if (!startsAt || !Number.isFinite(startTime) || startTime > Date.now()) {
-      return "أدخل تاريخ بداية ربط صحيحًا لا يتجاوز الوقت الحالي.";
+    const startsAt = safeString(payload.startsAt);
+    if (startsAt && (!Number.isFinite(new Date(startsAt).getTime()) || new Date(startsAt).getTime() > Date.now())) {
+      return "تاريخ بداية الإسناد غير صالح.";
     }
     if (!/^\d{4}$/.test(String(payload.pinCode ?? ""))) {
       return "يجب تعيين رمز سري من أربعة أرقام مع ربط السائق بالمركبة.";
@@ -371,6 +371,17 @@ router.post("/admin/fleet/commands", async (req: Request, res: Response) => {
   if (!parsed.success || !isRecord(parsed.data.payload)) return fail(res, 400, "صيغة الأمر غير صالحة.");
   const { action, reason, idempotencyKey } = parsed.data;
   const payload = { ...parsed.data.payload };
+  if (action === "driver.create" && !safeString(payload.driverCode)) {
+    const organizationId = safeString(payload.organizationId);
+    payload.driverCode = `AUTO-${createHash("sha256")
+      .update("fleet-driver-code\0")
+      .update(organizationId)
+      .update("\0")
+      .update(idempotencyKey)
+      .digest("hex")
+      .slice(0, 24)
+      .toUpperCase()}`;
+  }
   const payloadError = validateCommandPayload(action, payload);
   if (payloadError) return fail(res, 400, payloadError);
 
