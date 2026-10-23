@@ -32,4 +32,4 @@ Allow zero for optional monthly money and period-quantity caps. Positive existin
 
 The downgrade intentionally refuses while any policy uses a zero optional cap. Never replace those values or delete policies automatically in production. Prefer a forward fix; an operator must deliberately replace/retire affected policies before a compatible downgrade. The isolated runner tests refusal, then normalizes **disposable fixtures only** and verifies the downgrade and unchanged ACL.
 
-Status: prepared; not yet applied at creation of this document.
+Status: applied on 23 October 2026 after independent CI run 39967922067 completed successfully at commit 317d257. Migration ledger version: `20261023141941`. Fresh preflight matched the fingerprints above. Postflight confirmed capability 3, all five optional-limit constraints, unchanged function ACLs/default ACL fingerprint and unchanged legacy status definition. Evaluator definition MD5 is now `da1fe1038e7d5da245b26c230acc7e5f`; summaries definition MD5 is `8e0f5103463d54b0aa72aec327772fdf`. No business fixture writes, 0009 or other migration were executed.

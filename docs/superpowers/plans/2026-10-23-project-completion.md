@@ -43,9 +43,9 @@
 
 - [x] Inspect current branch, live migration catalog, tables and security advisories.
 - [x] Locate named skills from primary repositories; record sources and actual usage below.
-- [ ] Establish PostgreSQL 17/browser verification independent of Replit; require no production secrets.
-- [ ] Add 0025 to reviewed migration allowlist and rollback documentation; check source hash, current function definitions, constraints, ACL and legacy fingerprints before applying only 0025.
-- [ ] Verify capability 3 and unchanged ACL/legacy signatures after application; no test business records live.
+- [x] Establish PostgreSQL 17/browser verification independent of Replit; require no production secrets. CI run 39967922067 passed the complete suite on 23 October.
+- [x] Add 0025 to reviewed migration allowlist and rollback documentation; check source hash, current function definitions, constraints, ACL and legacy fingerprints before applying only 0025.
+- [x] Verify capability 3 and unchanged ACL/legacy signatures after application; no test business records live. Applied ledger version 20261023141941; see rollout evidence.
 - [ ] Identify existing project-only production target, secrets and DNS requirements. Prepare rollback/health probes, then deploy only a tested release. Missing target blocks deployment, not development.
 
 ## Phase 1 — close existing fleet/cards/catalog/billing acceptance
@@ -137,7 +137,7 @@
 ## Restart ledger
 
 - 2026-10-23: plan created before new implementation; independent verification setup in progress. Existing isolated results are historical evidence, not a fresh direct-run claim.
-- Next: establish independent PostgreSQL/browser CI, activate reviewed 0025 without data mutation, then close Phase 1 server-limit and visual acceptance.
+- Next: close Phase 1 server-limit and visual acceptance. Independent CI and 0025 live activation completed; no project-wide completion claimed.
 
 - Ruling: local runtime maps only uid 0; native PostgreSQL refuses root and privilege switching is unavailable. Use secret-free GitHub Actions on this public repository for independent PostgreSQL 17/browser acceptance; retain local Node/build checks. No Replit fallback.
 
