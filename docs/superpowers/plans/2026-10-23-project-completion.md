@@ -142,3 +142,5 @@
 - Ruling: local runtime maps only uid 0; native PostgreSQL refuses root and privilege switching is unavailable. Use secret-free GitHub Actions on this public repository for independent PostgreSQL 17/browser acceptance; retain local Node/build checks. No Replit fallback.
 
 - Independent CI: first run exposed PostgreSQL 17.11 metadata drift; three normalizer regressions observed RED→GREEN. Second run passed SQL but Chrome startup failed without diagnostics. Remove obsolete constrained-runtime flags and capture bounded browser stderr/signal for the next run.
+
+- Independent CI run 39966868322: standard Chrome browser acceptance, real API/PostgreSQL and finance concurrency passed. The later rollback guard check failed because ripgrep was missing; install the explicit runner dependency and rerun the whole suite. Auth and Storage remain synthetic; live acceptance is still open.
