@@ -13,4 +13,7 @@ TDD RED: commit cabd6b1, GitHub run 39975814094, acceptance job 120489978387 fai
 
 Preflight: catalog MD5 `2d2df7243983c0f823eede60ae4b7d68`; live ledger 0027. Capture and compare catalog ACL, all default ACL scopes and the legacy status definition immediately before/after. Source guards require the exact reviewed definition and unique replacement anchors. Rollback reconstructs and verifies the exact original definition. No grants, tables or business rows change.
 
-Status: prepared; not applied.
+Status: applied alone on 23 October 2026 as ledger `20261023152855`.
+GREEN: commit `8aa32f7d42d855bc5fe6a81bc6f2f9b0cb166d10`, GitHub run 39978082855, acceptance job 120498009185 and real-auth-storage job 120498008637 both succeeded. Full isolated SQL/API/browser acceptance included directory photo identity, driver plate/image linkage, zoom, focus restoration, responsive layouts, rejected/incomplete photo exclusion and exact function/ACL rollback. No production fixtures were used.
+Fresh preflight matched 0027 and catalog MD5 `2d2df7243983c0f823eede60ae4b7d68`. Postflight MD5 `1fee4e7e162c54ac9a13740d1ea7768b`; both photoDocumentId and activeVehicles contracts present. Catalog ACL `{postgres=X/postgres,authenticated=X/postgres}`, default ACL 24 scopes/hash `c70fd3da5a6b0c24f1ac2bac5657bcb3` and legacy status MD5 `d6a0defdb1102d00b0743723db453bad` unchanged. No business rows, grants or status changes.
+The current source has automated interactive/responsive evidence and captured screenshots; a fresh manual visual review of every role is still open. Source/DB activation does not deploy the web/API runtime.

@@ -2,7 +2,8 @@ name: Pertomax independent verification
 
 on:
   push:
-    branches: [pertomax-central-orgs-20261015, main]
+    # Feature branches are checked through their pull requests; avoid duplicate suites.
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
