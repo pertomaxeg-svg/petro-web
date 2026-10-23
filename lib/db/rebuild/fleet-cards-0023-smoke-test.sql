@@ -31,6 +31,7 @@ INSERT INTO public.petro_branches(
 SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000002301';
 
 DO $fleet_cards_0023$
+<<fleet_cards_0023>>
 DECLARE
   vehicle_result jsonb;
   driver_result jsonb;
