@@ -486,6 +486,32 @@ END
 $fleet_0023_rollback$;
 SQL
 echo "PASS: 0023 card catalog/PIN recovery smoke test and rollback (local PostgreSQL)"
+# The browser fixtures deliberately persist optional (zero) caps. A downgrade
+# must refuse these rows rather than silently imposing limits on real users.
+if psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/rollback/0025_fleet_onboarding_limit_contract.sql" \
+  >"$tmp_dir/0025-rollback-guard.log" 2>&1; then
+  echo "0025 rollback should reject persisted optional-limit fixtures" >&2
+  exit 1
+fi
+if ! rg -q 'Rollback blocked: policies use the optional-limit contract' "$tmp_dir/0025-rollback-guard.log"; then
+  cat "$tmp_dir/0025-rollback-guard.log" >&2
+  exit 1
+fi
+# Disposable-cluster fixture normalization ONLY, after all behavior tests.
+# Production rollback must keep its refusal until an operator replaces policies.
+psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
+UPDATE public.petro_fleet_policy_versions SET
+  monthly_amount_limit_minor=greatest(monthly_amount_limit_minor,1),
+  daily_quantity_limit=greatest(daily_quantity_limit,1),
+  weekly_quantity_limit=greatest(weekly_quantity_limit,1),
+  monthly_quantity_limit=greatest(monthly_quantity_limit,1);
+UPDATE public.petro_fleet_policy_rules SET
+  monthly_amount_limit_minor=greatest(monthly_amount_limit_minor,1),
+  daily_quantity_limit=greatest(daily_quantity_limit,1),
+  weekly_quantity_limit=greatest(weekly_quantity_limit,1),
+  monthly_quantity_limit=greatest(monthly_quantity_limit,1);
+SQL
 default_acl_snapshot >"$tmp_dir/default-acl-before-0025-rollback.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$repo_root/lib/db/rollback/0025_fleet_onboarding_limit_contract.sql" >/dev/null
