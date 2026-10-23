@@ -124,3 +124,8 @@
   .fc-pagination{align-items:flex-start;flex-direction:column}.fc-pagination>div{width:100%}.fc-pagination button{flex:1;justify-content:center}
 }
 @media(prefers-reduced-motion:reduce){.fleet-cards-page,.fc-skeleton i,.fc-reservation-loading i{animation:none}}
+
+.fc-state-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.fc-state-tabs button{min-height:44px;padding:8px 16px;border:1px solid #cbd9d0;border-radius:7px;background:#fff;color:#365a49;font:600 14px var(--app-font-sans);cursor:pointer}
+.fc-state-tabs button[aria-pressed="true"]{background:#23695e;border-color:#23695e;color:#fff}
+.fc-state-tabs button:focus-visible{outline:3px solid #a65e43;outline-offset:3px}

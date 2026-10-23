@@ -258,6 +258,11 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
       </button>)}
     </nav>
 
+    {view === "issued" && <nav className="fc-state-tabs" aria-label="تصنيف البطاقات الصادرة">
+      {[["", "كل البطاقات"], ["active", "البطاقات الفعالة"], ["inactive", "البطاقات غير الفعالة"]].map(([value, label]) =>
+        <button type="button" key={value} data-testid={`fc-issued-${value || "all"}`} aria-pressed={status === value} onClick={() => { setStatus(value); setPage(1); }}>{label}</button>
+      )}
+    </nav>}
     <section className="fc-workspace">
       <div className="fc-toolbar">
         <div>

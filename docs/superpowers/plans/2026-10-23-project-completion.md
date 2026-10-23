@@ -59,7 +59,7 @@
 - [ ] Automatic secure pair PIN, authorized reveal, timed hiding, old PIN revoked on reassignment; no code in logs/export/cache. Verify live key readiness without exposing its value.
 - [ ] Full-day allowed weekdays/services; one vehicle daily/weekly monetary budget. Validate quantity/tank and monetary limits on server as well as UI; preserve parent branch policy restrictions.
 - [ ] Edit/publish/read/reload plans and fuel reference tariffs, including conflict recovery and preserved old subscription snapshots.
-- [ ] Authenticated real Storage upload/download/denial with explicitly isolated test resources; distinguish from simulated storage tests.
+- [x] Authenticated real Storage upload/download/denial with explicitly isolated test resources; real Auth/PostgREST/Storage job passed in GitHub run 39973147561. Production runtime secrets and SMTP delivery remain unverified.
 
 ## Phase 2 — service order cycle (first new business phase)
 
@@ -152,3 +152,5 @@
 - Independent CI run 39966868322: standard Chrome browser acceptance, real API/PostgreSQL and finance concurrency passed. The later rollback guard check failed because ripgrep was missing; install the explicit runner dependency and rerun the whole suite. Auth and Storage remain synthetic; live acceptance is still open.
 
 - Owner clarification, 23 October: code mutations directly through GitHub on the approved branch; database mutations directly through the approved Supabase connector. Use GitHub Actions for verification; no Replit or separate external development/hosting project. Local preparation is not a deployed feature. Current live ledger ends at 0026. The real-services test is GitHub-hosted and must retain Supabase-managed role defaults rather than rewriting them; its acceptance is still open. Repair the anonymous test block label before interpreting the inactive-category regression result.
+
+- 0027 RED observed in CI 39973147561: inactive issued-card list returned total=0 for a revoked fixture. Implement aggregate inactive filter and synchronized issued-card tabs; test the browser and exact catalog/ACL rollback. Native driver verification panel becomes collapsed by default so it does not obscure the directory. All these code changes are authored directly through GitHub; 0027 remains unapplied pending GREEN.

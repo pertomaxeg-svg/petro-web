@@ -336,3 +336,7 @@
   .fleet-create-link-fields{grid-template-columns:1fr}
   .fleet-create-link-fields>p{grid-column:auto}
 }
+
+.fleet-verify>summary{display:flex;align-items:center;gap:8px;color:#315a50;font-size:14px;font-weight:700;cursor:pointer;min-height:36px}
+.fleet-verify>summary:focus-visible{outline:3px solid #23695e;outline-offset:3px}
+.fleet-verify[open]>summary{margin-bottom:16px}

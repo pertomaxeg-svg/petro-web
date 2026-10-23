@@ -404,6 +404,11 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$repo_root/lib/db/migrations/0026_fleet_fuel_tank_capacity_guard.sql" >/dev/null
 default_acl_snapshot >"$tmp_dir/default-acl-after-0026.txt"
 cmp "$tmp_dir/default-acl-before-0026.txt" "$tmp_dir/default-acl-after-0026.txt"
+psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT md5(pg_get_functiondef(oid)),proacl::text FROM pg_proc WHERE oid='public.petro_admin_fleet_cards_catalog(text,jsonb)'::regprocedure" >"$tmp_dir/cards-before-0027.txt"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0027.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0027_fleet_issued_card_categories.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0027.txt"
+cmp "$tmp_dir/default-acl-before-0027.txt" "$tmp_dir/default-acl-after-0027.txt"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 node "$script_dir/finance-concurrency-smoke-test.mjs"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
@@ -461,6 +466,13 @@ SQL
 
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/fleet-cards-0023-smoke-test.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/rollback/0027_fleet_issued_card_categories.sql" >/dev/null
+psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT md5(pg_get_functiondef(oid)),proacl::text FROM pg_proc WHERE oid='public.petro_admin_fleet_cards_catalog(text,jsonb)'::regprocedure" >"$tmp_dir/cards-after-0027-rollback.txt"
+cmp "$tmp_dir/cards-before-0027.txt" "$tmp_dir/cards-after-0027-rollback.txt"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0027-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0027.txt" "$tmp_dir/default-acl-after-0027-rollback.txt"
+echo "PASS: 0027 issued-card categories and exact catalog/ACL rollback"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/rollback-0023-fleet-cards-and-pin.sql" >/dev/null
 default_acl_snapshot >"$tmp_dir/default-acl-after-0023-rollback.txt"
