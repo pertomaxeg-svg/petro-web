@@ -51,7 +51,7 @@
 ## Phase 1 — close existing fleet/cards/catalog/billing acceptance
 
 **Files:** `artifacts/pertomax-eg-web/src/FleetAdmin.tsx`, `FleetDirectory.tsx`, `FleetCardsAdmin.tsx`, `FleetCardRequestsPanel.tsx`, `CatalogAdmin.tsx`, `AdminBilling.tsx`; API fleet/catalog/billing routes; isolated UI smoke.
-**Produces:** COM05–COM09 and ADM05–ADM08/ADM10–ADM12 acceptance foundation.
+**Produces:** COM05–COM09 and ADM05–ADM11 acceptance foundation.
 
 - [ ] Match approved vehicle fields and driver/vehicle lists: useful columns, vehicle and odometer images, private zoom, responsive details; no driver Auth fields.
 - [ ] No visible manual audit-reason fields; automatic actor/time/event descriptions stay audited.
@@ -140,3 +140,5 @@
 - Next: establish independent PostgreSQL/browser CI, activate reviewed 0025 without data mutation, then close Phase 1 server-limit and visual acceptance.
 
 - Ruling: local runtime maps only uid 0; native PostgreSQL refuses root and privilege switching is unavailable. Use secret-free GitHub Actions on this public repository for independent PostgreSQL 17/browser acceptance; retain local Node/build checks. No Replit fallback.
+
+- Independent CI: first run exposed PostgreSQL 17.11 metadata drift; three normalizer regressions observed RED→GREEN. Second run passed SQL but Chrome startup failed without diagnostics. Remove obsolete constrained-runtime flags and capture bounded browser stderr/signal for the next run.
