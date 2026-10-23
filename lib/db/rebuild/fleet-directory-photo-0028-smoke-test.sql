@@ -21,9 +21,9 @@ SELECT set_config('request.jwt.claim.sub',(SELECT actor_id::text FROM pg_temp.di
 DO $rejected_photo$
 DECLARE item jsonb;
 BEGIN
-  SELECT row INTO item FROM jsonb_array_elements(public.petro_admin_fleet_catalog(
-    'vehicles',jsonb_build_object('query','TEST-UI-VEHICLE-01'))->'items') row
-  WHERE row->>'id'=(SELECT vehicle_id::text FROM pg_temp.directory_photo_fixture);
+  SELECT value INTO item FROM jsonb_array_elements(public.petro_admin_fleet_catalog(
+    'vehicles',jsonb_build_object('query','TEST-UI-VEHICLE-01'))->'items') AS entries(value)
+  WHERE value->>'id'=(SELECT vehicle_id::text FROM pg_temp.directory_photo_fixture);
   IF item IS NULL OR item->'photoDocumentId' IS DISTINCT FROM 'null'::jsonb THEN
     RAISE EXCEPTION 'Rejected photo remains visible in directory';
   END IF;
@@ -38,9 +38,9 @@ SELECT set_config('request.jwt.claim.sub',(SELECT actor_id::text FROM pg_temp.di
 DO $unfinished_photo$
 DECLARE item jsonb;
 BEGIN
-  SELECT row INTO item FROM jsonb_array_elements(public.petro_admin_fleet_catalog(
-    'vehicles',jsonb_build_object('query','TEST-UI-VEHICLE-01'))->'items') row
-  WHERE row->>'id'=(SELECT vehicle_id::text FROM pg_temp.directory_photo_fixture);
+  SELECT value INTO item FROM jsonb_array_elements(public.petro_admin_fleet_catalog(
+    'vehicles',jsonb_build_object('query','TEST-UI-VEHICLE-01'))->'items') AS entries(value)
+  WHERE value->>'id'=(SELECT vehicle_id::text FROM pg_temp.directory_photo_fixture);
   IF item IS NULL OR item->'photoDocumentId' IS DISTINCT FROM 'null'::jsonb THEN
     RAISE EXCEPTION 'Unfinished upload remains visible in directory';
   END IF;

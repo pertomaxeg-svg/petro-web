@@ -7,6 +7,7 @@ export function PrivateFleetImage({ documentId, label, compact = false }: { docu
   const [expanded, setExpanded] = useState(false);
   const request = useRef<AbortController | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
   const load = useCallback(async () => {
     request.current?.abort();
     const controller = new AbortController();
@@ -30,7 +31,7 @@ export function PrivateFleetImage({ documentId, label, compact = false }: { docu
   useEffect(() => {
     if (!expanded || !url || !dialog.current) return;
     const element = dialog.current;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousFocus = opener.current;
     element.showModal();
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setExpanded(false);
@@ -44,7 +45,7 @@ export function PrivateFleetImage({ documentId, label, compact = false }: { docu
   }, [expanded, url]);
   const failedImage = () => { setExpanded(false); setUrl(""); setError("انتهت صلاحية رابط المعاينة؛ أعد فتح الصورة."); };
   return <figure className={`fleet-private-image${compact ? " is-compact" : ""}`} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
-    {url ? <button type="button" className="fleet-private-image-zoom" aria-label={`تكبير ${label}`} onClick={() => setExpanded(true)}><img src={url} alt={label} loading="lazy" onError={failedImage}/></button> : <div className="fleet-private-image-empty" role={error ? "alert" : "status"}>{loading ? "جارٍ تحميل الصورة…" : error || "الصورة غير متاحة"}</div>}
+    {url ? <button type="button" className="fleet-private-image-zoom" aria-label={`تكبير ${label}`} onClick={event => { opener.current = event.currentTarget; setExpanded(true); }}><img src={url} alt={label} loading="lazy" onError={failedImage}/></button> : <div className="fleet-private-image-empty" role={error ? "alert" : "status"}>{loading ? "جارٍ تحميل الصورة…" : error || "الصورة غير متاحة"}</div>}
     <figcaption>{label}<button type="button" className="fleet-row-action" onClick={() => void load()} disabled={loading}>{loading ? "جارٍ التحميل…" : "تحديث المعاينة"}</button></figcaption>
     {expanded && url && <dialog ref={dialog} className="fleet-image-lightbox" role="dialog" aria-modal="true" aria-label={`تكبير ${label}`} onCancel={event => { event.preventDefault(); setExpanded(false); }} onClick={event => { if (event.target === event.currentTarget) setExpanded(false); }}>
       <button type="button" autoFocus onClick={() => setExpanded(false)}>إغلاق الصورة</button>

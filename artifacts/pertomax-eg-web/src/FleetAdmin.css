@@ -355,3 +355,5 @@ dialog.fleet-image-lightbox{width:100vw;height:100dvh;max-width:none;max-height:
 dialog.fleet-image-lightbox::backdrop{background:rgba(16,24,20,.92)}
 .fleet-private-image.is-compact .fleet-image-lightbox img{width:auto;height:auto;max-height:88vh}
 @media(max-width:767px){.fleet-record-table td:has(.fleet-private-image),.fleet-record-table td:has(.fleet-assigned-vehicles){grid-template-columns:minmax(0,1fr)}}
+
+dialog.fleet-image-lightbox:not([open]){display:none}
