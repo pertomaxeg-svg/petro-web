@@ -398,11 +398,24 @@ fi
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/fleet-onboarding-0022-smoke-test.sql" >/dev/null
 echo "PASS: fleet onboarding policy-contract smoke test (local PostgreSQL)"
+psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT md5(pg_get_functiondef(oid)),proacl::text FROM pg_proc WHERE oid='petro_private.fleet_check_usage_policy_at(uuid,uuid,uuid,uuid,text,bigint,numeric,timestamptz)'::regprocedure" >"$tmp_dir/evaluator-before-0026.txt"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0026.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/migrations/0026_fleet_fuel_tank_capacity_guard.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0026.txt"
+cmp "$tmp_dir/default-acl-before-0026.txt" "$tmp_dir/default-acl-after-0026.txt"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 node "$script_dir/finance-concurrency-smoke-test.mjs"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$script_dir/fleet-finance-integration-setup.sql" >/dev/null
 node "$script_dir/fleet-finance-integration-smoke-test.mjs"
+psql --no-psqlrc --set ON_ERROR_STOP=1 \
+  --file="$repo_root/lib/db/rollback/0026_fleet_fuel_tank_capacity_guard.sql" >/dev/null
+psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT md5(pg_get_functiondef(oid)),proacl::text FROM pg_proc WHERE oid='petro_private.fleet_check_usage_policy_at(uuid,uuid,uuid,uuid,text,bigint,numeric,timestamptz)'::regprocedure" >"$tmp_dir/evaluator-after-0026-rollback.txt"
+cmp "$tmp_dir/evaluator-before-0026.txt" "$tmp_dir/evaluator-after-0026-rollback.txt"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0026-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0026.txt" "$tmp_dir/default-acl-after-0026-rollback.txt"
+echo "PASS: 0026 actual fuel tank capacity guard and exact evaluator/ACL rollback"
 if [ -n "${PERTOMAX_EXPECTED_SCHEMA_DUMP_0011:-}" ]; then
   mkdir -p "$(dirname "$PERTOMAX_EXPECTED_SCHEMA_DUMP_0011")"
   pg_dump --no-owner --no-privileges --schema-only \

@@ -138,6 +138,7 @@
 
 - 2026-10-23: plan created before new implementation; independent verification setup in progress. Existing isolated results are historical evidence, not a fresh direct-run claim.
 - Next: close Phase 1 server-limit and visual acceptance. Independent CI and 0025 live activation completed; no project-wide completion claimed.
+- 0026 capacity guard: real PostgreSQL regression observed RED in CI 39969027525 (2.501 litres accepted for a 2.5 litre tank). Add a guard to the private evaluator and require full GREEN plus exact definition/ACL rollback before applying. Keep live Auth/Storage and visual acceptance open.
 
 - Ruling: local runtime maps only uid 0; native PostgreSQL refuses root and privilege switching is unavailable. Use secret-free GitHub Actions on this public repository for independent PostgreSQL 17/browser acceptance; retain local Node/build checks. No Replit fallback.
 
