@@ -324,6 +324,46 @@ paths:
               schema: { $ref: "#/components/schemas/WorkerCapabilities" }
         "401": { description: Authentication required }
         "403": { description: "Account inactive, unconfirmed or password update required" }
+  /operations/pair-verifications:
+    post:
+      operationId: verifyWorkerDriverPair
+      tags: [workforce]
+      summary: Verify a scanned credential and driver PIN within the caller's current branch service assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VerifyWorkerDriverPairBody" }
+      responses:
+        "200":
+          description: Failed attempt, lockout or two-minute actor-bound identity proof; never financial authorization
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkerPairProof" }
+        "400": { description: Invalid input }
+        "401": { description: Authentication required }
+        "403": { description: Assignment or current membership not executable }
+        "409": { description: Idempotency conflict }
+        "503": { description: PIN verification runtime unavailable }
+  /operations/pair-verifications/{id}:
+    get:
+      operationId: getWorkerPairProof
+      tags: [workforce]
+      summary: Recheck the caller's own unexpired proof against current assignment, credential and driver link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Current proof; invalid proofs disclose no vehicle or driver details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkerPairProof" }
+        "400": { description: Invalid proof identifier }
+        "401": { description: Authentication required }
+        "403": { description: Account no longer operational }
   /admin/fleet/cards:
     get:
       operationId: getAdminFleetCards
@@ -4310,8 +4350,39 @@ components:
         serviceGroup: { $ref: "#/components/schemas/WorkerServiceGroup" }
     WorkerCapabilities:
       type: object
-      required: [items]
+      required: [items, pinVerificationReady]
       properties:
+        pinVerificationReady: { type: boolean }
         items:
           type: array
           items: { $ref: "#/components/schemas/WorkerCapability" }
+    VerifyWorkerDriverPairBody:
+      type: object
+      additionalProperties: false
+      required: [branchId, serviceGroup, credentialToken, pinCode, idempotencyKey]
+      properties:
+        branchId: { type: string, format: uuid }
+        serviceGroup: { type: string, enum: [fuel, wash, oils, batteries, filters, parts, consumables] }
+        credentialToken: { type: string, minLength: 16, maxLength: 512, pattern: "^[A-Za-z0-9_-]{16,512}$", writeOnly: true }
+        pinCode: { type: string, minLength: 4, maxLength: 4, pattern: "^[0-9]{4}$", writeOnly: true }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120 }
+    WorkerPairProof:
+      type: object
+      required: [valid]
+      properties:
+        valid: { type: boolean }
+        locked: { type: boolean }
+        retryAt: { type: [string, "null"], format: date-time }
+        verificationId: { type: string, format: uuid }
+        expiresAt: { type: string, format: date-time }
+        driverName: { type: string }
+        vehicle: { $ref: "#/components/schemas/WorkerPairProofVehicle" }
+    WorkerPairProofVehicle:
+      type: object
+      required: [plate, brand, model, fuelType]
+      properties:
+        plate: { type: string }
+        brand: { type: string }
+        model: { type: string }
+        fuelType: { type: string }
+        tankCapacityLiters: { type: [number, "null"] }

@@ -18,6 +18,7 @@ import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 import { decryptFleetPairPin, encryptFleetPairPin } from "../lib/fleetPinCrypto";
 
+import { fleetHmacSecret, pairPinDigest } from "../lib/fleetPairIdentity";
 import { selectBranchMerchantScope } from "../lib/fleetPolicyScope";
 
 const router: IRouter = Router();
@@ -70,22 +71,6 @@ function safeString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
-}
-
-function fleetHmacSecret(): string | null {
-  const value = process.env["SESSION_SECRET"];
-  return typeof value === "string" && value.length >= 32 ? value : null;
-}
-
-function pairPinDigest(vehicleId: string, pinCode: string): string {
-  const secret = fleetHmacSecret();
-  if (!secret) throw new Error("FLEET_PIN_SECRET_UNAVAILABLE");
-  return createHmac("sha256", secret)
-    .update("pertomax-eg:fleet:driver-pair:v1\0")
-    .update(vehicleId.toLowerCase())
-    .update("\0")
-    .update(pinCode)
-    .digest("hex");
 }
 
 function credentialToken(requestId: string, idempotencyKey: string): string {
