@@ -333,7 +333,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/VerifyWorkerDriverPairBody" }
+            schema: { $ref: "#/components/schemas/WorkerPairVerificationInput" }
       responses:
         "200":
           description: Failed attempt, lockout or two-minute actor-bound identity proof; never financial authorization
@@ -3021,7 +3021,7 @@ components:
       properties:
         valid: { type: boolean }
         locked: { type: boolean }
-        retryAt: { type: [string, "null"], format: date-time }
+        retryAt: { type: string, nullable: true, format: date-time }
         verificationId: { type: string, format: uuid }
       required: [valid, locked]
     AdminFleetDocumentUploadIntentRequest:
@@ -4356,7 +4356,7 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/WorkerCapability" }
-    VerifyWorkerDriverPairBody:
+    WorkerPairVerificationInput:
       type: object
       additionalProperties: false
       required: [branchId, serviceGroup, credentialToken, pinCode, idempotencyKey]
@@ -4385,4 +4385,4 @@ components:
         brand: { type: string }
         model: { type: string }
         fuelType: { type: string }
-        tankCapacityLiters: { type: [number, "null"] }
+        tankCapacityLiters: { type: number, nullable: true }
