@@ -23,19 +23,20 @@ export function OperationsPage(){
  const active=me.data?.state==="active"&&!me.data?.passwordChangeRequired;
  const query=useQuery({queryKey:["operations-capabilities"],queryFn:capabilities,enabled:active,retry:false,refetchOnMount:"always"});
  const [assignment,setAssignment]=useState("");const [token,setToken]=useState("");const [pin,setPin]=useState("");
+ const [reservationPending,setReservationPending]=useState(false);
  const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [proof,setProof]=useState<Proof|null>(null);
  const pending=useRef<{fingerprint:string;key:string}|null>(null);
  const items=(query.data?.items??[]).filter(item=>item.serviceGroup in names);
  useEffect(()=>{if(!items.some(item=>item.assignmentId===assignment))setAssignment(items[0]?.assignmentId??"");},[query.data,assignment]);
  useEffect(()=>{setPin("");setProof(null);setError("");pending.current=null;},[assignment]);
  useEffect(()=>{
-  if(!proof?.valid||!proof.expiresAt)return;
+  if(!proof?.valid||!proof.expiresAt||reservationPending)return;
   const expire=()=>{setProof(null);setError("انتهت مهلة التحقق؛ أدخل الرمز من جديد.");};
   const timeout=window.setTimeout(expire,Math.max(0,new Date(proof.expiresAt).getTime()-Date.now()));
   const check=()=>{if(new Date(proof.expiresAt!).getTime()<=Date.now())expire();};
   document.addEventListener("visibilitychange",check);
   return()=>{window.clearTimeout(timeout);document.removeEventListener("visibilitychange",check);};
- },[proof]);
+ },[proof,reservationPending]);
  async function verify(event:FormEvent){
   event.preventDefault();setError("");setProof(null);const selected=items.find(item=>item.assignmentId===assignment);if(!selected)return;
   const submittedPin=pin;setPin("");setBusy(true);
@@ -56,13 +57,13 @@ export function OperationsPage(){
  if(me.isLoading)return <main className="workspace-loading" dir="rtl">جارٍ تحميل حساب التشغيل…</main>;
  if(!active)return <main className="fleet-page" dir="rtl"><h1>يلزم حساب تشغيل فعال</h1><Link href={me.data?.passwordChangeRequired?"/reset-password?update=1":"/sign-in"}>متابعة تسجيل الدخول</Link></main>;
  return <main className="fleet-page operations-page" dir="rtl" style={{maxWidth:920,margin:"0 auto",padding:"24px 16px"}}>
- <header className="fleet-heading"><div><span className="fleet-eyebrow">مساحة العامل</span><h1>التحقق من المركبة والسائق</h1><p>اختر تكليفك ثم اقرأ تعريف المركبة وأدخل رمز التعبئة.</p></div><Link className="fleet-row-action" href="/workspace">مساحة العمل</Link></header>
+ <header className="fleet-heading"><div><span className="fleet-eyebrow">مساحة العامل</span><h1>التحقق من المركبة والسائق</h1><p>اختر تكليفك ثم اقرأ تعريف المركبة وأدخل رمز التعبئة.</p></div><div className="fleet-actions"><Link className="fleet-row-action" href="/operations/orders">طلباتي</Link><Link className="fleet-row-action" href="/workspace">مساحة العمل</Link></div></header>
  {query.isLoading?<p role="status">جارٍ تحميل تكليفاتك…</p>:query.isError?<section role="alert" className="fleet-feedback is-error">{query.error.message}<button onClick={()=>void query.refetch()}>إعادة المحاولة</button></section>:!items.length?<section className="fleet-panel"><h2>لا توجد تكليفات خدمات فعالة</h2><p>راجع مسؤول الفرع لتحديد الخدمة ونطاق عملك.</p></section>:<>
  {!query.data?.pinVerificationReady&&<p role="alert" className="fleet-feedback is-error">التحقق غير متاح مؤقتًا؛ راجع مسؤول التشغيل.</p>}
  <form className="fleet-panel fleet-form" onSubmit={verify} autoComplete="off">
- <label className="fleet-field fleet-wide">الفرع والخدمة<select data-testid="operations-assignment" value={assignment} onChange={event=>setAssignment(event.target.value)} disabled={busy}>{items.map(item=><option key={item.assignmentId} value={item.assignmentId}>{item.organizationName} · {item.branchName} · {names[item.serviceGroup]}</option>)}</select></label>
- <label className="fleet-field fleet-wide">تعريف المركبة<input data-testid="operations-token" value={token} onChange={event=>setToken(event.target.value)} placeholder="اقرأ QR أو شريحة المركبة" autoComplete="off" minLength={16} maxLength={512} required dir="ltr" disabled={busy}/></label>
- <label className="fleet-field">رمز التعبئة<input data-testid="operations-pin" type="password" inputMode="numeric" autoComplete="off" pattern="[0-9]{4}" minLength={4} maxLength={4} required value={pin} onChange={event=>setPin(event.target.value.replace(/[٠-٩]/g,char=>String(char.charCodeAt(0)-1632)).replace(/[۰-۹]/g,char=>String(char.charCodeAt(0)-1776)).replace(/[^0-9]/g,"").slice(0,4))} disabled={busy}/></label>
+ <label className="fleet-field fleet-wide">الفرع والخدمة<select data-testid="operations-assignment" value={assignment} onChange={event=>setAssignment(event.target.value)} disabled={busy||reservationPending}>{items.map(item=><option key={item.assignmentId} value={item.assignmentId}>{item.organizationName} · {item.branchName} · {names[item.serviceGroup]}</option>)}</select></label>
+ <label className="fleet-field fleet-wide">تعريف المركبة<input data-testid="operations-token" value={token} onChange={event=>setToken(event.target.value)} placeholder="اقرأ QR أو شريحة المركبة" autoComplete="off" minLength={16} maxLength={512} required dir="ltr" disabled={busy||reservationPending}/></label>
+ <label className="fleet-field">رمز التعبئة<input data-testid="operations-pin" type="password" inputMode="numeric" autoComplete="off" pattern="[0-9]{4}" minLength={4} maxLength={4} required value={pin} onChange={event=>setPin(event.target.value.replace(/[٠-٩]/g,char=>String(char.charCodeAt(0)-1632)).replace(/[۰-۹]/g,char=>String(char.charCodeAt(0)-1776)).replace(/[^0-9]/g,"").slice(0,4))} disabled={busy||reservationPending}/></label>
  <button className="fleet-button" data-testid="operations-verify" disabled={busy||!query.data?.pinVerificationReady||!assignment}>{busy?"جارٍ التحقق…":"التحقق من الرمز"}</button>
  </form>
  </>}
@@ -72,7 +73,7 @@ export function OperationsPage(){
  <div><small>فئة الوقود</small><b>{formatFleetField("fuelType",proof.vehicle.fuelType)}</b></div><div><small>سعة الخزان</small><b>{formatFleetField("tankCapacityLiters",proof.vehicle.tankCapacityLiters)}</b></div>
  <div><small>السائق</small><b>{proof.driverName}</b></div><div><small>مهلة التحقق</small><b>{proof.expiresAt?new Intl.DateTimeFormat("ar-EG",{timeStyle:"short",timeZone:"Africa/Cairo"}).format(new Date(proof.expiresAt)):"—"}</b></div>
  </div><p className="fleet-muted">هذا تحقق هوية فقط. تنفيذ الخدمة والدفع يحتاجان اعتماد الطلب.</p><button className="fleet-button fleet-quiet" onClick={()=>setProof(null)}>تحقق جديد</button></section>}
- {proof?.valid&&proof.verificationId&&<ServiceQuotation key={proof.verificationId} proofId={proof.verificationId}/>}
+ {proof?.valid&&proof.verificationId&&<ServiceQuotation key={proof.verificationId} proofId={proof.verificationId} onReservationPending={setReservationPending}/>}
  
  </main>;
 }

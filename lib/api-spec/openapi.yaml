@@ -412,6 +412,137 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Proof or subscription no longer eligible }
         "409": { description: Price unavailable or changed }
+  /operations/service-orders:
+    get:
+      operationId: listWorkerServiceOrders
+      tags: [workforce]
+      summary: Read actual own assigned service orders
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [reserved, in_progress, delivered, review_required, cancelled] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 160 } }
+      responses:
+        "200":
+          description: Persisted scoped records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderList" }
+        "401": { description: Authentication required }
+        "403": { description: Current scope required }
+    post:
+      operationId: reserveWorkerServiceOrder
+      tags: [workforce]
+      summary: Atomically reserve actual funds and product stock, consume the own proof once, and persist an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkerServiceOrderRequest" }
+      responses:
+        "200":
+          description: Persisted order or exact idempotent replay; held does not mean paid or delivered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrder" }
+        "400": { description: Invalid input }
+        "401": { description: Authentication required }
+        "403": { description: Proof or assignment no longer valid }
+        "409": { description: Price, funding, stock or idempotency conflict }
+  /operations/service-orders/{id}:
+    get:
+      operationId: getWorkerServiceOrder
+      tags: [workforce]
+      summary: Read a persisted order and actual actor-attributed timeline
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Authorized order details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrder" }
+        "401": { description: Authentication required }
+        "403": { description: Current scope required }
+        "404": { description: Order not found }
+  /operations/service-orders/{id}/cancel:
+    post:
+      operationId: cancelWorkerServiceOrder
+      tags: [workforce]
+      summary: Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceOrderCancelRequest" }
+      responses:
+        "200":
+          description: Persisted cancellation or exact retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrder" }
+        "400": { description: Invalid input }
+        "401": { description: Authentication required }
+        "403": { description: Current writer scope required; auditors cannot cancel }
+        "409": { description: Version conflict or order already started }
+  /admin/service-orders:
+    get:
+      operationId: listAdminServiceOrders
+      tags: [workforce]
+      summary: Read actual central scoped service orders
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [reserved, in_progress, delivered, review_required, cancelled] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 160 } }
+      responses:
+        "200":
+          description: Persisted scoped records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderList" }
+        "401": { description: Authentication required }
+        "403": { description: Current scope required }
+  /admin/service-orders/{id}:
+    get:
+      operationId: getAdminServiceOrder
+      tags: [workforce]
+      summary: Read a persisted order and actual actor-attributed timeline
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Authorized order details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrder" }
+        "401": { description: Authentication required }
+        "403": { description: Current scope required }
+        "404": { description: Order not found }
+  /admin/service-orders/{id}/cancel:
+    post:
+      operationId: cancelAdminServiceOrder
+      tags: [workforce]
+      summary: Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceOrderCancelRequest" }
+      responses:
+        "200":
+          description: Persisted cancellation or exact retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrder" }
+        "400": { description: Invalid input }
+        "401": { description: Authentication required }
+        "403": { description: Current writer scope required; auditors cannot cancel }
+        "409": { description: Version conflict or order already started }
   /admin/fleet/cards:
     get:
       operationId: getAdminFleetCards
@@ -4505,3 +4636,74 @@ components:
         denialCode: { type: string, nullable: true }
         expiresAt: { type: string, format: date-time }
         quotedAt: { type: string, format: date-time }
+
+    WorkerServiceOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [proofId, referenceId, priceVersionId, input, idempotencyKey]
+      properties:
+        proofId: { type: string, format: uuid }
+        referenceId: { type: string, format: uuid }
+        priceVersionId: { type: string, format: uuid }
+        input:
+          oneOf:
+            - { $ref: "#/components/schemas/WorkerServiceQuantityInput" }
+            - { $ref: "#/components/schemas/WorkerServiceAmountInput" }
+        locationId: { type: string, format: uuid, nullable: true }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120, pattern: "^[A-Za-z0-9._:-]{16,120}$" }
+    ServiceOrderCancelRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, idempotencyKey]
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120, pattern: "^[A-Za-z0-9._:-]{16,120}$" }
+    ServiceOrder:
+      type: object
+      required: [id, status, paymentStatus, version, serviceGroup, kind, quantity, amountMinor, currency, itemSnapshot, vehicleSnapshot, merchantSnapshot, createdAt, expiresAt, canCancel, requiresReview, expiryAttempts]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [reserved, in_progress, delivered, review_required, cancelled] }
+        paymentStatus: { type: string, enum: [held, unpaid, paid] }
+        version: { type: integer, minimum: 1 }
+        serviceGroup: { type: string, enum: [fuel, wash, oils, parts, batteries, filters, consumables] }
+        kind: { type: string, enum: [fuel, service, product] }
+        quantity: { type: string }
+        amountMinor: { type: string, pattern: "^[0-9]+$" }
+        currency: { type: string, enum: [EGP] }
+        itemSnapshot: { type: object, additionalProperties: true }
+        vehicleSnapshot: { type: object, additionalProperties: true }
+        merchantSnapshot: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        cancelledAt: { type: string, format: date-time, nullable: true }
+        cancelCode: { type: string, nullable: true, enum: [operator_cancelled, reservation_expired] }
+        cancelledByKind: { type: string, nullable: true, enum: [user, system] }
+        canCancel: { type: boolean }
+        requiresReview: { type: boolean }
+        expiryAttempts: { type: integer, minimum: 0, maximum: 5 }
+        timeline:
+          type: array
+          items:
+            type: object
+            required: [id, kind, version, createdAt, actorKind, actorName, detail]
+            properties:
+              id: { type: string }
+              kind: { type: string, enum: [reserved, cancelled, expiry_failed] }
+              version: { type: integer }
+              createdAt: { type: string, format: date-time }
+              actorKind: { type: string, enum: [user, system] }
+              actorName: { type: string }
+              detail: { type: object, additionalProperties: true }
+    ServiceOrderList:
+      type: object
+      required: [items, total, page, pageSize, canManage]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ServiceOrder" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        canManage: { type: boolean }

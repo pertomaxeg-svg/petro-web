@@ -14,6 +14,7 @@ import type { PlatformRole, PlatformUser } from "@workspace/api-client-react";
 const AdminFinancePage = lazy(() => import("./admin-finance/AdminFinancePage").then(module => ({ default: module.AdminFinancePage })));
 const FleetAdminPage = lazy(() => import("./FleetAdmin").then(module => ({ default: module.FleetAdminPage })));
 const CatalogAdminPage = lazy(() => import("./CatalogAdmin").then(module => ({ default: module.CatalogAdminPage })));
+const ServiceOrdersPage = lazy(() => import("./ServiceOrders").then(module => ({ default: module.ServiceOrdersPage })));
 const WorkforceAdmin = lazy(() => import("./WorkforceAdmin").then(module => ({ default: module.WorkforceAdmin })));
 const AdminInventoryPage = lazy(() => import("./inventory/AdminInventoryPage").then(module => ({ default: module.AdminInventoryPage })));
 
@@ -67,6 +68,12 @@ export function FleetAdminFrame() {
   </AdminGate>;
 }
 
+export function ServiceOrdersAdminFrame(){
+ return <AdminGate allowedRoles={["owner","operations","finance","auditor"]}>
+ {(_name,_userId,roles)=><Suspense fallback={<main className="ac-page" dir="rtl" aria-busy="true">جارٍ تحميل طلبات الخدمة…</main>}><ServiceOrdersPage central canManage={roles.some(role=>["owner","operations","finance"].includes(role))}/></Suspense>}
+ </AdminGate>;
+}
+
 export function WorkforceAdminFrame() {
  return <AdminGate allowedRoles={["owner","operations","auditor"]}>
  {(_name,_userId,roles)=><Suspense fallback={<main className="ac-page" dir="rtl" aria-busy="true">جارٍ تحميل تكليفات العمال…</main>}><WorkforceAdmin canManage={roles.some(role=>role==="owner"||role==="operations")}/></Suspense>}
@@ -106,10 +113,10 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
   const isOwner = userRoles.includes("owner");
   const canSeeFinance = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
   const isFleet = path.startsWith("/admin/fleet");
-  const active = path === "/admin" ? "overview" : path === "/admin/workforce" ? "workforce" : path === "/admin/cards" ? "cards" : isFleet ? "fleet" : path === "/admin/fuel-prices" ? "fuel" : path.startsWith("/admin/catalog") ? "catalog" : path.startsWith("/admin/inventory") ? "inventory" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
+  const active = path === "/admin" ? "overview" : path.startsWith("/admin/service-orders") ? "serviceOrders" : path === "/admin/workforce" ? "workforce" : path === "/admin/cards" ? "cards" : isFleet ? "fleet" : path === "/admin/fuel-prices" ? "fuel" : path.startsWith("/admin/catalog") ? "catalog" : path.startsWith("/admin/inventory") ? "inventory" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
   const fleetLabels: Record<string, string> = { "/admin/fleet": "الشركات والأسطول", "/admin/fleet/vehicles": "المركبات", "/admin/fleet/drivers": "السائقون", "/admin/fleet/policies": "سياسات الأسطول", "/admin/fleet/coverage": "تغطية المركبات", "/admin/fleet/documents": "مستندات المركبات", "/admin/fleet/odometer": "قراءات العداد", "/admin/fleet/maintenance": "سجلات الصيانة", "/admin/fleet/imports": "استيراد بيانات الأسطول" };
   const fleetTitle = isFleet ? path.match(/\/branches\/[^/]+$/) ? "مركبات الفرع" : path.match(/\/companies\/[^/]+$/) ? "الشركة والفروع" : path.startsWith("/admin/fleet/companies/") ? "الشركة والأسطول" : fleetLabels[path] ?? "إدارة الأسطول" : "";
-  const pageTitle = isFleet ? fleetTitle : active === "workforce" ? "تكليفات العمال" : active === "cards" ? "إدارة البطاقات" : active === "fuel" ? "أسعار الوقود" : active === "catalog" ? "الكتالوج والخدمات" : active === "inventory" ? "مخزون منتجات التجار" : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const pageTitle = isFleet ? fleetTitle : active === "serviceOrders" ? "طلبات الخدمة" : active === "workforce" ? "تكليفات العمال" : active === "cards" ? "إدارة البطاقات" : active === "fuel" ? "أسعار الوقود" : active === "catalog" ? "الكتالوج والخدمات" : active === "inventory" ? "مخزون منتجات التجار" : active === "overview" ? "نظرة عامة" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgBranchRoute ? "تفاصيل الفرع" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
   const fleetLinks = [
     ["/admin/fleet", "الشركات والأسطول"],
@@ -144,7 +151,8 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
       <Link href="/admin/subscriptions" onClick={()=>setDrawerOpen(false)} className={active === "subscriptions" ? "selected" : ""}><span className="ac-nav-icon"><Clock3 size={17}/></span><span className="ac-nav-label">الطلبات والاشتراكات</span></Link>
     </>}
     {canSeeFinance && <>
-      <span className="ac-nav-group ac-nav-group-spaced">المالية والتحصيل</span>
+      <span className="ac-nav-group ac-nav-group-spaced">العمليات والمالية</span>
+      <Link href="/admin/service-orders" onClick={()=>setDrawerOpen(false)} className={active === "serviceOrders" ? "selected" : ""}><span className="ac-nav-icon"><FileSearch size={17}/></span><span className="ac-nav-label">طلبات الخدمة</span></Link>
       <Link href="/admin/finance" onClick={()=>setDrawerOpen(false)} className={active === "finance" ? "selected" : ""}><span className="ac-nav-icon"><Banknote size={17}/></span><span className="ac-nav-label">الدفتر المالي</span></Link>
       <Link href="/admin/inventory" onClick={()=>setDrawerOpen(false)} className={active === "inventory" ? "selected" : ""}><span className="ac-nav-icon"><Package size={17}/></span><span className="ac-nav-label">مخزون المنتجات</span></Link>
     </>}

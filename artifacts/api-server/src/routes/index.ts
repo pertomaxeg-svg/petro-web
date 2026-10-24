@@ -11,6 +11,7 @@ import organizationWorkflowsRouter from "./organization-workflows";
 import supabaseRouter from "./supabase";
 
 import workforceRouter from "./workforce";
+import serviceOrdersRouter from "./service-orders";
 
 const router: IRouter = Router();
 
@@ -23,6 +24,7 @@ router.use(catalogRouter);
 router.use(financeRouter);
 router.use(fleetRouter);
 router.use(workforceRouter);
+router.use(serviceOrdersRouter);
 router.use(inventoryRouter);
 router.use(organizationWorkflowsRouter);
 
