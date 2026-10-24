@@ -299,6 +299,118 @@ export const GetAdminFleetStockReservationsResponse = zod.object({
 
 
 /**
+ * @summary Read centrally authorized worker assignments or branch-eligible members
+ */
+export const listAdminWorkforceQueryViewDefault = `assignments`;
+export const listAdminWorkforceQuerySearchMax = 160;
+
+export const listAdminWorkforceQueryPageDefault = 1;
+export const listAdminWorkforceQueryPageMax = 100000;
+
+export const listAdminWorkforceQueryPageSizeDefault = 20;
+export const listAdminWorkforceQueryPageSizeMax = 100;
+
+
+
+export const ListAdminWorkforceQueryParams = zod.object({
+  "view": zod.enum(['assignments', 'candidates']).default(listAdminWorkforceQueryViewDefault),
+  "branchId": zod.coerce.string().uuid().optional().describe('Required for candidates'),
+  "userId": zod.coerce.string().uuid().optional(),
+  "search": zod.coerce.string().max(listAdminWorkforceQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(listAdminWorkforceQueryPageMax).default(listAdminWorkforceQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminWorkforceQueryPageSizeMax).default(listAdminWorkforceQueryPageSizeDefault)
+})
+
+
+export const listAdminWorkforceResponseTotalMin = 0;
+
+
+export const listAdminWorkforceResponsePageSizeMax = 100;
+
+
+
+export const ListAdminWorkforceResponse = zod.object({
+  "items": zod.array(zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "branchId": zod.string().uuid(),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'batteries', 'filters', 'parts', 'consumables', 'card_issuance']),
+  "active": zod.boolean(),
+  "version": zod.number().int().min(1)
+}).and(zod.object({
+  "displayName": zod.string(),
+  "organizationId": zod.string().uuid(),
+  "organizationName": zod.string(),
+  "organizationKind": zod.enum(['station', 'provider', 'company']),
+  "branchName": zod.string(),
+  "updatedAt": zod.coerce.date(),
+  "canExecute": zod.boolean()
+})),zod.object({
+  "userId": zod.string().uuid(),
+  "displayName": zod.string(),
+  "username": zod.string().nullable()
+})])),
+  "total": zod.number().int().min(listAdminWorkforceResponseTotalMin),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(listAdminWorkforceResponsePageSizeMax),
+  "canManage": zod.boolean().optional(),
+  "organizationKind": zod.enum(['station', 'provider', 'company']).optional()
+})
+
+
+/**
+ * @summary Create or version-update an explicit branch service assignment
+ */
+export const setAdminWorkerAssignmentBodyExpectedVersionMin = 0;
+
+export const setAdminWorkerAssignmentBodyIdempotencyKeyMin = 12;
+export const setAdminWorkerAssignmentBodyIdempotencyKeyMax = 160;
+
+
+
+export const SetAdminWorkerAssignmentBody = zod.object({
+  "userId": zod.string().uuid(),
+  "branchId": zod.string().uuid(),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'batteries', 'filters', 'parts', 'consumables', 'card_issuance']),
+  "active": zod.boolean(),
+  "expectedVersion": zod.number().int().min(setAdminWorkerAssignmentBodyExpectedVersionMin),
+  "idempotencyKey": zod.string().min(setAdminWorkerAssignmentBodyIdempotencyKeyMin).max(setAdminWorkerAssignmentBodyIdempotencyKeyMax)
+})
+
+
+
+
+export const SetAdminWorkerAssignmentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "branchId": zod.string().uuid(),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'batteries', 'filters', 'parts', 'consumables', 'card_issuance']),
+  "active": zod.boolean(),
+  "version": zod.number().int().min(1)
+})
+
+
+/**
+ * @summary Read only the authenticated caller's currently executable branch services
+ */
+
+
+
+export const GetWorkerCapabilitiesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "assignmentId": zod.string().uuid(),
+  "assignmentVersion": zod.number().int().min(1),
+  "branchId": zod.string().uuid(),
+  "branchName": zod.string(),
+  "organizationId": zod.string().uuid(),
+  "organizationName": zod.string(),
+  "organizationKind": zod.enum(['station', 'provider']),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'batteries', 'filters', 'parts', 'consumables', 'card_issuance'])
+}))
+})
+
+
+/**
  * @summary Read paginated central card requests, issued credentials, stock, and history
  */
 export const getAdminFleetCardsQueryStatusMax = 32;

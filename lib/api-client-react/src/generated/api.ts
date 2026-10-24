@@ -131,6 +131,7 @@ import type {
   ListAdminOrganizationMemberships200,
   ListAdminOrganizationMembershipsParams,
   ListAdminOrganizationRequestsParams,
+  ListAdminWorkforceParams,
   ListBranchesPaginatedParams,
   ListOrganizationChangeRequestsParams,
   ListOrganizationDocumentsParams,
@@ -167,7 +168,11 @@ import type {
   UpdateAdminFinanceTopup,
   UpdateBranchRequest,
   UpdateOrganizationJoinRequest,
-  UpdateOrganizationRequest
+  UpdateOrganizationRequest,
+  WorkerAssignmentInput,
+  WorkerAssignmentState,
+  WorkerCapabilities,
+  WorkforcePage
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1001,6 +1006,256 @@ export function useGetAdminFleetStockReservations<TData = Awaited<ReturnType<typ
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getListAdminWorkforceUrl = (params?: ListAdminWorkforceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/workforce?${stringifiedParams}` : `/api/admin/workforce`
+}
+
+/**
+ * @summary Read centrally authorized worker assignments or branch-eligible members
+ */
+export const listAdminWorkforce = async (params?: ListAdminWorkforceParams, options?: Parameters<typeof customFetch>[1]): Promise<WorkforcePage> => {
+
+  return customFetch<WorkforcePage>(getListAdminWorkforceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminWorkforceQueryKey = (params?: ListAdminWorkforceParams,) => {
+    return [
+    `/api/admin/workforce`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminWorkforceQueryOptions = <TData = Awaited<ReturnType<typeof listAdminWorkforce>>, TError = ErrorType<void>>(params?: ListAdminWorkforceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWorkforce>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminWorkforceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminWorkforce>>> = ({ signal }) => listAdminWorkforce(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminWorkforce>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminWorkforceQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminWorkforce>>>
+export type ListAdminWorkforceQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read centrally authorized worker assignments or branch-eligible members
+ */
+
+export function useListAdminWorkforce<TData = Awaited<ReturnType<typeof listAdminWorkforce>>, TError = ErrorType<void>>(
+ params?: ListAdminWorkforceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWorkforce>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminWorkforceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetAdminWorkerAssignmentUrl = () => {
+
+
+
+
+  return `/api/admin/workforce/assignments`
+}
+
+/**
+ * @summary Create or version-update an explicit branch service assignment
+ */
+export const setAdminWorkerAssignment = async (workerAssignmentInput: WorkerAssignmentInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkerAssignmentState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WorkerAssignmentState>(getSetAdminWorkerAssignmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workerAssignmentInput)
+  }
+);}
+
+
+
+
+
+export const getSetAdminWorkerAssignmentMutationKey = () => ['setAdminWorkerAssignment'] as const;
+
+export const getSetAdminWorkerAssignmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminWorkerAssignment>>, TError,SetAdminWorkerAssignmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAdminWorkerAssignment>>, TError,SetAdminWorkerAssignmentMutationVariables, TContext> => {
+
+const mutationKey = getSetAdminWorkerAssignmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAdminWorkerAssignment>>, SetAdminWorkerAssignmentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setAdminWorkerAssignment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAdminWorkerAssignmentMutationResult = NonNullable<Awaited<ReturnType<typeof setAdminWorkerAssignment>>>
+    export type SetAdminWorkerAssignmentMutationBody = BodyType<WorkerAssignmentInput>
+    export type SetAdminWorkerAssignmentMutationError = ErrorType<void>
+    export type SetAdminWorkerAssignmentMutationVariables = {data: BodyType<WorkerAssignmentInput>}
+
+    /**
+ * @summary Create or version-update an explicit branch service assignment
+ */
+export const useSetAdminWorkerAssignment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminWorkerAssignment>>, TError,SetAdminWorkerAssignmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAdminWorkerAssignment>>,
+        TError,
+        SetAdminWorkerAssignmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetAdminWorkerAssignmentMutationOptions(options));
+    }
+
+export const getGetWorkerCapabilitiesUrl = () => {
+
+
+
+
+  return `/api/operations/capabilities`
+}
+
+/**
+ * @summary Read only the authenticated caller's currently executable branch services
+ */
+export const getWorkerCapabilities = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkerCapabilities> => {
+
+  return customFetch<WorkerCapabilities>(getGetWorkerCapabilitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerCapabilitiesQueryKey = () => {
+    return [
+    `/api/operations/capabilities`
+    ] as const;
+    }
+
+
+export const getGetWorkerCapabilitiesQueryOptions = <TData = Awaited<ReturnType<typeof getWorkerCapabilities>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerCapabilitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkerCapabilities>>> = ({ signal }) => getWorkerCapabilities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkerCapabilities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerCapabilitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkerCapabilities>>>
+export type GetWorkerCapabilitiesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read only the authenticated caller's currently executable branch services
+ */
+
+export function useGetWorkerCapabilities<TData = Awaited<ReturnType<typeof getWorkerCapabilities>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerCapabilitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 
 
 

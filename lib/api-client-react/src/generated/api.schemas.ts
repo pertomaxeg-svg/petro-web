@@ -2812,6 +2812,117 @@ export interface DocumentDownload {
   expiresInSeconds: DocumentDownloadExpiresInSeconds;
 }
 
+export type WorkerServiceGroup = typeof WorkerServiceGroup[keyof typeof WorkerServiceGroup];
+
+
+export const WorkerServiceGroup = {
+  fuel: 'fuel',
+  wash: 'wash',
+  oils: 'oils',
+  batteries: 'batteries',
+  filters: 'filters',
+  parts: 'parts',
+  consumables: 'consumables',
+  card_issuance: 'card_issuance',
+} as const;
+
+export interface WorkerAssignmentInput {
+  userId: string;
+  branchId: string;
+  serviceGroup: WorkerServiceGroup;
+  active: boolean;
+  /** @minimum 0 */
+  expectedVersion: number;
+  /**
+     * @minLength 12
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface WorkerAssignmentState {
+  id: string;
+  userId: string;
+  branchId: string;
+  serviceGroup: WorkerServiceGroup;
+  active: boolean;
+  /** @minimum 1 */
+  version: number;
+}
+
+export type WorkerAssignmentRecordOrganizationKind = typeof WorkerAssignmentRecordOrganizationKind[keyof typeof WorkerAssignmentRecordOrganizationKind];
+
+
+export const WorkerAssignmentRecordOrganizationKind = {
+  station: 'station',
+  provider: 'provider',
+  company: 'company',
+} as const;
+
+export type WorkerAssignmentRecord = WorkerAssignmentState & {
+  displayName: string;
+  organizationId: string;
+  organizationName: string;
+  organizationKind: WorkerAssignmentRecordOrganizationKind;
+  branchName: string;
+  updatedAt: string;
+  canExecute: boolean;
+};
+
+export interface WorkerCandidate {
+  userId: string;
+  displayName: string;
+  username: string | null;
+}
+
+export type WorkforcePageOrganizationKind = typeof WorkforcePageOrganizationKind[keyof typeof WorkforcePageOrganizationKind];
+
+
+export const WorkforcePageOrganizationKind = {
+  station: 'station',
+  provider: 'provider',
+  company: 'company',
+} as const;
+
+export interface WorkforcePage {
+  items: (WorkerAssignmentRecord | WorkerCandidate)[];
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  canManage?: boolean;
+  organizationKind?: WorkforcePageOrganizationKind;
+}
+
+export type WorkerCapabilityOrganizationKind = typeof WorkerCapabilityOrganizationKind[keyof typeof WorkerCapabilityOrganizationKind];
+
+
+export const WorkerCapabilityOrganizationKind = {
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export interface WorkerCapability {
+  assignmentId: string;
+  /** @minimum 1 */
+  assignmentVersion: number;
+  branchId: string;
+  branchName: string;
+  organizationId: string;
+  organizationName: string;
+  organizationKind: WorkerCapabilityOrganizationKind;
+  serviceGroup: WorkerServiceGroup;
+}
+
+export interface WorkerCapabilities {
+  items: WorkerCapability[];
+}
+
 /**
  * Request rejected or unavailable
  */
@@ -2961,6 +3072,37 @@ page?: number;
  */
 pageSize?: number;
 };
+
+export type ListAdminWorkforceParams = {
+view?: ListAdminWorkforceView;
+/**
+ * Required for candidates
+ */
+branchId?: string;
+userId?: string;
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminWorkforceView = typeof ListAdminWorkforceView[keyof typeof ListAdminWorkforceView];
+
+
+export const ListAdminWorkforceView = {
+  assignments: 'assignments',
+  candidates: 'candidates',
+} as const;
 
 export type GetAdminFleetCardsParams = {
 view: GetAdminFleetCardsView;
