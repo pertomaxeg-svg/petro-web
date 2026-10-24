@@ -36,7 +36,7 @@ mkdir -p "$tmp_dir/socket"
 initdb -D "$tmp_dir/data" --username=postgres --auth-local=trust \
   --auth-host=reject --no-instructions >"$tmp_dir/initdb.log" 2>&1
 pg_ctl -D "$tmp_dir/data" \
-  -o "-c listen_addresses='' -c unix_socket_directories='$tmp_dir/socket' -c port=55444" \
+  -o "-c listen_addresses='' -c unix_socket_directories='$tmp_dir/socket' -c port=55444 -c shared_preload_libraries=pg_cron -c cron.database_name=postgres -c cron.use_background_workers=on -c max_worker_processes=16" \
   -l "$tmp_dir/postgres.log" start >/dev/null
 pg_started=1
 
@@ -132,6 +132,11 @@ default_acl_snapshot() {
   psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 \
     --command="SELECT COALESCE(string_agg(format('%s|%s|%s|%s', defaclrole::regrole, defaclnamespace::regnamespace, defaclobjtype, COALESCE(defaclacl::text, '')), E'\\n' ORDER BY defaclrole, defaclnamespace, defaclobjtype), '') FROM pg_default_acl;"
 }
+# Prepare the retained scheduler dependency after baseline verification and before app schema snapshots.
+default_acl_snapshot >"$tmp_dir/default-acl-before-cron-dependency.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog; REVOKE ALL ON SCHEMA cron FROM PUBLIC,anon,authenticated,service_role;" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-cron-dependency.txt"
+cmp "$tmp_dir/default-acl-before-cron-dependency.txt" "$tmp_dir/default-acl-after-cron-dependency.txt"
 default_acl_snapshot >"$tmp_dir/default-acl-before-0004.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 \
   --file="$repo_root/lib/db/migrations/0004_db02_invitation_permissions.sql" >/dev/null
@@ -449,8 +454,29 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0034
 default_acl_snapshot >"$tmp_dir/default-acl-after-0034.txt"
 cmp "$tmp_dir/default-acl-before-0034.txt" "$tmp_dir/default-acl-after-0034.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/system-attribution-0034-smoke-test.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0035.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0035.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0035_service_order_reservation.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0035.txt"
+cmp "$tmp_dir/default-acl-before-0035.txt" "$tmp_dir/default-acl-after-0035.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-orders-0035-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.petro_service_orders")" != "0" ]; then
+ if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0035_service_order_reservation.sql" >"$tmp_dir/0035-rollback-refusal.log" 2>&1; then
+  echo "0035 rollback erased service order history" >&2
+  exit 1
+ fi
+ rg -q 'rollback refuses to remove service order history' "$tmp_dir/0035-rollback-refusal.log"
+ # Only NEW relations containing this runner's synthetic orders; never do this on live data.
+ psql --no-psqlrc --set ON_ERROR_STOP=1 -c "TRUNCATE petro_private.service_order_events,petro_private.service_order_commands,public.petro_service_orders RESTART IDENTITY;" >/dev/null
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0035_service_order_reservation.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0035-rollback.sql"
+cmp "$tmp_dir/schema-before-0035.sql" "$tmp_dir/schema-after-0035-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0035-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0035.txt" "$tmp_dir/default-acl-after-0035-rollback.txt"
+echo "PASS: actual service order reserve/cancel/expiry, real holds, stock release and preserving application-schema rollback"
+
 # Prove rollback cannot erase a persisted system executor. Disposable fixture only.
 psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null
 DO $fixture$
