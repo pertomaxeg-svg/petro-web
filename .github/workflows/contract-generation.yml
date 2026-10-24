@@ -26,3 +26,20 @@ jobs:
         run: |
           git add -N lib/api-client-react/src/generated/api.schemas.ts lib/api-zod/src/generated
           git diff -- lib/api-client-react/src/generated/api.schemas.ts lib/api-zod/src/generated/api.ts lib/api-zod/src/generated/types
+      - name: Show additive generated client operations
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const source=readFileSync('lib/api-client-react/src/generated/api.ts','utf8');
+          const start=source.indexOf('export const getListAdminWorkforceUrl');
+          const end=source.indexOf('export const getGetAdminFleetCardsUrl',start);
+          const importsStart=source.indexOf('import type {',source.indexOf("from '@tanstack/react-query';"));
+          const importsEnd=source.indexOf("from './api.schemas';",importsStart)+"from './api.schemas';".length;
+          if(start<0||end<0||importsStart<0)throw Error('Generated workforce operations absent');
+          console.log('CONTRACT_CLIENT_IMPORTS_BEGIN');
+          console.log(source.slice(importsStart,importsEnd));
+          console.log('CONTRACT_CLIENT_IMPORTS_END');
+          console.log('CONTRACT_CLIENT_OPERATIONS_BEGIN');
+          console.log(source.slice(start,end));
+          console.log('CONTRACT_CLIENT_OPERATIONS_END');
+          NODE

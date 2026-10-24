@@ -256,6 +256,74 @@ paths:
               schema: { $ref: "#/components/schemas/AdminFleetStockReservations" }
         "401": { description: Authentication required }
         "403": { description: Fleet management permission required }
+  /admin/workforce:
+    get:
+      operationId: listAdminWorkforce
+      tags: [workforce]
+      summary: Read centrally authorized worker assignments or branch-eligible members
+      parameters:
+        - name: view
+          in: query
+          schema: { type: string, enum: [assignments, candidates], default: assignments }
+        - name: branchId
+          in: query
+          description: Required for candidates
+          schema: { type: string, format: uuid }
+        - name: userId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 160 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Actual paginated assignments or eligible branch members
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkforcePage" }
+        "400": { description: Invalid filter or missing candidate branch }
+        "401": { description: Authentication required }
+        "403": { description: Central owner, operations or auditor required }
+  /admin/workforce/assignments:
+    post:
+      operationId: setAdminWorkerAssignment
+      tags: [workforce]
+      summary: Create or version-update an explicit branch service assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkerAssignmentInput" }
+      responses:
+        "200":
+          description: Saved assignment or exact idempotent replay
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkerAssignmentState" }
+        "400": { description: Invalid fields }
+        "401": { description: Authentication required }
+        "403": { description: Central mutation permission or eligible membership missing }
+        "404": { description: Branch or assignment absent }
+        "409": { description: Version, payload or organization-service conflict }
+  /operations/capabilities:
+    get:
+      operationId: getWorkerCapabilities
+      tags: [workforce]
+      summary: Read only the authenticated caller's currently executable branch services
+      responses:
+        "200":
+          description: Current capabilities, rechecked against Auth, profile, membership and branch state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkerCapabilities" }
+        "401": { description: Authentication required }
+        "403": { description: Account inactive, unconfirmed or password update required }
   /admin/fleet/cards:
     get:
       operationId: getAdminFleetCards
@@ -4168,3 +4236,82 @@ components:
         expiresInSeconds: { type: integer, enum: [60] }
       required: [url, expiresInSeconds]
 
+
+    WorkerServiceGroup:
+      type: string
+      enum: [fuel, wash, oils, batteries, filters, parts, consumables, card_issuance]
+    WorkerAssignmentInput:
+      type: object
+      additionalProperties: false
+      required: [userId, branchId, serviceGroup, active, expectedVersion, idempotencyKey]
+      properties:
+        userId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        serviceGroup: { $ref: "#/components/schemas/WorkerServiceGroup" }
+        active: { type: boolean }
+        expectedVersion: { type: integer, minimum: 0 }
+        idempotencyKey: { type: string, minLength: 12, maxLength: 160 }
+    WorkerAssignmentState:
+      type: object
+      required: [id, userId, branchId, serviceGroup, active, version]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        serviceGroup: { $ref: "#/components/schemas/WorkerServiceGroup" }
+        active: { type: boolean }
+        version: { type: integer, minimum: 1 }
+    WorkerAssignmentRecord:
+      allOf:
+        - { $ref: "#/components/schemas/WorkerAssignmentState" }
+        - type: object
+          required: [displayName, organizationId, organizationName, organizationKind, branchName, updatedAt, canExecute]
+          properties:
+            displayName: { type: string }
+            organizationId: { type: string, format: uuid }
+            organizationName: { type: string }
+            organizationKind: { type: string, enum: [station, provider, company] }
+            branchName: { type: string }
+            updatedAt: { type: string, format: date-time }
+            canExecute: { type: boolean }
+    WorkerCandidate:
+      type: object
+      required: [userId, displayName, username]
+      properties:
+        userId: { type: string, format: uuid }
+        displayName: { type: string }
+        username: { type: string, nullable: true }
+    WorkforcePage:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            oneOf:
+              - { $ref: "#/components/schemas/WorkerAssignmentRecord" }
+              - { $ref: "#/components/schemas/WorkerCandidate" }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        canManage: { type: boolean }
+        organizationKind: { type: string, enum: [station, provider, company] }
+    WorkerCapability:
+      type: object
+      required: [assignmentId, assignmentVersion, branchId, branchName, organizationId, organizationName, organizationKind, serviceGroup]
+      properties:
+        assignmentId: { type: string, format: uuid }
+        assignmentVersion: { type: integer, minimum: 1 }
+        branchId: { type: string, format: uuid }
+        branchName: { type: string }
+        organizationId: { type: string, format: uuid }
+        organizationName: { type: string }
+        organizationKind: { type: string, enum: [station, provider] }
+        serviceGroup: { $ref: "#/components/schemas/WorkerServiceGroup" }
+    WorkerCapabilities:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/WorkerCapability" }
