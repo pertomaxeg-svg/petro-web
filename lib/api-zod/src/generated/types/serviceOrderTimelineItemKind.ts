@@ -13,4 +13,6 @@ export const ServiceOrderTimelineItemKind = {
   reserved: 'reserved',
   cancelled: 'cancelled',
   expiry_failed: 'expiry_failed',
+  started: 'started',
+  delivered: 'delivered',
 } as const;

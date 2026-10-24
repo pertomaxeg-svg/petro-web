@@ -1,5 +1,5 @@
 import { Router, raw, type IRouter, type Request, type Response } from "express";
-import { ReserveWorkerServiceOrderBody, CancelWorkerServiceOrderBody } from "@workspace/api-zod";
+import { ReserveWorkerServiceOrderBody, CancelWorkerServiceOrderBody, StartWorkerServiceOrderBody, DeliverWorkerServiceOrderBody, CreateWorkerServiceOrderEvidenceBody } from "@workspace/api-zod";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 
@@ -89,6 +89,7 @@ for(const mode of ["operations","admin"]as const){
 const requestKey=/^[A-Za-z0-9._:-]{16,120}$/;
 const evidenceKinds=["odometer","wash_before","wash_after","serial"];
 function validVersionBody(body:unknown,delivery=false){
+ if(!(delivery?DeliverWorkerServiceOrderBody:StartWorkerServiceOrderBody).strict().safeParse(body).success)return false;
  if(!isRecord(body)||Object.keys(body).some(k=>!(delivery?["expectedVersion","idempotencyKey","input"]:["expectedVersion","idempotencyKey"]).includes(k))
  ||!Number.isSafeInteger(body.expectedVersion)||Number(body.expectedVersion)<1||typeof body.idempotencyKey!=="string"||!requestKey.test(body.idempotencyKey))return false;
  if(!delivery)return true;
@@ -116,6 +117,7 @@ for(const action of ["start","deliver"]as const){
 router.post("/operations/service-orders/:id/evidence",async(req:Request,res:Response)=>{
  setNoStore(res);const session=await requireSession(req,res);if(!session)return;
  const b=req.body;
+ if(!CreateWorkerServiceOrderEvidenceBody.strict().safeParse(b).success){res.status(400).json({message:"بيانات الصورة غير صالحة."});return;}
  if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||!isRecord(b)||Object.keys(b).some(k=>!["kind","fileName","contentType","byteSize","idempotencyKey"].includes(k))
  ||typeof b.kind!=="string"||!evidenceKinds.includes(b.kind)||typeof b.fileName!=="string"||b.fileName.length<1||b.fileName.length>160
  ||!["image/png","image/jpeg"].includes(String(b.contentType))||!Number.isSafeInteger(b.byteSize)||Number(b.byteSize)<1||Number(b.byteSize)>10485760

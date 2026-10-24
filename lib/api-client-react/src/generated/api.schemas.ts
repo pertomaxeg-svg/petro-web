@@ -3160,6 +3160,8 @@ export const ServiceOrderTimelineItemKind = {
   reserved: 'reserved',
   cancelled: 'cancelled',
   expiry_failed: 'expiry_failed',
+  started: 'started',
+  delivered: 'delivered',
 } as const;
 
 export type ServiceOrderTimelineItemActorKind = typeof ServiceOrderTimelineItemActorKind[keyof typeof ServiceOrderTimelineItemActorKind];
@@ -3220,6 +3222,167 @@ export interface ServiceOrderList {
   pageSize: number;
   canManage: boolean;
 }
+
+export interface ServiceOrderStartRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export type ServiceOrderDeliverRequestInput = {
+  /** @pattern ^[0-9]{1,9}(\.[0-9]{1,3})?$ */
+  actualQuantity: string;
+  /** @pattern ^[0-9]{1,11}(\.[0-9]{1,3})?$ */
+  readingKm?: string | null;
+  /** @maxLength 120 */
+  serialNumber?: string | null;
+};
+
+export interface ServiceOrderDeliverRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+  input: ServiceOrderDeliverRequestInput;
+}
+
+export type ServiceOrderEvidenceRequestKind = typeof ServiceOrderEvidenceRequestKind[keyof typeof ServiceOrderEvidenceRequestKind];
+
+
+export const ServiceOrderEvidenceRequestKind = {
+  odometer: 'odometer',
+  wash_before: 'wash_before',
+  wash_after: 'wash_after',
+  serial: 'serial',
+} as const;
+
+export type ServiceOrderEvidenceRequestContentType = typeof ServiceOrderEvidenceRequestContentType[keyof typeof ServiceOrderEvidenceRequestContentType];
+
+
+export const ServiceOrderEvidenceRequestContentType = {
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export interface ServiceOrderEvidenceRequest {
+  kind: ServiceOrderEvidenceRequestKind;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  fileName: string;
+  contentType: ServiceOrderEvidenceRequestContentType;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  byteSize: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export type ServiceOrderEvidenceFileBucket = typeof ServiceOrderEvidenceFileBucket[keyof typeof ServiceOrderEvidenceFileBucket];
+
+
+export const ServiceOrderEvidenceFileBucket = {
+  'petro-private-documents': 'petro-private-documents',
+} as const;
+
+export type ServiceOrderEvidenceFileContentType = typeof ServiceOrderEvidenceFileContentType[keyof typeof ServiceOrderEvidenceFileContentType];
+
+
+export const ServiceOrderEvidenceFileContentType = {
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export type ServiceOrderEvidenceFileStatus = typeof ServiceOrderEvidenceFileStatus[keyof typeof ServiceOrderEvidenceFileStatus];
+
+
+export const ServiceOrderEvidenceFileStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+} as const;
+
+export interface ServiceOrderEvidenceFile {
+  id: string;
+  orderId: string;
+  bucket: ServiceOrderEvidenceFileBucket;
+  objectPath: string;
+  contentType: ServiceOrderEvidenceFileContentType;
+  byteSize: number;
+  status: ServiceOrderEvidenceFileStatus;
+}
+
+export type ServiceOrderExecutionResultDocumentationRule = {
+  version: number;
+  serviceGroup: string;
+  odometerRequired: boolean;
+  washBeforeRequired: boolean;
+  washAfterRequired: boolean;
+  serialRequired: boolean;
+};
+
+export type ServiceOrderExecutionResultDelivery = {
+  actualQuantity: string;
+  actualAmountMinor: string;
+  identityCurrent: boolean;
+  performedAt: string;
+  serialNumber?: string | null;
+  readingKm?: string | null;
+  odometerStatus?: string | null;
+  odometerEventId?: string | null;
+} | null;
+
+export type ServiceOrderExecutionResultEvidenceItemKind = typeof ServiceOrderExecutionResultEvidenceItemKind[keyof typeof ServiceOrderExecutionResultEvidenceItemKind];
+
+
+export const ServiceOrderExecutionResultEvidenceItemKind = {
+  odometer: 'odometer',
+  wash_before: 'wash_before',
+  wash_after: 'wash_after',
+  serial: 'serial',
+} as const;
+
+export type ServiceOrderExecutionResultEvidenceItemStatus = typeof ServiceOrderExecutionResultEvidenceItemStatus[keyof typeof ServiceOrderExecutionResultEvidenceItemStatus];
+
+
+export const ServiceOrderExecutionResultEvidenceItemStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+} as const;
+
+export type ServiceOrderExecutionResultEvidenceItem = {
+  id: string;
+  kind: ServiceOrderExecutionResultEvidenceItemKind;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+  status: ServiceOrderExecutionResultEvidenceItemStatus;
+  createdAt: string;
+  acceptedAt?: string | null;
+};
+
+export type ServiceOrderExecutionResult = ServiceOrder & {
+  canStart: boolean;
+  canDeliver: boolean;
+  documentationRule: ServiceOrderExecutionResultDocumentationRule;
+  delivery: ServiceOrderExecutionResultDelivery;
+  evidence: ServiceOrderExecutionResultEvidenceItem[];
+};
 
 /**
  * Request rejected or unavailable
@@ -3477,6 +3640,11 @@ export const ListAdminServiceOrdersStatus = {
   review_required: 'review_required',
   cancelled: 'cancelled',
 } as const;
+
+export type GetWorkerServiceOrderEvidenceDownload200 = {
+  url: string;
+  expiresInSeconds: number;
+};
 
 export type GetAdminFleetCardsParams = {
 view: GetAdminFleetCardsView;

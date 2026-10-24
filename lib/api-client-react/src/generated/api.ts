@@ -117,6 +117,7 @@ import type {
   GetAdminOrganizationFinanceAccountsParams,
   GetMerchantCatalogItemsParams,
   GetWorkerServiceOptionsParams,
+  GetWorkerServiceOrderEvidenceDownload200,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
@@ -161,7 +162,12 @@ import type {
   ReviewAdminFinanceTopup,
   ServiceOrder,
   ServiceOrderCancelRequest,
+  ServiceOrderDeliverRequest,
+  ServiceOrderEvidenceFile,
+  ServiceOrderEvidenceRequest,
+  ServiceOrderExecutionResult,
   ServiceOrderList,
+  ServiceOrderStartRequest,
   SetMembershipRequest,
   SetPlatformUserRolesRequest,
   SignInRequest,
@@ -2201,6 +2207,594 @@ export const useCancelAdminServiceOrder = <TError = ErrorType<void>,
       > => {
       return useMutation(getCancelAdminServiceOrderMutationOptions(options));
     }
+
+
+export const getGetWorkerServiceOrderExecutionUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}/execution`
+}
+
+/**
+ * @summary Read scoped execution rules and actual private evidence and delivery
+ */
+export const getWorkerServiceOrderExecution = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderExecutionResult> => {
+
+  return customFetch<ServiceOrderExecutionResult>(getGetWorkerServiceOrderExecutionUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerServiceOrderExecutionQueryKey = (id: string,) => {
+    return [
+    `/api/operations/service-orders/${id}/execution`
+    ] as const;
+    }
+
+
+export const getGetWorkerServiceOrderExecutionQueryOptions = <TData = Awaited<ReturnType<typeof getWorkerServiceOrderExecution>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderExecution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerServiceOrderExecutionQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkerServiceOrderExecution>>> = ({ signal }) => getWorkerServiceOrderExecution(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderExecution>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerServiceOrderExecutionQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkerServiceOrderExecution>>>
+export type GetWorkerServiceOrderExecutionQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read scoped execution rules and actual private evidence and delivery
+ */
+
+export function useGetWorkerServiceOrderExecution<TData = Awaited<ReturnType<typeof getWorkerServiceOrderExecution>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderExecution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerServiceOrderExecutionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminServiceOrderExecutionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/service-orders/${id}/execution`
+}
+
+/**
+ * @summary Read scoped execution rules and actual private evidence and delivery
+ */
+export const getAdminServiceOrderExecution = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderExecutionResult> => {
+
+  return customFetch<ServiceOrderExecutionResult>(getGetAdminServiceOrderExecutionUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminServiceOrderExecutionQueryKey = (id: string,) => {
+    return [
+    `/api/admin/service-orders/${id}/execution`
+    ] as const;
+    }
+
+
+export const getGetAdminServiceOrderExecutionQueryOptions = <TData = Awaited<ReturnType<typeof getAdminServiceOrderExecution>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrderExecution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminServiceOrderExecutionQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminServiceOrderExecution>>> = ({ signal }) => getAdminServiceOrderExecution(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrderExecution>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminServiceOrderExecutionQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminServiceOrderExecution>>>
+export type GetAdminServiceOrderExecutionQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read scoped execution rules and actual private evidence and delivery
+ */
+
+export function useGetAdminServiceOrderExecution<TData = Awaited<ReturnType<typeof getAdminServiceOrderExecution>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrderExecution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminServiceOrderExecutionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartWorkerServiceOrderUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}/start`
+}
+
+/**
+ * @summary Start an unexpired held order using CAS and exact retry
+ */
+export const startWorkerServiceOrder = async (id: string,
+    serviceOrderStartRequest: ServiceOrderStartRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderExecutionResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrderExecutionResult>(getStartWorkerServiceOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(serviceOrderStartRequest)
+  }
+);}
+
+
+
+
+
+export const getStartWorkerServiceOrderMutationKey = () => ['startWorkerServiceOrder'] as const;
+
+export const getStartWorkerServiceOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startWorkerServiceOrder>>, TError,StartWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startWorkerServiceOrder>>, TError,StartWorkerServiceOrderMutationVariables, TContext> => {
+
+const mutationKey = getStartWorkerServiceOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startWorkerServiceOrder>>, StartWorkerServiceOrderMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  startWorkerServiceOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartWorkerServiceOrderMutationResult = NonNullable<Awaited<ReturnType<typeof startWorkerServiceOrder>>>
+    export type StartWorkerServiceOrderMutationBody = BodyType<ServiceOrderStartRequest>
+    export type StartWorkerServiceOrderMutationError = ErrorType<void>
+    export type StartWorkerServiceOrderMutationVariables = {id: string;data: BodyType<ServiceOrderStartRequest>}
+
+    /**
+ * @summary Start an unexpired held order using CAS and exact retry
+ */
+export const useStartWorkerServiceOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startWorkerServiceOrder>>, TError,StartWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startWorkerServiceOrder>>,
+        TError,
+        StartWorkerServiceOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartWorkerServiceOrderMutationOptions(options));
+    }
+
+export const getDeliverWorkerServiceOrderUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}/deliver`
+}
+
+/**
+ * @summary Record actual documented delivery and issue only the physical quantity without final payment
+ */
+export const deliverWorkerServiceOrder = async (id: string,
+    serviceOrderDeliverRequest: ServiceOrderDeliverRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderExecutionResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrderExecutionResult>(getDeliverWorkerServiceOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(serviceOrderDeliverRequest)
+  }
+);}
+
+
+
+
+
+export const getDeliverWorkerServiceOrderMutationKey = () => ['deliverWorkerServiceOrder'] as const;
+
+export const getDeliverWorkerServiceOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deliverWorkerServiceOrder>>, TError,DeliverWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deliverWorkerServiceOrder>>, TError,DeliverWorkerServiceOrderMutationVariables, TContext> => {
+
+const mutationKey = getDeliverWorkerServiceOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deliverWorkerServiceOrder>>, DeliverWorkerServiceOrderMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  deliverWorkerServiceOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeliverWorkerServiceOrderMutationResult = NonNullable<Awaited<ReturnType<typeof deliverWorkerServiceOrder>>>
+    export type DeliverWorkerServiceOrderMutationBody = BodyType<ServiceOrderDeliverRequest>
+    export type DeliverWorkerServiceOrderMutationError = ErrorType<void>
+    export type DeliverWorkerServiceOrderMutationVariables = {id: string;data: BodyType<ServiceOrderDeliverRequest>}
+
+    /**
+ * @summary Record actual documented delivery and issue only the physical quantity without final payment
+ */
+export const useDeliverWorkerServiceOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deliverWorkerServiceOrder>>, TError,DeliverWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deliverWorkerServiceOrder>>,
+        TError,
+        DeliverWorkerServiceOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeliverWorkerServiceOrderMutationOptions(options));
+    }
+
+export const getCreateWorkerServiceOrderEvidenceUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}/evidence`
+}
+
+/**
+ * @summary Create an idempotent private upload intent scoped to the current own order phase
+ */
+export const createWorkerServiceOrderEvidence = async (id: string,
+    serviceOrderEvidenceRequest: ServiceOrderEvidenceRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderEvidenceFile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrderEvidenceFile>(getCreateWorkerServiceOrderEvidenceUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(serviceOrderEvidenceRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateWorkerServiceOrderEvidenceMutationKey = () => ['createWorkerServiceOrderEvidence'] as const;
+
+export const getCreateWorkerServiceOrderEvidenceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkerServiceOrderEvidence>>, TError,CreateWorkerServiceOrderEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWorkerServiceOrderEvidence>>, TError,CreateWorkerServiceOrderEvidenceMutationVariables, TContext> => {
+
+const mutationKey = getCreateWorkerServiceOrderEvidenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkerServiceOrderEvidence>>, CreateWorkerServiceOrderEvidenceMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createWorkerServiceOrderEvidence(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWorkerServiceOrderEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof createWorkerServiceOrderEvidence>>>
+    export type CreateWorkerServiceOrderEvidenceMutationBody = BodyType<ServiceOrderEvidenceRequest>
+    export type CreateWorkerServiceOrderEvidenceMutationError = ErrorType<void>
+    export type CreateWorkerServiceOrderEvidenceMutationVariables = {id: string;data: BodyType<ServiceOrderEvidenceRequest>}
+
+    /**
+ * @summary Create an idempotent private upload intent scoped to the current own order phase
+ */
+export const useCreateWorkerServiceOrderEvidence = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkerServiceOrderEvidence>>, TError,CreateWorkerServiceOrderEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWorkerServiceOrderEvidence>>,
+        TError,
+        CreateWorkerServiceOrderEvidenceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateWorkerServiceOrderEvidenceMutationOptions(options));
+    }
+
+export const getUploadWorkerServiceOrderEvidenceUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-order-evidence/${id}/content`
+}
+
+/**
+ * @summary Upload a matching PNG or JPEG and finalize authoritative Storage metadata with exact same-file retry
+ */
+export const uploadWorkerServiceOrderEvidence = async (id: string,
+    uploadWorkerServiceOrderEvidenceBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderEvidenceFile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrderEvidenceFile>(getUploadWorkerServiceOrderEvidenceUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/octet-stream', ...getHeaders(options?.headers) },
+    body: uploadWorkerServiceOrderEvidenceBody
+  }
+);}
+
+
+
+
+
+export const getUploadWorkerServiceOrderEvidenceMutationKey = () => ['uploadWorkerServiceOrderEvidence'] as const;
+
+export const getUploadWorkerServiceOrderEvidenceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadWorkerServiceOrderEvidence>>, TError,UploadWorkerServiceOrderEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadWorkerServiceOrderEvidence>>, TError,UploadWorkerServiceOrderEvidenceMutationVariables, TContext> => {
+
+const mutationKey = getUploadWorkerServiceOrderEvidenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadWorkerServiceOrderEvidence>>, UploadWorkerServiceOrderEvidenceMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadWorkerServiceOrderEvidence(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadWorkerServiceOrderEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof uploadWorkerServiceOrderEvidence>>>
+    export type UploadWorkerServiceOrderEvidenceMutationBody = BodyType<Blob>
+    export type UploadWorkerServiceOrderEvidenceMutationError = ErrorType<void>
+    export type UploadWorkerServiceOrderEvidenceMutationVariables = {id: string;data: BodyType<Blob>}
+
+    /**
+ * @summary Upload a matching PNG or JPEG and finalize authoritative Storage metadata with exact same-file retry
+ */
+export const useUploadWorkerServiceOrderEvidence = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadWorkerServiceOrderEvidence>>, TError,UploadWorkerServiceOrderEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadWorkerServiceOrderEvidence>>,
+        TError,
+        UploadWorkerServiceOrderEvidenceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadWorkerServiceOrderEvidenceMutationOptions(options));
+    }
+
+export const getGetWorkerServiceOrderEvidenceDownloadUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-order-evidence/${id}/download`
+}
+
+/**
+ * @summary Reauthorize accepted order evidence and issue a short-lived private URL
+ */
+export const getWorkerServiceOrderEvidenceDownload = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<GetWorkerServiceOrderEvidenceDownload200> => {
+
+  return customFetch<GetWorkerServiceOrderEvidenceDownload200>(getGetWorkerServiceOrderEvidenceDownloadUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerServiceOrderEvidenceDownloadQueryKey = (id: string,) => {
+    return [
+    `/api/operations/service-order-evidence/${id}/download`
+    ] as const;
+    }
+
+
+export const getGetWorkerServiceOrderEvidenceDownloadQueryOptions = <TData = Awaited<ReturnType<typeof getWorkerServiceOrderEvidenceDownload>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderEvidenceDownload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerServiceOrderEvidenceDownloadQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkerServiceOrderEvidenceDownload>>> = ({ signal }) => getWorkerServiceOrderEvidenceDownload(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderEvidenceDownload>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerServiceOrderEvidenceDownloadQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkerServiceOrderEvidenceDownload>>>
+export type GetWorkerServiceOrderEvidenceDownloadQueryError = ErrorType<void>
+
+
+/**
+ * @summary Reauthorize accepted order evidence and issue a short-lived private URL
+ */
+
+export function useGetWorkerServiceOrderEvidenceDownload<TData = Awaited<ReturnType<typeof getWorkerServiceOrderEvidenceDownload>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderEvidenceDownload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerServiceOrderEvidenceDownloadQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 
 export const getGetAdminFleetCardsUrl = (params: GetAdminFleetCardsParams,) => {
