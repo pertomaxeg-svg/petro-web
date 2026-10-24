@@ -51,6 +51,15 @@ jobs:
         run: |
           pnpm --filter @workspace/api-server run build
           pnpm --filter @workspace/pertomax-eg-web run build
+      - name: Reviewed migration fingerprints
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          for(const path of ['lib/db/migrations/0031_operational_pin_proofs.sql','lib/db/rollback/0031_operational_pin_proofs.sql']) {
+            console.log(path+': '+createHash('sha256').update(readFileSync(path)).digest('hex'));
+          }
+          NODE
       - name: Isolated SQL, API and browser acceptance
         run: bash lib/db/rebuild/run-local-test.sh
       - name: Preserve browser evidence

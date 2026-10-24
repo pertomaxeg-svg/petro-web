@@ -425,8 +425,28 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0030
 default_acl_snapshot >"$tmp_dir/default-acl-after-0030.txt"
 cmp "$tmp_dir/default-acl-before-0030.txt" "$tmp_dir/default-acl-after-0030.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/worker-assignments-0030-smoke-test.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0031.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0031.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0031_operational_pin_proofs.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0031.txt"
+cmp "$tmp_dir/default-acl-before-0031.txt" "$tmp_dir/default-acl-after-0031.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/operational-pin-0031-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT (SELECT count(*) FROM petro_private.worker_pin_proofs)+(SELECT count(*) FROM petro_private.worker_pin_commands)")" != "0" ]; then
+  if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0031_operational_pin_proofs.sql" >"$tmp_dir/0031-rollback-refusal.log" 2>&1; then
+    echo "0031 rollback unexpectedly removed operational proof records" >&2
+    exit 1
+  fi
+  rg -q 'rollback refuses to delete operational proof records' "$tmp_dir/0031-rollback-refusal.log"
+  # Exclusively synthetic records in this runner-owned disposable database.
+  psql --no-psqlrc --set ON_ERROR_STOP=1 -c "DELETE FROM petro_private.worker_pin_commands; DELETE FROM petro_private.worker_pin_proofs;" >/dev/null
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0031_operational_pin_proofs.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0031-rollback.sql"
+cmp "$tmp_dir/schema-before-0031.sql" "$tmp_dir/schema-after-0031-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0031-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0031.txt" "$tmp_dir/default-acl-after-0031-rollback.txt"
+echo "PASS: operational PIN scope, replay, expiry, rotation, lockout and exact schema/ACL rollback"
 if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0030_worker_branch_service_assignments.sql" >"$tmp_dir/0030-rollback-refusal.log" 2>&1; then
   echo "0030 rollback unexpectedly deleted persisted synthetic worker records" >&2
   exit 1
