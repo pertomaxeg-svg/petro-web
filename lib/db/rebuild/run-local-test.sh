@@ -431,8 +431,20 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0031
 default_acl_snapshot >"$tmp_dir/default-acl-after-0031.txt"
 cmp "$tmp_dir/default-acl-before-0031.txt" "$tmp_dir/default-acl-after-0031.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/operational-pin-0031-smoke-test.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0032.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0032.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0032_internal_usage_reservation_core.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0032.txt"
+cmp "$tmp_dir/default-acl-before-0032.txt" "$tmp_dir/default-acl-after-0032.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/reservation-core-0032-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0032_internal_usage_reservation_core.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0032-rollback.sql"
+cmp "$tmp_dir/schema-before-0032.sql" "$tmp_dir/schema-after-0032-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0032-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0032.txt" "$tmp_dir/default-acl-after-0032-rollback.txt"
+echo "PASS: internal usage core real holds, legacy proof/replay/policy/grants and exact schema/ACL rollback"
+
 if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT (SELECT count(*) FROM petro_private.worker_pin_proofs)+(SELECT count(*) FROM petro_private.worker_pin_commands)")" != "0" ]; then
   if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0031_operational_pin_proofs.sql" >"$tmp_dir/0031-rollback-refusal.log" 2>&1; then
     echo "0031 rollback unexpectedly removed operational proof records" >&2
