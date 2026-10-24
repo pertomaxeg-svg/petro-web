@@ -419,6 +419,7 @@ default_acl_snapshot >"$tmp_dir/default-acl-before-0029.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0029_fleet_card_fulfillment_filter.sql" >/dev/null
 default_acl_snapshot >"$tmp_dir/default-acl-after-0029.txt"
 cmp "$tmp_dir/default-acl-before-0029.txt" "$tmp_dir/default-acl-after-0029.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/worker-assignments-0030-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/fleet-directory-photo-0028-smoke-test.sql" >/dev/null
 echo "PASS: rejected and unfinished directory photos excluded"
