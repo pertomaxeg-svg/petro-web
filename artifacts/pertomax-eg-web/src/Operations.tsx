@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useGetAuthMe, getGetAuthMeQueryKey } from "@workspace/api-client-react";
 import { formatFleetField } from "./fleetDisplay";
 import "./FleetAdmin.css";
+import { ServiceQuotation } from "./ServiceQuotation";
 type Capability={assignmentId:string;branchId:string;branchName:string;organizationName:string;serviceGroup:string};
 type Capabilities={items:Capability[];pinVerificationReady?:boolean};
 type Proof={valid:boolean;locked?:boolean;retryAt?:string|null;verificationId?:string;expiresAt?:string;driverName?:string;vehicle?:{plate:string;brand:string;model:string;fuelType:string;tankCapacityLiters?:number|null}};
@@ -71,5 +72,7 @@ export function OperationsPage(){
  <div><small>فئة الوقود</small><b>{formatFleetField("fuelType",proof.vehicle.fuelType)}</b></div><div><small>سعة الخزان</small><b>{formatFleetField("tankCapacityLiters",proof.vehicle.tankCapacityLiters)}</b></div>
  <div><small>السائق</small><b>{proof.driverName}</b></div><div><small>مهلة التحقق</small><b>{proof.expiresAt?new Intl.DateTimeFormat("ar-EG",{timeStyle:"short",timeZone:"Africa/Cairo"}).format(new Date(proof.expiresAt)):"—"}</b></div>
  </div><p className="fleet-muted">هذا تحقق هوية فقط. تنفيذ الخدمة والدفع يحتاجان اعتماد الطلب.</p><button className="fleet-button fleet-quiet" onClick={()=>setProof(null)}>تحقق جديد</button></section>}
+ {proof?.valid&&proof.verificationId&&<ServiceQuotation key={proof.verificationId} proofId={proof.verificationId}/>}
+ 
  </main>;
 }

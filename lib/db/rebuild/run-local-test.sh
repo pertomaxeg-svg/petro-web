@@ -437,8 +437,20 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0032
 default_acl_snapshot >"$tmp_dir/default-acl-after-0032.txt"
 cmp "$tmp_dir/default-acl-before-0032.txt" "$tmp_dir/default-acl-after-0032.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/reservation-core-0032-smoke-test.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0033.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0033.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0033_worker_service_quotation.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0033.txt"
+cmp "$tmp_dir/default-acl-before-0033.txt" "$tmp_dir/default-acl-after-0033.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-quotation-0033-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0033_worker_service_quotation.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0033-rollback.sql"
+cmp "$tmp_dir/schema-before-0033.sql" "$tmp_dir/schema-after-0033-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0033-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0033.txt" "$tmp_dir/default-acl-after-0033-rollback.txt"
+echo "PASS: scoped service quotation, exact prices, policy/funding/stock gates and read-only schema/ACL rollback"
+
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0032_internal_usage_reservation_core.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0032-rollback.sql"
 cmp "$tmp_dir/schema-before-0032.sql" "$tmp_dir/schema-after-0032-rollback.sql"
