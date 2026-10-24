@@ -10,4 +10,9 @@ API GET /api/operations/service-options and POST /api/operations/service-quotes 
 
 RED: missing scoped quotation RPCs in run40083862607 / acceptance120842698095. Require GREEN SQL exact fuel math/tank/policy/funds/stock/unit/stale-price/proof/role/provider/read-only checks; actual HTTP and browser100EGP→8litre quote; generated contracts; real JWT scope, and exact schema/defaultACL rollback. API/browser fixture is explicit disposable data; no live users/prices/transactions.
 
-Status: implementation under acceptance. NOT applied live. Orders/reservation/execution/final payment and runtime deployment remain separate unfinished tasks in the saved service-order plan.
+Source SHA-256: `cc360afbeb42fb547b546a8fdb97a6303c36ce07a409ef8f9958b17b3c229031`.
+Rollback SHA-256: `eb795380e12855eee5ccabcdbc2c1450524b599eae3a0d983397397254800725`.
+
+Final GREEN: commit5085fa5ccaa7100da276f7ac00f527d017639331, run40085731237; acceptance120848152121 and real-auth-storage120848152013 both passed. Generated contracts40085731236 have no drift. Actual browser quote100EGP→8litres passed alongside mobile/tablet/desktop layout and sanitized viewport screenshots. SQL policy/tank/funds/stock/provider/precision/stale-price/expiry/other-actor and read-only checks, exact schema/defaultACL rollback, actual HTTP and real JWT scope passed. Full pre-existing finance/fleet suite also passed with independent tenant/bank fixtures and scoped/delta financial assertions.
+
+Status: accepted and allowlisted, pending live activation. Orders/reservation/execution/final payment and runtime deployment remain unfinished in the saved service-order plan.
