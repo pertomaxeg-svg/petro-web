@@ -1,5 +1,5 @@
 import { Router, raw, type IRouter, type Request, type Response } from "express";
-import { ReserveWorkerServiceOrderBody, CancelWorkerServiceOrderBody, StartWorkerServiceOrderBody, DeliverWorkerServiceOrderBody, CreateWorkerServiceOrderEvidenceBody } from "@workspace/api-zod";
+import { ReserveWorkerServiceOrderBody, CancelWorkerServiceOrderBody, StartWorkerServiceOrderBody, DeliverWorkerServiceOrderBody, CreateWorkerServiceOrderEvidenceBody, ConfirmWorkerServiceOrderPaymentBody } from "@workspace/api-zod";
 import { pairPinDigest, fleetHmacSecret } from "../lib/fleetPairIdentity";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
@@ -188,7 +188,7 @@ for(const mode of ["operations","admin"]as const){
 router.post("/operations/service-orders/:id/confirm",async(req:Request,res:Response)=>{
  setNoStore(res);const session=await requireSession(req,res);if(!session)return;
  const b=req.body;
- if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","idempotencyKey","pinCode"].includes(k))
+ if(!ConfirmWorkerServiceOrderPaymentBody.strict().safeParse(b).success||typeof req.params.id!=="string"||!uuid.test(req.params.id)||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","idempotencyKey","pinCode"].includes(k))
  ||!Number.isSafeInteger(b.expectedVersion)||Number(b.expectedVersion)<1||typeof b.idempotencyKey!=="string"||!requestKey.test(b.idempotencyKey)
  ||typeof b.pinCode!=="string"||!/^\d{4}$/.test(b.pinCode)){res.status(400).json({message:"أدخل رمز التعبئة المكون من أربعة أرقام ومرجع المحاولة الصالح."});return;}
  if(!fleetHmacSecret()){res.status(503).json({message:"تأكيد الرمز غير متاح حاليًا."});return;}

@@ -1421,6 +1421,161 @@ export const GetWorkerServiceOrderEvidenceDownloadResponse = zod.object({
 
 
 /**
+ * @summary Read current scoped actual payment and immutable service receipt
+ */
+export const GetWorkerServiceOrderPaymentParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+
+
+export const GetWorkerServiceOrderPaymentResponse = zod.object({
+  "orderId": zod.string().uuid(),
+  "version": zod.number().int().min(1),
+  "status": zod.string().optional(),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']).optional(),
+  "paid": zod.boolean(),
+  "valid": zod.boolean().optional(),
+  "locked": zod.boolean().optional(),
+  "retryAt": zod.coerce.date().nullish(),
+  "canConfirm": zod.boolean().optional(),
+  "pinConfirmationReady": zod.boolean().optional(),
+  "bookedAmountMinor": zod.string().optional(),
+  "actualAmountMinor": zod.string().nullish(),
+  "payment": zod.object({
+  "id": zod.string().uuid(),
+  "chargedAmountMinor": zod.string(),
+  "bookedAmountMinor": zod.string(),
+  "releasedAmountMinor": zod.string(),
+  "currency": zod.enum(['EGP']),
+  "confirmedAt": zod.coerce.date(),
+  "journalEntryId": zod.string().uuid(),
+  "receipt": zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "snapshot": zod.record(zod.string(), zod.unknown())
+}),
+  "receivable": zod.object({
+  "merchantBranchId": zod.string().uuid(),
+  "earnedAmountMinor": zod.string(),
+  "eligibleAt": zod.coerce.date(),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date()
+})
+}).nullish()
+})
+
+
+/**
+ * @summary Read current scoped actual payment and immutable service receipt
+ */
+export const GetAdminServiceOrderPaymentParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+
+
+export const GetAdminServiceOrderPaymentResponse = zod.object({
+  "orderId": zod.string().uuid(),
+  "version": zod.number().int().min(1),
+  "status": zod.string().optional(),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']).optional(),
+  "paid": zod.boolean(),
+  "valid": zod.boolean().optional(),
+  "locked": zod.boolean().optional(),
+  "retryAt": zod.coerce.date().nullish(),
+  "canConfirm": zod.boolean().optional(),
+  "pinConfirmationReady": zod.boolean().optional(),
+  "bookedAmountMinor": zod.string().optional(),
+  "actualAmountMinor": zod.string().nullish(),
+  "payment": zod.object({
+  "id": zod.string().uuid(),
+  "chargedAmountMinor": zod.string(),
+  "bookedAmountMinor": zod.string(),
+  "releasedAmountMinor": zod.string(),
+  "currency": zod.enum(['EGP']),
+  "confirmedAt": zod.coerce.date(),
+  "journalEntryId": zod.string().uuid(),
+  "receipt": zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "snapshot": zod.record(zod.string(), zod.unknown())
+}),
+  "receivable": zod.object({
+  "merchantBranchId": zod.string().uuid(),
+  "earnedAmountMinor": zod.string(),
+  "eligibleAt": zod.coerce.date(),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date()
+})
+}).nullish()
+})
+
+
+/**
+ * @summary Recheck original final PIN and atomically capture actual delivery once with durable receipt
+ */
+export const ConfirmWorkerServiceOrderPaymentParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const confirmWorkerServiceOrderPaymentBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9._:-]{16,120}$');
+export const confirmWorkerServiceOrderPaymentBodyPinCodeRegExp = new RegExp('^[0-9]{4}$');
+
+
+export const ConfirmWorkerServiceOrderPaymentBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "idempotencyKey": zod.string().regex(confirmWorkerServiceOrderPaymentBodyIdempotencyKeyRegExp),
+  "pinCode": zod.string().regex(confirmWorkerServiceOrderPaymentBodyPinCodeRegExp)
+})
+
+
+
+
+export const ConfirmWorkerServiceOrderPaymentResponse = zod.object({
+  "orderId": zod.string().uuid(),
+  "version": zod.number().int().min(1),
+  "status": zod.string().optional(),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']).optional(),
+  "paid": zod.boolean(),
+  "valid": zod.boolean().optional(),
+  "locked": zod.boolean().optional(),
+  "retryAt": zod.coerce.date().nullish(),
+  "canConfirm": zod.boolean().optional(),
+  "pinConfirmationReady": zod.boolean().optional(),
+  "bookedAmountMinor": zod.string().optional(),
+  "actualAmountMinor": zod.string().nullish(),
+  "payment": zod.object({
+  "id": zod.string().uuid(),
+  "chargedAmountMinor": zod.string(),
+  "bookedAmountMinor": zod.string(),
+  "releasedAmountMinor": zod.string(),
+  "currency": zod.enum(['EGP']),
+  "confirmedAt": zod.coerce.date(),
+  "journalEntryId": zod.string().uuid(),
+  "receipt": zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "snapshot": zod.record(zod.string(), zod.unknown())
+}),
+  "receivable": zod.object({
+  "merchantBranchId": zod.string().uuid(),
+  "earnedAmountMinor": zod.string(),
+  "eligibleAt": zod.coerce.date(),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date()
+})
+}).nullish()
+})
+
+
+/**
  * @summary Read paginated central card requests, issued credentials, stock, and history
  */
 export const getAdminFleetCardsQueryStatusMax = 32;

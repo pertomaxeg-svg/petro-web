@@ -10,16 +10,6 @@ import {
   useQuery
 } from '@tanstack/react-query';
 import type {
-  MutationFunction,
-  QueryFunction,
-  QueryKey,
-  UseMutationOptions,
-  UseMutationResult,
-  UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
-
-import type {
   AcceptInvitationRequest,
   AccountStatusRequest,
   AdminBillingActionResult,
@@ -167,6 +157,8 @@ import type {
   ServiceOrderEvidenceRequest,
   ServiceOrderExecutionResult,
   ServiceOrderList,
+  ServiceOrderPaymentConfirmationRequest,
+  ServiceOrderPaymentResult,
   ServiceOrderStartRequest,
   SetMembershipRequest,
   SetPlatformUserRolesRequest,
@@ -2796,6 +2788,249 @@ export function useGetWorkerServiceOrderEvidenceDownload<TData = Awaited<ReturnT
 
 
 
+
+export const getGetWorkerServiceOrderPaymentUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}/payment`
+}
+
+/**
+ * @summary Read current scoped actual payment and immutable service receipt
+ */
+export const getWorkerServiceOrderPayment = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderPaymentResult> => {
+
+  return customFetch<ServiceOrderPaymentResult>(getGetWorkerServiceOrderPaymentUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerServiceOrderPaymentQueryKey = (id: string,) => {
+    return [
+    `/api/operations/service-orders/${id}/payment`
+    ] as const;
+    }
+
+
+export const getGetWorkerServiceOrderPaymentQueryOptions = <TData = Awaited<ReturnType<typeof getWorkerServiceOrderPayment>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderPayment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerServiceOrderPaymentQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkerServiceOrderPayment>>> = ({ signal }) => getWorkerServiceOrderPayment(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderPayment>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerServiceOrderPaymentQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkerServiceOrderPayment>>>
+export type GetWorkerServiceOrderPaymentQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read current scoped actual payment and immutable service receipt
+ */
+
+export function useGetWorkerServiceOrderPayment<TData = Awaited<ReturnType<typeof getWorkerServiceOrderPayment>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrderPayment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerServiceOrderPaymentQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminServiceOrderPaymentUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/service-orders/${id}/payment`
+}
+
+/**
+ * @summary Read current scoped actual payment and immutable service receipt
+ */
+export const getAdminServiceOrderPayment = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderPaymentResult> => {
+
+  return customFetch<ServiceOrderPaymentResult>(getGetAdminServiceOrderPaymentUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminServiceOrderPaymentQueryKey = (id: string,) => {
+    return [
+    `/api/admin/service-orders/${id}/payment`
+    ] as const;
+    }
+
+
+export const getGetAdminServiceOrderPaymentQueryOptions = <TData = Awaited<ReturnType<typeof getAdminServiceOrderPayment>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrderPayment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminServiceOrderPaymentQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminServiceOrderPayment>>> = ({ signal }) => getAdminServiceOrderPayment(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrderPayment>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminServiceOrderPaymentQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminServiceOrderPayment>>>
+export type GetAdminServiceOrderPaymentQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read current scoped actual payment and immutable service receipt
+ */
+
+export function useGetAdminServiceOrderPayment<TData = Awaited<ReturnType<typeof getAdminServiceOrderPayment>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrderPayment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminServiceOrderPaymentQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConfirmWorkerServiceOrderPaymentUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}/confirm`
+}
+
+/**
+ * @summary Recheck original final PIN and atomically capture actual delivery once with durable receipt
+ */
+export const confirmWorkerServiceOrderPayment = async (id: string,
+    serviceOrderPaymentConfirmationRequest: ServiceOrderPaymentConfirmationRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderPaymentResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrderPaymentResult>(getConfirmWorkerServiceOrderPaymentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(serviceOrderPaymentConfirmationRequest)
+  }
+);}
+
+
+
+
+
+export const getConfirmWorkerServiceOrderPaymentMutationKey = () => ['confirmWorkerServiceOrderPayment'] as const;
+
+export const getConfirmWorkerServiceOrderPaymentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmWorkerServiceOrderPayment>>, TError,ConfirmWorkerServiceOrderPaymentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmWorkerServiceOrderPayment>>, TError,ConfirmWorkerServiceOrderPaymentMutationVariables, TContext> => {
+
+const mutationKey = getConfirmWorkerServiceOrderPaymentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmWorkerServiceOrderPayment>>, ConfirmWorkerServiceOrderPaymentMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  confirmWorkerServiceOrderPayment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmWorkerServiceOrderPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof confirmWorkerServiceOrderPayment>>>
+    export type ConfirmWorkerServiceOrderPaymentMutationBody = BodyType<ServiceOrderPaymentConfirmationRequest>
+    export type ConfirmWorkerServiceOrderPaymentMutationError = ErrorType<void>
+    export type ConfirmWorkerServiceOrderPaymentMutationVariables = {id: string;data: BodyType<ServiceOrderPaymentConfirmationRequest>}
+
+    /**
+ * @summary Recheck original final PIN and atomically capture actual delivery once with durable receipt
+ */
+export const useConfirmWorkerServiceOrderPayment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmWorkerServiceOrderPayment>>, TError,ConfirmWorkerServiceOrderPaymentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmWorkerServiceOrderPayment>>,
+        TError,
+        ConfirmWorkerServiceOrderPaymentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmWorkerServiceOrderPaymentMutationOptions(options));
+    }
 
 export const getGetAdminFleetCardsUrl = (params: GetAdminFleetCardsParams,) => {
   const normalizedParams = new URLSearchParams();

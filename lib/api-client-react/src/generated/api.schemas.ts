@@ -3384,6 +3384,77 @@ export type ServiceOrderExecutionResult = ServiceOrder & {
   evidence: ServiceOrderExecutionResultEvidenceItem[];
 };
 
+export interface ServiceOrderPaymentConfirmationRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /** @pattern ^[A-Za-z0-9._:-]{16,120}$ */
+  idempotencyKey: string;
+  /** @pattern ^[0-9]{4}$ */
+  pinCode: string;
+}
+
+export type ServiceOrderPaymentResultPaymentStatus = typeof ServiceOrderPaymentResultPaymentStatus[keyof typeof ServiceOrderPaymentResultPaymentStatus];
+
+
+export const ServiceOrderPaymentResultPaymentStatus = {
+  held: 'held',
+  unpaid: 'unpaid',
+  paid: 'paid',
+} as const;
+
+export type ServiceOrderPaymentResultPaymentCurrency = typeof ServiceOrderPaymentResultPaymentCurrency[keyof typeof ServiceOrderPaymentResultPaymentCurrency];
+
+
+export const ServiceOrderPaymentResultPaymentCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export type ServiceOrderPaymentResultPaymentReceiptSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderPaymentResultPaymentReceipt = {
+  id: string;
+  number: string;
+  issuedAt: string;
+  snapshot: ServiceOrderPaymentResultPaymentReceiptSnapshot;
+};
+
+export type ServiceOrderPaymentResultPaymentReceivable = {
+  merchantBranchId: string;
+  earnedAmountMinor: string;
+  eligibleAt: string;
+  periodStart: string;
+  periodEnd: string;
+};
+
+export type ServiceOrderPaymentResultPayment = {
+  id: string;
+  chargedAmountMinor: string;
+  bookedAmountMinor: string;
+  releasedAmountMinor: string;
+  currency: ServiceOrderPaymentResultPaymentCurrency;
+  confirmedAt: string;
+  journalEntryId: string;
+  receipt: ServiceOrderPaymentResultPaymentReceipt;
+  receivable: ServiceOrderPaymentResultPaymentReceivable;
+} | null;
+
+export interface ServiceOrderPaymentResult {
+  orderId: string;
+  /** @minimum 1 */
+  version: number;
+  status?: string;
+  paymentStatus?: ServiceOrderPaymentResultPaymentStatus;
+  paid: boolean;
+  valid?: boolean;
+  locked?: boolean;
+  retryAt?: string | null;
+  canConfirm?: boolean;
+  pinConfirmationReady?: boolean;
+  bookedAmountMinor?: string;
+  actualAmountMinor?: string | null;
+  payment?: ServiceOrderPaymentResultPayment;
+}
+
 /**
  * Request rejected or unavailable
  */
