@@ -14,4 +14,8 @@ Orval generated the OpenAPI changes on GitHub in run 40062359553, job 1207784025
 
 Preflight baseline: live 0028; cards catalog MD5 `bd041ff8a089cced5cc5a6370e34333d`; ACL `{postgres=X/postgres,authenticated=X/postgres}`; default ACL 24 scopes/hash `c70fd3da5a6b0c24f1ac2bac5657bcb3`; legacy status MD5 `d6a0defdb1102d00b0743723db453bad`. Recheck immediately before application and compare after. Forward guards and rollback require the reviewed definition and unique anchors.
 
-Status: prepared; not applied.
+Status: applied alone on 24 October 2026, ledger version `20261024043222`.
+GREEN commit `5b5e1329b765587a39e973fae3ec2f50550039e1`: GitHub run 40062548670, acceptance job 120778995862 passed types, unit/build, full isolated SQL/API/browser checks, installation/pickup row separation, invalid/inapplicable API rejection, pagination and exact function/default-ACL rollback. The actual isolated Auth/PostgREST/Storage checks and service cleanup also passed in job 120778996081.
+Regeneration run 40062548665 found zero drift in the generated contracts.
+Fresh preflight matched live 0028, source SHA and all reviewed fingerprints. Postflight cards catalog MD5 `a819fa4e6f8dff44ff29777f9319c8b2`; fulfillment guard present; catalog ACL/default ACL/legacy definition unchanged. No live business fixtures, prices, credentials or status transitions were written.
+This activates the database contract. It does not publish a web/API release, prove physical NFC delivery/installation, or close project-wide acceptance.
