@@ -1,0 +1,30 @@
+# Build continuation checkpoint —24 October2026
+
+Only repo pertomaxeg-svg/petro-web, branch pertomax-central-orgs-20261015 and Supabase msvgzsfzrqlrfpstthhe. Continue directly on GitHub/Supabase, verification in GitHub Actions. No Replit/local build/other project/VPS/paid resource/force push;0009 deferred. Owner authorizes routine development/migrations; no repeated approval questions. Preserve users/data and exact-object grants. Never claim runtime deployment or background continuation.
+
+## Verified/live
+-0030 worker assignments:20261024052703.
+-0031 actor/assignment/version/credential/link/secret-bound PIN proofs:20261024062426.
+-0032 private SECURITY INVOKER reservation core, legacy service-role wrapper preserved:20261024095204.
+-0033 current approved branch/service quotation with exact EGP→quantity/policy/funds/stock checks:20261024102845. Sourcecc360afbeb42fb547b546a8fdb97a6303c36ce07a409ef8f9958b17b3c229031; rollbackeb795380e12855eee5ccabcdbc2c1450524b599eae3a0d983397397254800725. Full GREEN5085fa5c /40085731237, acceptance120848152121, actual Auth/Storage120848152013; contracts40085731236 no drift. Browser100EGP→8litres, leading-zero PIN, private proof and responsive views passed.
+-0034 explicit controlled system attribution:20261024104411. Sourcef18e518132e314825d078e9b93547b53938a4c2656da3647ad2c9822ce8da247; rollback462b17c1114f72bd5c662f4e517566b640374f56dd03c027a5443e127689419a. Full GREEN5943a5a3 /40086727666, acceptance120851082458, actual Auth/Storage120851082523. Corrected metadata probe returned true. No actual expiry job yet.
+All latest direct live business counts (finance holds/inventory reservations/movements) zero. No production synthetic accounts/prices/orders/transactions created. DefaultACL24/hashc70fd3da5a6b0c24f1ac2bac5657bcb3, legacy status MD5d6a0defdb1102d00b0743723db453bad unchanged.
+Inventory-query new MD50b4666916b481ccab61a255a40bd939c, ACLpostgres/authenticated only; human private release MD53ecaccdb1f76bb0b0beeaeea90adf698 unchanged. Three affected tables RLS, postgres-only table ACLs unchanged.
+Advisors unchanged categories:63 INFO RLS/no-policy for deliberate RPC-only tables,116 authenticated SECURITY DEFINER notices (intentional scoped RPCs), pre-existing leaked-password protection warning.
+
+## Source/UI
+/operations verifies caller assignment + credential + four-digit PIN; clears PIN/token and expires proof. ServiceQuotation.tsx uses real scoped options and quote RPCs, exact EGP conversion, named sellable locations and current eligibility. Quotation does not reserve/charge; no fake reserve/pay button.
+Current API routes workforce.ts use generated Zod quotation validators, strict fields, no client prices.
+Source plans/rollout docs and PERTOMAX_STATUS.md are authoritative.
+
+## Exact next work
+Read docs/superpowers/plans/2026-10-24-service-orders.md. Build actual versioned service order reserve/cancel/expiry with atomic funds+policy+stock and first-proof consumption, then delivery/private evidence/final order+amount-bound second PIN/capture/invoice/outbox, central review/history, refunds/settlements and remaining dashboards. Apps last; no driver app.
+pg_cron1.6.4 is available but NOT installed live. Check current preload/install docs before introducing a narrow actual job; no fabricated active scheduler, no dropping extension on rollback (would remove other jobs), no forged human Auth identity.0034 supports honest system closure only for released fleet_usage holds and release-only stock movements, not capture/physical issue.
+Inventory completion retains its pre-existing nullable behavior when no system marker is supplied; future system job must set completion+movement markers atomically. Reserve timeout15min must release only unstarted orders; executed stock/payment failure never blindly restocked.
+Runtime hosting destination/secret readiness remain unidentified; web/API have NOT been deployed. That blocks deployment, not independent source/DB development.
+
+## CI lessons
+Quote fixtures need actual washMode/vehicleType/vehicleSize attributes, approved branch/item price, own unique bank identity3301, own tenant namespace. Financial summary tests now compare global baseline/delta while still asserting the test company's exact1,000,000-piaster balance. Do not delete immutable fixture ledger to bypass tests.
+A temporary unused PL/pgSQL id variable caused ambiguity in0034 tests; removed.
+JS String.replace replacement strings interpret dollar-backtick and dollar-quote sequences. Do not use dollar-quoted SQL needles in JS replacement strings; prefer simple SQL strings or a replacement callback. Approved-runner now has a node--check CI step.
+GitHub Actions runs on PR#1 to main. Current sources are on the approved branch, no main merge. Use the full GREEN source commit for evidence, not later documentation-only run as proof of new behavior.
