@@ -43,6 +43,8 @@ BEGIN
 END $assignment$;
 SET LOCAL request.jwt.claim.sub='00000000-0000-4000-8000-000000003002';
 DO $worker$ BEGIN
+ IF has_function_privilege('authenticated','petro_private.workforce_can_execute(uuid,uuid,text)','EXECUTE') THEN RAISE EXCEPTION 'Private operational gate exposed'; END IF;
+ BEGIN PERFORM count(*) FROM public.petro_worker_assignments; RAISE EXCEPTION 'Worker directly read assignment table'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  IF jsonb_array_length(public.petro_worker_capabilities()->'items')<>1 THEN RAISE EXCEPTION 'Worker capability missing'; END IF;
  BEGIN PERFORM public.petro_admin_worker_assignment('00000000-0000-4000-8000-000000003002','00000000-0000-4000-8000-000000003021','wash',true,0,'worker-test-self'); RAISE EXCEPTION 'Worker self assignment accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  BEGIN PERFORM public.petro_admin_fleet_catalog('vehicles','{}'); RAISE EXCEPTION 'Worker gained admin fleet read'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -56,13 +58,13 @@ DO $revoked$ BEGIN
 END $revoked$;
 RESET ROLE;
 UPDATE public.petro_memberships SET active=true WHERE id='00000000-0000-4000-8000-000000003031';
-UPDATE public.petro_branches SET operational_status='suspended' WHERE id='00000000-0000-4000-8000-000000003021';
+UPDATE public.petro_branches SET operational_status='suspended',status='suspended' WHERE id='00000000-0000-4000-8000-000000003021';
 SET LOCAL ROLE authenticated;
 DO $suspended_branch$ BEGIN
  IF jsonb_array_length(public.petro_worker_capabilities()->'items')<>0 THEN RAISE EXCEPTION 'Suspended branch retained capability'; END IF;
 END $suspended_branch$;
 RESET ROLE;
-UPDATE public.petro_branches SET operational_status='active' WHERE id='00000000-0000-4000-8000-000000003021';
+UPDATE public.petro_branches SET operational_status='active',status='active' WHERE id='00000000-0000-4000-8000-000000003021';
 UPDATE public.petro_profiles SET password_change_required=true WHERE user_id='00000000-0000-4000-8000-000000003002';
 SET LOCAL ROLE authenticated;
 DO $temporary_password$ BEGIN

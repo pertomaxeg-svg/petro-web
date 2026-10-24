@@ -289,7 +289,7 @@ paths:
               schema: { $ref: "#/components/schemas/WorkforcePage" }
         "400": { description: Invalid filter or missing candidate branch }
         "401": { description: Authentication required }
-        "403": { description: Central owner, operations or auditor required }
+        "403": { description: "Central owner, operations or auditor required" }
   /admin/workforce/assignments:
     post:
       operationId: setAdminWorkerAssignment
@@ -310,7 +310,7 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Central mutation permission or eligible membership missing }
         "404": { description: Branch or assignment absent }
-        "409": { description: Version, payload or organization-service conflict }
+        "409": { description: "Version, payload or organization-service conflict" }
   /operations/capabilities:
     get:
       operationId: getWorkerCapabilities
@@ -323,7 +323,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/WorkerCapabilities" }
         "401": { description: Authentication required }
-        "403": { description: Account inactive, unconfirmed or password update required }
+        "403": { description: "Account inactive, unconfirmed or password update required" }
   /admin/fleet/cards:
     get:
       operationId: getAdminFleetCards
