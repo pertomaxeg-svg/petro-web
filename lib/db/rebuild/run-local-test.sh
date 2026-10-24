@@ -460,8 +460,19 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0035
 default_acl_snapshot >"$tmp_dir/default-acl-after-0035.txt"
 cmp "$tmp_dir/default-acl-before-0035.txt" "$tmp_dir/default-acl-after-0035.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-orders-0035-smoke-test.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0036.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0036.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0036_service_execution_evidence.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0036.txt"
+cmp "$tmp_dir/default-acl-before-0036.txt" "$tmp_dir/default-acl-after-0036.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-execution-0036-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0036_service_execution_evidence.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0036-rollback.sql"
+cmp "$tmp_dir/schema-before-0036.sql" "$tmp_dir/schema-after-0036-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0036-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0036.txt" "$tmp_dir/default-acl-after-0036-rollback.txt"
+echo "PASS: actual scoped start/evidence/delivery, partial stock issue, held payment separation and exact schema/defaultACL rollback"
 if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.petro_service_orders")" != "0" ]; then
  if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0035_service_order_reservation.sql" >"$tmp_dir/0035-rollback-refusal.log" 2>&1; then
   echo "0035 rollback erased service order history" >&2

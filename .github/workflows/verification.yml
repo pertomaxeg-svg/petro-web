@@ -58,7 +58,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           import { createHash } from 'node:crypto';
-          for(const path of ['lib/db/migrations/0031_operational_pin_proofs.sql','lib/db/rollback/0031_operational_pin_proofs.sql','lib/db/migrations/0032_internal_usage_reservation_core.sql','lib/db/rollback/0032_internal_usage_reservation_core.sql','lib/db/migrations/0033_worker_service_quotation.sql','lib/db/rollback/0033_worker_service_quotation.sql','lib/db/migrations/0034_system_execution_attribution.sql','lib/db/rollback/0034_system_execution_attribution.sql','lib/db/migrations/0035_service_order_reservation.sql','lib/db/rollback/0035_service_order_reservation.sql']) {
+          for(const path of ['lib/db/migrations/0031_operational_pin_proofs.sql','lib/db/rollback/0031_operational_pin_proofs.sql','lib/db/migrations/0032_internal_usage_reservation_core.sql','lib/db/rollback/0032_internal_usage_reservation_core.sql','lib/db/migrations/0033_worker_service_quotation.sql','lib/db/rollback/0033_worker_service_quotation.sql','lib/db/migrations/0034_system_execution_attribution.sql','lib/db/rollback/0034_system_execution_attribution.sql','lib/db/migrations/0035_service_order_reservation.sql','lib/db/rollback/0035_service_order_reservation.sql','lib/db/migrations/0036_service_execution_evidence.sql','lib/db/rollback/0036_service_execution_evidence.sql']) {
             console.log(path+': '+createHash('sha256').update(readFileSync(path)).digest('hex'));
           }
           NODE

@@ -13,6 +13,7 @@ CREATE TABLE storage.objects (
   bucket_id text NOT NULL REFERENCES storage.buckets(id),
   name text NOT NULL,
   owner_id uuid,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(bucket_id,name)
 );
