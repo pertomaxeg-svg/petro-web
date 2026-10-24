@@ -415,6 +415,14 @@ BEGIN
  IF public.petro_confirm_service_order(v_order,3,repeat('a',64),'pay-fuel-confirmation-01') IS DISTINCT FROM r THEN RAISE EXCEPTION 'Post-commit receipt replay changed';END IF;
  IF(SELECT count(*) FROM public.petro_finance_journal_entries)<>charge_count OR(SELECT count(*) FROM public.petro_inventory_movements)<>stock_before THEN RAISE EXCEPTION 'Payment/retry duplicated journal or physical stock';END IF;
  BEGIN PERFORM public.petro_confirm_service_order(v_order,4,repeat('a',64),'pay-second-key-denied-01');RAISE EXCEPTION 'Paid order charged by second key';EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;END;
+
+ PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003701',true);
+ BEGIN
+  PERFORM public.petro_finance_admin_reverse_journal(v_entry,'رد خدمة اختبار معزول','pay-generic-reversal-denied');
+  RAISE EXCEPTION 'GENERIC_REVERSAL_BYPASSED_SERVICE_REFUND';
+ EXCEPTION WHEN object_not_in_prerequisite_state THEN IF SQLERRM<>'USE_SERVICE_ORDER_REFUND_WORKFLOW' THEN RAISE;END IF;END;
+ PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003702',true);
+ IF(SELECT count(*) FROM public.petro_finance_journal_entries)<>charge_count THEN RAISE EXCEPTION 'Generic reversal changed confirmed service finance';END IF;
  BEGIN UPDATE petro_private.service_order_payments SET charged_amount_minor=1 WHERE order_id=v_order;RAISE EXCEPTION 'Payment history edited';EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;END;
  BEGIN UPDATE petro_private.service_order_receipts SET snapshot='{}' WHERE order_id=v_order;RAISE EXCEPTION 'Receipt history edited';EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;END;
 END $payment$;
