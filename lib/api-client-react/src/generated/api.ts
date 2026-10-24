@@ -10,6 +10,16 @@ import {
   useQuery
 } from '@tanstack/react-query';
 import type {
+  MutationFunction,
+  QueryFunction,
+  QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult
+} from '@tanstack/react-query';
+
+import type {
   AcceptInvitationRequest,
   AccountStatusRequest,
   AdminBillingActionResult,
