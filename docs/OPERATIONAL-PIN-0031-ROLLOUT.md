@@ -26,11 +26,12 @@ Failed attempts share the existing per-vehicle five-attempt/15-minute limiter. E
 SQL RED: run 40066708974, absent context RPC. SQL GREEN: run 40068415924; scope, exact replay, lockout, expiration, assignment-version and PIN-secret rotation, guarded rollback and exact original schema/default ACL restoration.
 HTTP RED: run 40069294663 / acceptance 120799054187, missing readiness field, as expected.
 
-API/browser and actual Auth/PostgREST coverage extended in subsequent commits; record final GREEN before live application. Browser fixtures use separate owner/worker proxy origins and only disposable PostgreSQL data; real Auth test uses loopback Supabase and synthetic confirmed accounts, not owner credentials or production data.
+Final GREEN: commit `864f718d51ea15495f27b213a6a5f1f111e14d69`, run 40069746677, acceptance 120800669333 and real-auth-storage 120800669062. SQL, actual HTTP, worker browser and actual Auth/PostgREST proofs/replay/private-table denial all passed; generated contracts run40069746681 has no drift. Browser fixtures use separate owner/worker proxy origins and only disposable PostgreSQL data; real Auth test uses loopback Supabase and synthetic confirmed accounts, not owner credentials or production data.
 
 Preflight: latest ledger0030; all new objects absent; exact source/rollback fingerprints; 24 default ACL scopes hash unchanged; legacy status definition and existing fleet grants unchanged. Apply 0031 alone only after final GREEN.
 Postflight: two private tables RLS/no direct anon/authenticated/service_role DML, public RPC execute only authenticated, private proof validator inaccessible to clients; same default ACL/legacy/fleet grants; zero live proof/receipt rows.
 
 Rollback refuses any persisted proofs/command receipts. Never delete live proof records to force a downgrade. Disable the workflow and use a preserving forward repair if data exist.
 
-Status: source reviewed and SQL-tested; API/UI integration and generated contracts under acceptance. NOT applied live yet; web/API NOT deployed.
+Status: applied alone on 24 October2026, ledger `20261024062426`. Direct postflight confirmed two RLS tables with no client DML, three public RPCs limited to authenticated, private validator postgres-only, and zero proof/receipt/assignment records. Existing five guarded function definitions/grants, legacy status definition and all24 default ACL scopes/hash remained unchanged. No synthetic production data or secret changes. Web/API NOT deployed.
+Security advisors before/after: existing INFO RLS-without-policy increases61→63 for intentionally RPC-only tables; authenticated SECURITY DEFINER warnings111→114 correspond exactly to the three scoped RPCs. No new advisory category; pre-existing leaked-password protection warning remains a separate release item.

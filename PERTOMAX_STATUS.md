@@ -200,3 +200,7 @@
 - لم يتغير المخطط الحي أو ACL أو سجلات الأعمال؛ لا ترحيل جديد أو إعادة تطبيق. `0021` لا يزال آخر ترحيل مطبق، و`0009` مؤجل.
 - بقيت مراجعة الواجهات المحمية بجلسة مالك، ورفع/تنزيل Supabase Storage الحي، وتوثيق فروق الحقول قبل/بعد في سجل تدقيق مستقل نقاطًا غير مثبتة. المراجعة المحلية لا تعوضها. لم يبدأ مسار خدمة/بيع/تسوية غير موجود ولم تنشأ بيانات وهمية.
 - مصفوفة الأدلة والحدود في `docs/ADMIN-EDITS-CARDS-INVENTORY-ACCEPTANCE-2026-10-21.md`. لا دمج إلى `main` ولا نشر.
+
+
+## 24 October2026 — operational PIN proof0031
+Applied only0031 as20261024062426 after GREEN40069746677 at864f718d: acceptance120800669333 and actual Auth/Storage120800669062. Source SHA256d9d141a29969176172ba71f04537c72054bad407fe60af38af51b9922ef365f8, rollbackde08d4c322de765a221e631603db58608da45ec6f3a9a317f64722868f09baa3. Worker browser verification with leading-zero PIN, cleared/masked fields, branch/service scope and mobile/tablet/desktop checks passed on disposable data. Exact rollback/defaultACL checks passed. Three authenticated RPCs and a postgres-only private validator; two RLS tables deny direct client DML. Existing legacy/five guarded function definitions/grants unchanged,24 defaultACL scopes/hash unchanged; live proofs/receipts/assignments all zero. API/web runtime NOT deployed; identity proof does not implement orders/payment. Next: internal reservation core then service orders, policies/prices/funds/inventory and final amount-bound PIN.

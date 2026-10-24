@@ -431,6 +431,7 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0031
 default_acl_snapshot >"$tmp_dir/default-acl-after-0031.txt"
 cmp "$tmp_dir/default-acl-before-0031.txt" "$tmp_dir/default-acl-after-0031.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/operational-pin-0031-smoke-test.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/reservation-core-0032-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT (SELECT count(*) FROM petro_private.worker_pin_proofs)+(SELECT count(*) FROM petro_private.worker_pin_commands)")" != "0" ]; then
   if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0031_operational_pin_proofs.sql" >"$tmp_dir/0031-rollback-refusal.log" 2>&1; then
