@@ -5,7 +5,240 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AdminInventoryQueryResultItemsItem = { [key: string]: unknown };
+
+export type AdminInventoryQueryResultSummary = { [key: string]: unknown };
+
+export interface AdminInventoryQueryResult {
+  items: AdminInventoryQueryResultItemsItem[];
+  /** @minimum 1 */
+  page?: number;
+  /** @minimum 1 */
+  pageSize?: number;
+  /** @minimum 0 */
+  total?: number;
+  consistent?: boolean;
+  summary?: AdminInventoryQueryResultSummary;
+  [key: string]: unknown;
+ }
+
+export type ExecuteAdminInventoryCommandAction = typeof ExecuteAdminInventoryCommandAction[keyof typeof ExecuteAdminInventoryCommandAction];
+
+
+export const ExecuteAdminInventoryCommandAction = {
+  locationcreate: 'location.create',
+  reorderset: 'reorder.set',
+  documentcreate: 'document.create',
+  documentreview: 'document.review',
+  reservationreserve: 'reservation.reserve',
+  reservationrelease: 'reservation.release',
+  reservationconsume: 'reservation.consume',
+} as const;
+
+export type ExecuteAdminInventoryCommandPayload = { [key: string]: unknown };
+
+export interface ExecuteAdminInventoryCommand {
+  action: ExecuteAdminInventoryCommandAction;
+  payload: ExecuteAdminInventoryCommandPayload;
+  /**
+     * @minLength 8
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
+export interface AdminInventoryCommandResult {
+  id: string;
+  status: string;
+  type?: string;
+  [key: string]: unknown;
+ }
+
+export type CatalogReferenceDataCategoriesItem = { [key: string]: unknown };
+
+export type CatalogReferenceDataUnitsItem = { [key: string]: unknown };
+
+export interface CatalogReferenceData {
+  categories?: CatalogReferenceDataCategoriesItem[];
+  units?: CatalogReferenceDataUnitsItem[];
+  [key: string]: unknown;
+ }
+
+export type AdminCatalogDirectoryResultItemsItem = { [key: string]: unknown };
+
+export interface AdminCatalogDirectoryResult {
+  items?: AdminCatalogDirectoryResultItemsItem[];
+  /** @minimum 0 */
+  total?: number;
+  /** @minimum 1 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize?: number;
+  /** @minimum 0 */
+  totalPages?: number;
+  [key: string]: unknown;
+ }
+
+export type AdminCatalogFuelResultItemsItem = { [key: string]: unknown };
+
+export interface AdminCatalogFuelResult {
+  items?: AdminCatalogFuelResultItemsItem[];
+  /** @minimum 0 */
+  total?: number;
+  /** @minimum 1 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize?: number;
+  /** @minimum 0 */
+  totalPages?: number;
+  canManage?: boolean;
+  [key: string]: unknown;
+ }
+
+export type CatalogItemsResultItemsItem = { [key: string]: unknown };
+
+export interface CatalogItemsResult {
+  items?: CatalogItemsResultItemsItem[];
+  /** @minimum 0 */
+  total?: number;
+  /** @minimum 1 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize?: number;
+  /** @minimum 0 */
+  totalPages?: number;
+  canManage?: boolean;
+  canManageOrganization?: boolean;
+  canReview?: boolean;
+  [key: string]: unknown;
+ }
+
+export type CatalogItemResultItem = { [key: string]: unknown };
+
+export type CatalogItemResultManageableBranchesItem = { [key: string]: unknown };
+
+export type CatalogItemResultAvailabilityItem = { [key: string]: unknown };
+
+export type CatalogItemResultPricesItem = { [key: string]: unknown };
+
+export type CatalogItemResultImagesItem = { [key: string]: unknown };
+
+export interface CatalogItemResult {
+  item?: CatalogItemResultItem;
+  centralSuspended?: boolean;
+  manageableBranches?: CatalogItemResultManageableBranchesItem[];
+  availability?: CatalogItemResultAvailabilityItem[];
+  prices?: CatalogItemResultPricesItem[];
+  images?: CatalogItemResultImagesItem[];
+  [key: string]: unknown;
+ }
+
+export interface FuelPreviewRequest {
+  fuelTypeId: string;
+  /** @exclusiveMinimum 0 */
+  quantity?: number;
+  /** @pattern ^[1-9][0-9]{0,14}$ */
+  amountMinor?: string;
+}
+
+export interface FuelPreviewResult { [key: string]: unknown }
+
+export type CatalogCommandRequestAction = typeof CatalogCommandRequestAction[keyof typeof CatalogCommandRequestAction];
+
+
+export const CatalogCommandRequestAction = {
+  unitcreate: 'unit.create',
+  unitstatus: 'unit.status',
+  categorycreate: 'category.create',
+  categoryupdate: 'category.update',
+  categorystatus: 'category.status',
+  fueltypecreate: 'fuel.type.create',
+  fueltypeupdate: 'fuel.type.update',
+  fueltypestatus: 'fuel.type.status',
+  fuelpricecreate_draft: 'fuel.price.create_draft',
+  fuelpricepublish: 'fuel.price.publish',
+  fuelpricecancel: 'fuel.price.cancel',
+  itemcreate: 'item.create',
+  itemupdate: 'item.update',
+  itemstatus: 'item.status',
+  itemreview: 'item.review',
+  itembranch_availability: 'item.branch_availability',
+  itempricecreate_draft: 'item.price.create_draft',
+  itempricepublish: 'item.price.publish',
+  itempricecancel: 'item.price.cancel',
+  itemimageintent: 'item.image.intent',
+  itemimageremove: 'item.image.remove',
+} as const;
+
+export type CatalogCommandRequestPayload = { [key: string]: unknown };
+
+export interface CatalogCommandRequest {
+  action: CatalogCommandRequestAction;
+  payload: CatalogCommandRequestPayload;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason?: string;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
+export interface CatalogCommandResult { [key: string]: unknown }
+
+export interface CatalogImageResult { [key: string]: unknown }
+
+export interface CatalogImageDownload {
+  signedUrl: string;
+  /** @minimum 1 */
+  expiresInSeconds: number;
+  fileName: string;
+}
+
 export interface AdminFleetCatalog { [key: string]: unknown }
+
+export type AdminFleetCardsView = typeof AdminFleetCardsView[keyof typeof AdminFleetCardsView];
+
+
+export const AdminFleetCardsView = {
+  overview: 'overview',
+  requests: 'requests',
+  issued: 'issued',
+  stock: 'stock',
+  history: 'history',
+} as const;
+
+export type AdminFleetCardsItemsItem = { [key: string]: unknown };
+
+export type AdminFleetCardsSummary = {[key: string]: number};
+
+export interface AdminFleetCards {
+  view: AdminFleetCardsView;
+  items: AdminFleetCardsItemsItem[];
+  summary?: AdminFleetCardsSummary;
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  [key: string]: unknown;
+ }
 
 export type AdminFleetCompanySummariesItemsItem = { [key: string]: unknown };
 
@@ -197,10 +430,29 @@ export interface AdminFleetVerifyPairRequest {
   pinCode: string;
 }
 
+export interface AdminFleetDriverPairPinRevealInput {
+  linkId: string;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface AdminFleetDriverPairPinRevealResult {
+  /** @pattern ^[0-9]{4}$ */
+  pinCode?: string;
+  resetRequired: boolean;
+  /**
+     * @minimum 1
+     * @maximum 60
+     */
+  expiresInSeconds?: number;
+}
+
 export interface AdminFleetVerifyPairResult {
   valid: boolean;
   locked: boolean;
-  /** @nullable */
   retryAt?: string | null;
   verificationId?: string;
   [key: string]: unknown;
@@ -387,7 +639,7 @@ export interface AdminPlanInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }
 
 export interface AdminPlanStopInput {
@@ -442,7 +694,7 @@ export interface AdminPlanVersionInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }
 
 export type AdminPlanVersionBillingUnit = typeof AdminPlanVersionBillingUnit[keyof typeof AdminPlanVersionBillingUnit];
@@ -720,7 +972,7 @@ export interface AdminBillingPriceDefaultsInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }
 
 export interface AdminProviderPriceOverrideInput {
@@ -855,6 +1107,20 @@ export interface AuthActionResult {
   message: string;
 }
 
+export type SignInResultStatus = typeof SignInResultStatus[keyof typeof SignInResultStatus];
+
+
+export const SignInResultStatus = {
+  active: 'active',
+  pending: 'pending',
+} as const;
+
+export interface SignInResult {
+  status: SignInResultStatus;
+  message: string;
+  passwordChangeRequired: boolean;
+}
+
 export interface RecoveryRequest {
   /**
      * Username or registered recovery email; never accepted for sign-in
@@ -895,6 +1161,7 @@ export interface AuthMe {
   username?: string | null;
   loginIdentifierType?: AuthMeLoginIdentifierType;
   state: AuthMeState;
+  passwordChangeRequired: boolean;
   accessContext: unknown;
 }
 
@@ -1173,6 +1440,50 @@ export interface SetPlatformUserRolesRequest {
   reason: string;
 }
 
+export interface CreatePlatformUserRequest {
+  /**
+     * @minLength 3
+     * @maxLength 32
+     * @pattern ^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}$
+     */
+  username: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  displayName: string;
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+  /**
+     * @minItems 1
+     * @maxItems 5
+     */
+  roles: PlatformRole[];
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type CreatePlatformUserResultStatus = typeof CreatePlatformUserResultStatus[keyof typeof CreatePlatformUserResultStatus];
+
+
+export const CreatePlatformUserResultStatus = {
+  confirmation_required: 'confirmation_required',
+  created_without_roles: 'created_without_roles',
+} as const;
+
+export interface CreatePlatformUserResult {
+  status: CreatePlatformUserResultStatus;
+  message: string;
+}
+
 export type PlatformUserAccountStatus = typeof PlatformUserAccountStatus[keyof typeof PlatformUserAccountStatus];
 
 
@@ -1192,8 +1503,28 @@ export interface PlatformUser {
   platformRoles: PlatformRole[];
 }
 
+export type PlatformRoleOptionScope = typeof PlatformRoleOptionScope[keyof typeof PlatformRoleOptionScope];
+
+
+export const PlatformRoleOptionScope = {
+  platform: 'platform',
+} as const;
+
+export interface PlatformRolePermission {
+  code: string;
+  label: string;
+}
+
+export interface PlatformRoleOption {
+  role: PlatformRole;
+  label: string;
+  scope: PlatformRoleOptionScope;
+  permissions: PlatformRolePermission[];
+}
+
 export interface PlatformUserList {
   items: PlatformUser[];
+  roleCatalog: PlatformRoleOption[];
   /** @minimum 1 */
   page: number;
   /**
@@ -1205,25 +1536,6 @@ export interface PlatformUserList {
   total: number;
   /** @minimum 0 */
   totalPages: number;
-}
-
-export interface PlatformRolePermission {
-  code: string;
-  label: string;
-}
-
-export type PlatformRoleOptionScope = typeof PlatformRoleOptionScope[keyof typeof PlatformRoleOptionScope];
-
-
-export const PlatformRoleOptionScope = {
-  platform: 'platform',
-} as const;
-
-export interface PlatformRoleOption {
-  role: PlatformRole;
-  label: string;
-  scope: PlatformRoleOptionScope;
-  permissions: PlatformRolePermission[];
 }
 
 export type PlatformUserActivityAction = typeof PlatformUserActivityAction[keyof typeof PlatformUserActivityAction];
@@ -1268,6 +1580,56 @@ export interface PlatformUserDetail {
   user: PlatformUser;
   roleCatalog: PlatformRoleOption[];
   activity: PlatformUserActivity[];
+}
+
+export type PlatformUserMembershipOrganizationKind = typeof PlatformUserMembershipOrganizationKind[keyof typeof PlatformUserMembershipOrganizationKind];
+
+
+export const PlatformUserMembershipOrganizationKind = {
+  company: 'company',
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export type PlatformUserMembershipRole = typeof PlatformUserMembershipRole[keyof typeof PlatformUserMembershipRole];
+
+
+export const PlatformUserMembershipRole = {
+  organization_owner: 'organization_owner',
+  manager: 'manager',
+  finance: 'finance',
+  worker: 'worker',
+  viewer: 'viewer',
+} as const;
+
+export type PlatformUserMembershipScope = typeof PlatformUserMembershipScope[keyof typeof PlatformUserMembershipScope];
+
+
+export const PlatformUserMembershipScope = {
+  organization: 'organization',
+  branches: 'branches',
+} as const;
+
+export interface PlatformUserMembershipBranch {
+  branchId: string;
+  branchName: string;
+  branchCode: string;
+}
+
+export interface PlatformUserMembership {
+  membershipId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationKind: PlatformUserMembershipOrganizationKind;
+  organizationCode: string;
+  role: PlatformUserMembershipRole;
+  scope: PlatformUserMembershipScope;
+  active: boolean;
+  branches: PlatformUserMembershipBranch[];
+}
+
+export interface PlatformUserMembershipList {
+  items: PlatformUserMembership[];
 }
 
 export interface PlatformUserRolesResult {
@@ -1322,6 +1684,7 @@ export interface BranchDayHours {
   open?: string;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
   close?: string;
+  open24Hours?: boolean;
 }
 
 export interface BranchHours {
@@ -1335,6 +1698,48 @@ export interface BranchHours {
 }
 
 export interface CreateBranchRequest {
+  /**
+     * @minLength 2
+     * @maxLength 40
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  code: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  /** @maxLength 500 */
+  address: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  governorate?: string | null;
+  /**
+     * @minimum -90
+     * @maximum 90
+     */
+  latitude: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  longitude: number;
+  hours: BranchHours;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 24
+     * @nullable
+     */
+  contactPhone?: string | null;
+}
+
+export interface OrganizationJoinInitialBranchRequest {
   /**
      * @minLength 2
      * @maxLength 40
@@ -1468,15 +1873,13 @@ export interface UpdateBranchRequest {
   /**
      * @minimum -90
      * @maximum 90
-     * @nullable
      */
-  latitude?: number | null;
+  latitude: number;
   /**
      * @minimum -180
      * @maximum 180
-     * @nullable
      */
-  longitude?: number | null;
+  longitude: number;
   hours: BranchHours;
   /**
      * @maxLength 160
@@ -1592,6 +1995,39 @@ export interface CreateInvitationRequest {
   branchIds: string[];
 }
 
+export interface CreateInitialOrganizationOwnerRequest {
+  /**
+     * @minLength 3
+     * @maxLength 32
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9_.-]*$
+     */
+  username: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  displayName: string;
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export type CreateInitialOrganizationOwnerResultStatus = typeof CreateInitialOrganizationOwnerResultStatus[keyof typeof CreateInitialOrganizationOwnerResultStatus];
+
+
+export const CreateInitialOrganizationOwnerResultStatus = {
+  confirmation_required: 'confirmation_required',
+} as const;
+
+export interface CreateInitialOrganizationOwnerResult {
+  status: CreateInitialOrganizationOwnerResultStatus;
+  message: string;
+}
+
 export interface Invitation {
   id: string;
   invited_email: string;
@@ -1637,14 +2073,14 @@ export interface CreateOrganizationJoinRequest {
      */
   applicantUsername?: string;
   organization: CreateOrganizationRequest;
-  initialBranch: CreateBranchRequest;
+  initialBranch: OrganizationJoinInitialBranchRequest;
 }
 
 export interface UpdateOrganizationJoinRequest {
   /** @minimum 1 */
   expectedVersion: number;
   organization: CreateOrganizationRequest;
-  initialBranch: CreateBranchRequest;
+  initialBranch: OrganizationJoinInitialBranchRequest;
 }
 
 export type OrganizationJoinRequestOrganizationData = { [key: string]: unknown };
@@ -2375,6 +2811,650 @@ export interface DocumentDownload {
   expiresInSeconds: DocumentDownloadExpiresInSeconds;
 }
 
+export type WorkerServiceGroup = typeof WorkerServiceGroup[keyof typeof WorkerServiceGroup];
+
+
+export const WorkerServiceGroup = {
+  fuel: 'fuel',
+  wash: 'wash',
+  oils: 'oils',
+  batteries: 'batteries',
+  filters: 'filters',
+  parts: 'parts',
+  consumables: 'consumables',
+  card_issuance: 'card_issuance',
+} as const;
+
+export interface WorkerAssignmentInput {
+  userId: string;
+  branchId: string;
+  serviceGroup: WorkerServiceGroup;
+  active: boolean;
+  /** @minimum 0 */
+  expectedVersion: number;
+  /**
+     * @minLength 12
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+}
+
+export interface WorkerAssignmentState {
+  id: string;
+  userId: string;
+  branchId: string;
+  serviceGroup: WorkerServiceGroup;
+  active: boolean;
+  /** @minimum 1 */
+  version: number;
+}
+
+export type WorkerAssignmentRecordOrganizationKind = typeof WorkerAssignmentRecordOrganizationKind[keyof typeof WorkerAssignmentRecordOrganizationKind];
+
+
+export const WorkerAssignmentRecordOrganizationKind = {
+  station: 'station',
+  provider: 'provider',
+  company: 'company',
+} as const;
+
+export type WorkerAssignmentRecord = WorkerAssignmentState & {
+  displayName: string;
+  organizationId: string;
+  organizationName: string;
+  organizationKind: WorkerAssignmentRecordOrganizationKind;
+  branchName: string;
+  updatedAt: string;
+  canExecute: boolean;
+};
+
+export interface WorkerCandidate {
+  userId: string;
+  displayName: string;
+  username: string | null;
+}
+
+export type WorkforcePageOrganizationKind = typeof WorkforcePageOrganizationKind[keyof typeof WorkforcePageOrganizationKind];
+
+
+export const WorkforcePageOrganizationKind = {
+  station: 'station',
+  provider: 'provider',
+  company: 'company',
+} as const;
+
+export interface WorkforcePage {
+  items: (WorkerAssignmentRecord | WorkerCandidate)[];
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  canManage?: boolean;
+  organizationKind?: WorkforcePageOrganizationKind;
+}
+
+export type WorkerCapabilityOrganizationKind = typeof WorkerCapabilityOrganizationKind[keyof typeof WorkerCapabilityOrganizationKind];
+
+
+export const WorkerCapabilityOrganizationKind = {
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export interface WorkerCapability {
+  assignmentId: string;
+  /** @minimum 1 */
+  assignmentVersion: number;
+  branchId: string;
+  branchName: string;
+  organizationId: string;
+  organizationName: string;
+  organizationKind: WorkerCapabilityOrganizationKind;
+  serviceGroup: WorkerServiceGroup;
+}
+
+export interface WorkerCapabilities {
+  pinVerificationReady: boolean;
+  items: WorkerCapability[];
+}
+
+export type WorkerPairVerificationInputServiceGroup = typeof WorkerPairVerificationInputServiceGroup[keyof typeof WorkerPairVerificationInputServiceGroup];
+
+
+export const WorkerPairVerificationInputServiceGroup = {
+  fuel: 'fuel',
+  wash: 'wash',
+  oils: 'oils',
+  batteries: 'batteries',
+  filters: 'filters',
+  parts: 'parts',
+  consumables: 'consumables',
+} as const;
+
+export interface WorkerPairVerificationInput {
+  branchId: string;
+  serviceGroup: WorkerPairVerificationInputServiceGroup;
+  /**
+     * @minLength 16
+     * @maxLength 512
+     * @pattern ^[A-Za-z0-9_-]{16,512}$
+     */
+  credentialToken: string;
+  /**
+     * @minLength 4
+     * @maxLength 4
+     * @pattern ^[0-9]{4}$
+     */
+  pinCode: string;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
+export interface WorkerPairProofVehicle {
+  plate: string;
+  brand: string;
+  model: string;
+  fuelType: string;
+  tankCapacityLiters?: number | null;
+}
+
+export interface WorkerPairProof {
+  valid: boolean;
+  locked?: boolean;
+  /** @nullable */
+  retryAt?: string | null;
+  verificationId?: string;
+  expiresAt?: string;
+  driverName?: string;
+  vehicle?: WorkerPairProofVehicle;
+}
+
+export interface WorkerServiceLocation {
+  id: string;
+  name: string;
+  availableQuantity: string;
+}
+
+export type WorkerServicePricedItemKind = typeof WorkerServicePricedItemKind[keyof typeof WorkerServicePricedItemKind];
+
+
+export const WorkerServicePricedItemKind = {
+  fuel: 'fuel',
+  service: 'service',
+  product: 'product',
+} as const;
+
+export interface WorkerServicePricedItem {
+  id: string;
+  name: string;
+  kind: WorkerServicePricedItemKind;
+  brandName?: string | null;
+  unitCode: string;
+  /**
+     * @minimum 0
+     * @maximum 3
+     */
+  quantityScale: number;
+  priceVersionId: string;
+  /** Exact unit price in EGP piastres; fuel may contain fractional piastres */
+  unitPriceMinor: string;
+  locations?: WorkerServiceLocation[];
+}
+
+export interface WorkerServiceOptions {
+  items: WorkerServicePricedItem[];
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  pageSize: number;
+  expiresAt: string;
+}
+
+export interface WorkerServiceQuantityInput {
+  /** @pattern ^[0-9]{1,9}(\.[0-9]{1,3})?$ */
+  quantity: string;
+}
+
+export interface WorkerServiceAmountInput {
+  /**
+     * Maximum fuel amount in integer EGP piastres
+     * @pattern ^[0-9]{1,15}$
+     */
+  amountMinor: string;
+}
+
+export interface WorkerServiceQuoteRequest {
+  proofId: string;
+  referenceId: string;
+  priceVersionId: string;
+  input: WorkerServiceQuantityInput | WorkerServiceAmountInput;
+  locationId?: string | null;
+}
+
+export interface WorkerServiceQuote {
+  proofId: string;
+  item: WorkerServicePricedItem;
+  locationId?: string | null;
+  quantity: string;
+  /** @pattern ^[0-9]+$ */
+  amountMinor: string;
+  canReserve: boolean;
+  denialCode?: string | null;
+  expiresAt: string;
+  quotedAt: string;
+}
+
+export interface WorkerServiceOrderRequest {
+  proofId: string;
+  referenceId: string;
+  priceVersionId: string;
+  input: WorkerServiceQuantityInput | WorkerServiceAmountInput;
+  locationId?: string | null;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export interface ServiceOrderCancelRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export type ServiceOrderStatus = typeof ServiceOrderStatus[keyof typeof ServiceOrderStatus];
+
+
+export const ServiceOrderStatus = {
+  reserved: 'reserved',
+  in_progress: 'in_progress',
+  delivered: 'delivered',
+  review_required: 'review_required',
+  cancelled: 'cancelled',
+} as const;
+
+export type ServiceOrderPaymentStatus = typeof ServiceOrderPaymentStatus[keyof typeof ServiceOrderPaymentStatus];
+
+
+export const ServiceOrderPaymentStatus = {
+  held: 'held',
+  unpaid: 'unpaid',
+  paid: 'paid',
+} as const;
+
+export type ServiceOrderServiceGroup = typeof ServiceOrderServiceGroup[keyof typeof ServiceOrderServiceGroup];
+
+
+export const ServiceOrderServiceGroup = {
+  fuel: 'fuel',
+  wash: 'wash',
+  oils: 'oils',
+  parts: 'parts',
+  batteries: 'batteries',
+  filters: 'filters',
+  consumables: 'consumables',
+} as const;
+
+export type ServiceOrderKind = typeof ServiceOrderKind[keyof typeof ServiceOrderKind];
+
+
+export const ServiceOrderKind = {
+  fuel: 'fuel',
+  service: 'service',
+  product: 'product',
+} as const;
+
+export type ServiceOrderCurrency = typeof ServiceOrderCurrency[keyof typeof ServiceOrderCurrency];
+
+
+export const ServiceOrderCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export type ServiceOrderItemSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderVehicleSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderMerchantSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderCancelCode = typeof ServiceOrderCancelCode[keyof typeof ServiceOrderCancelCode] | null;
+
+
+export const ServiceOrderCancelCode = {
+  operator_cancelled: 'operator_cancelled',
+  reservation_expired: 'reservation_expired',
+} as const;
+
+export type ServiceOrderCancelledByKind = typeof ServiceOrderCancelledByKind[keyof typeof ServiceOrderCancelledByKind] | null;
+
+
+export const ServiceOrderCancelledByKind = {
+  user: 'user',
+  system: 'system',
+} as const;
+
+export type ServiceOrderTimelineItemKind = typeof ServiceOrderTimelineItemKind[keyof typeof ServiceOrderTimelineItemKind];
+
+
+export const ServiceOrderTimelineItemKind = {
+  reserved: 'reserved',
+  cancelled: 'cancelled',
+  expiry_failed: 'expiry_failed',
+  started: 'started',
+  delivered: 'delivered',
+} as const;
+
+export type ServiceOrderTimelineItemActorKind = typeof ServiceOrderTimelineItemActorKind[keyof typeof ServiceOrderTimelineItemActorKind];
+
+
+export const ServiceOrderTimelineItemActorKind = {
+  user: 'user',
+  system: 'system',
+} as const;
+
+export type ServiceOrderTimelineItemDetail = { [key: string]: unknown };
+
+export type ServiceOrderTimelineItem = {
+  id: string;
+  kind: ServiceOrderTimelineItemKind;
+  version: number;
+  createdAt: string;
+  actorKind: ServiceOrderTimelineItemActorKind;
+  actorName: string;
+  detail: ServiceOrderTimelineItemDetail;
+};
+
+export interface ServiceOrder {
+  id: string;
+  status: ServiceOrderStatus;
+  paymentStatus: ServiceOrderPaymentStatus;
+  /** @minimum 1 */
+  version: number;
+  serviceGroup: ServiceOrderServiceGroup;
+  kind: ServiceOrderKind;
+  quantity: string;
+  /** @pattern ^[0-9]+$ */
+  amountMinor: string;
+  currency: ServiceOrderCurrency;
+  itemSnapshot: ServiceOrderItemSnapshot;
+  vehicleSnapshot: ServiceOrderVehicleSnapshot;
+  merchantSnapshot: ServiceOrderMerchantSnapshot;
+  createdAt: string;
+  expiresAt: string;
+  startedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelCode?: ServiceOrderCancelCode;
+  cancelledByKind?: ServiceOrderCancelledByKind;
+  canCancel: boolean;
+  requiresReview: boolean;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  expiryAttempts: number;
+  timeline?: ServiceOrderTimelineItem[];
+}
+
+export interface ServiceOrderList {
+  items: ServiceOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  canManage: boolean;
+}
+
+export interface ServiceOrderStartRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export type ServiceOrderDeliverRequestInput = {
+  /** @pattern ^[0-9]{1,9}(\.[0-9]{1,3})?$ */
+  actualQuantity: string;
+  /** @pattern ^[0-9]{1,11}(\.[0-9]{1,3})?$ */
+  readingKm?: string | null;
+  /** @maxLength 120 */
+  serialNumber?: string | null;
+};
+
+export interface ServiceOrderDeliverRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+  input: ServiceOrderDeliverRequestInput;
+}
+
+export type ServiceOrderEvidenceRequestKind = typeof ServiceOrderEvidenceRequestKind[keyof typeof ServiceOrderEvidenceRequestKind];
+
+
+export const ServiceOrderEvidenceRequestKind = {
+  odometer: 'odometer',
+  wash_before: 'wash_before',
+  wash_after: 'wash_after',
+  serial: 'serial',
+} as const;
+
+export type ServiceOrderEvidenceRequestContentType = typeof ServiceOrderEvidenceRequestContentType[keyof typeof ServiceOrderEvidenceRequestContentType];
+
+
+export const ServiceOrderEvidenceRequestContentType = {
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export interface ServiceOrderEvidenceRequest {
+  kind: ServiceOrderEvidenceRequestKind;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  fileName: string;
+  contentType: ServiceOrderEvidenceRequestContentType;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  byteSize: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export type ServiceOrderEvidenceFileBucket = typeof ServiceOrderEvidenceFileBucket[keyof typeof ServiceOrderEvidenceFileBucket];
+
+
+export const ServiceOrderEvidenceFileBucket = {
+  'petro-private-documents': 'petro-private-documents',
+} as const;
+
+export type ServiceOrderEvidenceFileContentType = typeof ServiceOrderEvidenceFileContentType[keyof typeof ServiceOrderEvidenceFileContentType];
+
+
+export const ServiceOrderEvidenceFileContentType = {
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export type ServiceOrderEvidenceFileStatus = typeof ServiceOrderEvidenceFileStatus[keyof typeof ServiceOrderEvidenceFileStatus];
+
+
+export const ServiceOrderEvidenceFileStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+} as const;
+
+export interface ServiceOrderEvidenceFile {
+  id: string;
+  orderId: string;
+  bucket: ServiceOrderEvidenceFileBucket;
+  objectPath: string;
+  contentType: ServiceOrderEvidenceFileContentType;
+  byteSize: number;
+  status: ServiceOrderEvidenceFileStatus;
+}
+
+export type ServiceOrderExecutionResultDocumentationRule = {
+  version: number;
+  serviceGroup: string;
+  odometerRequired: boolean;
+  washBeforeRequired: boolean;
+  washAfterRequired: boolean;
+  serialRequired: boolean;
+};
+
+export type ServiceOrderExecutionResultDelivery = {
+  actualQuantity: string;
+  actualAmountMinor: string;
+  identityCurrent: boolean;
+  performedAt: string;
+  serialNumber?: string | null;
+  readingKm?: string | null;
+  odometerStatus?: string | null;
+  odometerEventId?: string | null;
+} | null;
+
+export type ServiceOrderExecutionResultEvidenceItemKind = typeof ServiceOrderExecutionResultEvidenceItemKind[keyof typeof ServiceOrderExecutionResultEvidenceItemKind];
+
+
+export const ServiceOrderExecutionResultEvidenceItemKind = {
+  odometer: 'odometer',
+  wash_before: 'wash_before',
+  wash_after: 'wash_after',
+  serial: 'serial',
+} as const;
+
+export type ServiceOrderExecutionResultEvidenceItemStatus = typeof ServiceOrderExecutionResultEvidenceItemStatus[keyof typeof ServiceOrderExecutionResultEvidenceItemStatus];
+
+
+export const ServiceOrderExecutionResultEvidenceItemStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+} as const;
+
+export type ServiceOrderExecutionResultEvidenceItem = {
+  id: string;
+  kind: ServiceOrderExecutionResultEvidenceItemKind;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+  status: ServiceOrderExecutionResultEvidenceItemStatus;
+  createdAt: string;
+  acceptedAt?: string | null;
+};
+
+export type ServiceOrderExecutionResult = ServiceOrder & {
+  canStart: boolean;
+  canDeliver: boolean;
+  documentationRule: ServiceOrderExecutionResultDocumentationRule;
+  delivery: ServiceOrderExecutionResultDelivery;
+  evidence: ServiceOrderExecutionResultEvidenceItem[];
+};
+
+export interface ServiceOrderPaymentConfirmationRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /** @pattern ^[A-Za-z0-9._:-]{16,120}$ */
+  idempotencyKey: string;
+  /** @pattern ^[0-9]{4}$ */
+  pinCode: string;
+}
+
+export type ServiceOrderPaymentResultPaymentStatus = typeof ServiceOrderPaymentResultPaymentStatus[keyof typeof ServiceOrderPaymentResultPaymentStatus];
+
+
+export const ServiceOrderPaymentResultPaymentStatus = {
+  held: 'held',
+  unpaid: 'unpaid',
+  paid: 'paid',
+} as const;
+
+export type ServiceOrderPaymentResultPaymentCurrency = typeof ServiceOrderPaymentResultPaymentCurrency[keyof typeof ServiceOrderPaymentResultPaymentCurrency];
+
+
+export const ServiceOrderPaymentResultPaymentCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export type ServiceOrderPaymentResultPaymentReceiptSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderPaymentResultPaymentReceipt = {
+  id: string;
+  number: string;
+  issuedAt: string;
+  snapshot: ServiceOrderPaymentResultPaymentReceiptSnapshot;
+};
+
+export type ServiceOrderPaymentResultPaymentReceivable = {
+  merchantBranchId: string;
+  earnedAmountMinor: string;
+  eligibleAt: string;
+  periodStart: string;
+  periodEnd: string;
+};
+
+export type ServiceOrderPaymentResultPayment = {
+  id: string;
+  chargedAmountMinor: string;
+  bookedAmountMinor: string;
+  releasedAmountMinor: string;
+  currency: ServiceOrderPaymentResultPaymentCurrency;
+  confirmedAt: string;
+  journalEntryId: string;
+  receipt: ServiceOrderPaymentResultPaymentReceipt;
+  receivable: ServiceOrderPaymentResultPaymentReceivable;
+} | null;
+
+export interface ServiceOrderPaymentResult {
+  orderId: string;
+  /** @minimum 1 */
+  version: number;
+  status?: string;
+  paymentStatus?: ServiceOrderPaymentResultPaymentStatus;
+  paid: boolean;
+  valid?: boolean;
+  locked?: boolean;
+  retryAt?: string | null;
+  canConfirm?: boolean;
+  pinConfirmationReady?: boolean;
+  bookedAmountMinor?: string;
+  actualAmountMinor?: string | null;
+  payment?: ServiceOrderPaymentResultPayment;
+}
+
 /**
  * Request rejected or unavailable
  */
@@ -2525,6 +3605,165 @@ page?: number;
 pageSize?: number;
 };
 
+export type ListAdminWorkforceParams = {
+view?: ListAdminWorkforceView;
+/**
+ * Required for candidates
+ */
+branchId?: string;
+userId?: string;
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminWorkforceView = typeof ListAdminWorkforceView[keyof typeof ListAdminWorkforceView];
+
+
+export const ListAdminWorkforceView = {
+  assignments: 'assignments',
+  candidates: 'candidates',
+} as const;
+
+export type GetWorkerServiceOptionsParams = {
+proofId: string;
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
+};
+
+export type ListWorkerServiceOrdersParams = {
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
+status?: ListWorkerServiceOrdersStatus;
+/**
+ * @maxLength 160
+ */
+search?: string;
+};
+
+export type ListWorkerServiceOrdersStatus = typeof ListWorkerServiceOrdersStatus[keyof typeof ListWorkerServiceOrdersStatus];
+
+
+export const ListWorkerServiceOrdersStatus = {
+  reserved: 'reserved',
+  in_progress: 'in_progress',
+  delivered: 'delivered',
+  review_required: 'review_required',
+  cancelled: 'cancelled',
+} as const;
+
+export type ListAdminServiceOrdersParams = {
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
+status?: ListAdminServiceOrdersStatus;
+/**
+ * @maxLength 160
+ */
+search?: string;
+};
+
+export type ListAdminServiceOrdersStatus = typeof ListAdminServiceOrdersStatus[keyof typeof ListAdminServiceOrdersStatus];
+
+
+export const ListAdminServiceOrdersStatus = {
+  reserved: 'reserved',
+  in_progress: 'in_progress',
+  delivered: 'delivered',
+  review_required: 'review_required',
+  cancelled: 'cancelled',
+} as const;
+
+export type GetWorkerServiceOrderEvidenceDownload200 = {
+  url: string;
+  expiresInSeconds: number;
+};
+
+export type GetAdminFleetCardsParams = {
+view: GetAdminFleetCardsView;
+organizationId?: string;
+vehicleId?: string;
+/**
+ * Installation or branch-pickup requests only; valid only with view=requests
+ */
+fulfillmentMethod?: GetAdminFleetCardsFulfillmentMethod;
+/**
+ * @maxLength 32
+ */
+status?: string;
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminFleetCardsView = typeof GetAdminFleetCardsView[keyof typeof GetAdminFleetCardsView];
+
+
+export const GetAdminFleetCardsView = {
+  overview: 'overview',
+  requests: 'requests',
+  issued: 'issued',
+  stock: 'stock',
+  history: 'history',
+} as const;
+
+export type GetAdminFleetCardsFulfillmentMethod = typeof GetAdminFleetCardsFulfillmentMethod[keyof typeof GetAdminFleetCardsFulfillmentMethod];
+
+
+export const GetAdminFleetCardsFulfillmentMethod = {
+  install: 'install',
+  pickup: 'pickup',
+} as const;
+
 export type AuthCallbackParams = {
 code?: string;
 next?: string;
@@ -2654,6 +3893,36 @@ export const ListBranchesPaginatedSortDirection = {
   desc: 'desc',
 } as const;
 
+export type GetAdminOrganizationBranch200 = {
+  branch: Branch;
+  organizationId: string;
+  [key: string]: unknown;
+ };
+
+export type ListAdminOrganizationMembershipsParams = {
+organizationId: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminOrganizationMemberships200ItemsItem = { [key: string]: unknown };
+
+export type ListAdminOrganizationMemberships200 = {
+  items: ListAdminOrganizationMemberships200ItemsItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  [key: string]: unknown;
+ };
+
 export type ListPlatformUsersParams = {
 /**
  * @minimum 1
@@ -2753,6 +4022,19 @@ export type ListAdminFinanceAccountsParams = {
  * @maxLength 120
  */
 search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminOrganizationFinanceAccountsParams = {
+organizationId: string;
 /**
  * @minimum 1
  */
@@ -2879,4 +4161,168 @@ export const ListAdminFinanceJournalEntryType = {
   internal_transfer: 'internal_transfer',
   reversal: 'reversal',
 } as const;
+
+export type GetAdminOrganizationBillingParams = {
+organizationId: string;
+section?: GetAdminOrganizationBillingSection;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminOrganizationBillingSection = typeof GetAdminOrganizationBillingSection[keyof typeof GetAdminOrganizationBillingSection];
+
+
+export const GetAdminOrganizationBillingSection = {
+  requests: 'requests',
+  subscriptions: 'subscriptions',
+  priceOverrides: 'priceOverrides',
+} as const;
+
+export type GetAdminInventoryParams = {
+view: GetAdminInventoryView;
+organizationId?: string;
+locationId?: string;
+documentId?: string;
+/**
+ * @maxLength 100
+ */
+search?: string;
+status?: GetAdminInventoryStatus;
+sortBy?: GetAdminInventorySortBy;
+sortDirection?: GetAdminInventorySortDirection;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminInventoryView = typeof GetAdminInventoryView[keyof typeof GetAdminInventoryView];
+
+
+export const GetAdminInventoryView = {
+  organizations: 'organizations',
+  locations: 'locations',
+  branches: 'branches',
+  items: 'items',
+  balances: 'balances',
+  summary: 'summary',
+  alerts: 'alerts',
+  return_sources: 'return_sources',
+  documents: 'documents',
+  transfers: 'transfers',
+  counts: 'counts',
+  movements: 'movements',
+  document: 'document',
+  reconciliation: 'reconciliation',
+} as const;
+
+export type GetAdminInventoryStatus = typeof GetAdminInventoryStatus[keyof typeof GetAdminInventoryStatus];
+
+
+export const GetAdminInventoryStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type GetAdminInventorySortBy = typeof GetAdminInventorySortBy[keyof typeof GetAdminInventorySortBy];
+
+
+export const GetAdminInventorySortBy = {
+  name: 'name',
+  available: 'available',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt',
+  status: 'status',
+  type: 'type',
+  occurredAt: 'occurredAt',
+  itemName: 'itemName',
+  kind: 'kind',
+} as const;
+
+export type GetAdminInventorySortDirection = typeof GetAdminInventorySortDirection[keyof typeof GetAdminInventorySortDirection];
+
+
+export const GetAdminInventorySortDirection = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
+
+export type ListAdminCatalogOrganizationsParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+kind?: ListAdminCatalogOrganizationsKind;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type ListAdminCatalogOrganizationsKind = typeof ListAdminCatalogOrganizationsKind[keyof typeof ListAdminCatalogOrganizationsKind];
+
+
+export const ListAdminCatalogOrganizationsKind = {
+  station: 'station',
+  provider: 'provider',
+} as const;
+
+export type ListAdminCatalogFuelParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetMerchantCatalogItemsParams = {
+organizationId: string;
+branchId?: string;
+/**
+ * @maxLength 40
+ */
+categoryCode?: string;
+kind?: string;
+status?: string;
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
 

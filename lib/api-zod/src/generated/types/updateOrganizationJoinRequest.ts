@@ -5,12 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CreateBranchRequest } from './createBranchRequest';
 import type { CreateOrganizationRequest } from './createOrganizationRequest';
+import type { OrganizationJoinInitialBranchRequest } from './organizationJoinInitialBranchRequest';
 
 export interface UpdateOrganizationJoinRequest {
   /** @minimum 1 */
   expectedVersion: number;
   organization: CreateOrganizationRequest;
-  initialBranch: CreateBranchRequest;
+  initialBranch: OrganizationJoinInitialBranchRequest;
 }

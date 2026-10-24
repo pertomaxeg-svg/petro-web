@@ -64,13 +64,66 @@ const apiErrorStatus = (error: unknown) => {
   const item = error as { status?: number; response?: { status?: number } };
   return item?.status ?? item?.response?.status ?? 0;
 };
-const money = (minor: number | null | undefined) =>
-  minor == null ? "غير محدد" : `${new Intl.NumberFormat("ar-EG").format(minor / 100)} ج.م`;
+const money = (minor: number | string | null | undefined) => {
+  if (minor == null) return "غير محدد";
+  const amount = BigInt(minor);
+  const absolute = amount < 0n ? -amount : amount;
+  const whole = new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(absolute / 100n);
+  const fraction = absolute % 100n;
+  const fractionText = fraction
+    ? `٫${new Intl.NumberFormat("ar-EG", { minimumIntegerDigits: 2, maximumFractionDigits: 0 }).format(fraction)}`
+    : "";
+  return `${amount < 0n ? "−" : ""}${whole}${fractionText} ج.م`;
+};
+function parseEgpMinor(value: FormDataEntryValue | null): number | null {
+  const normalized = String(value ?? "").trim()
+    .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace("٫", ".");
+  const match = /^(?:\d+)(?:\.(\d{1,2}))?$/.exec(normalized);
+  if (!match) return null;
+  const [wholeText, fractionText = ""] = normalized.split(".");
+  const minor = BigInt(wholeText) * 100n + BigInt(fractionText.padEnd(2, "0") || "0");
+  return minor <= 1_000_000_000n ? Number(minor) : null;
+}
+const minorToEgpInput = (minor: number | string) => {
+  const amount = BigInt(minor);
+  const whole = (amount / 100n).toString();
+  const fraction = amount % 100n;
+  return `${whole}${fraction ? `.${fraction.toString().padStart(2, "0")}` : ""}`;
+};
+const cairoDateParts = (date: Date) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date);
+  return Object.fromEntries(parts.map(part => [part.type, part.value])) as Record<string, string>;
+};
 const dateLabel = (value: string | null | undefined) =>
-  value ? new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+  value ? new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" }).format(new Date(value)) : "—";
 const localDateTime = (date: Date) => {
-  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return shifted.toISOString().slice(0, 16);
+  const parts = cairoDateParts(date);
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+};
+const cairoDateFromLocalDateTime = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) throw new Error("أدخل تاريخًا ووقتًا صالحين بتوقيت القاهرة.");
+  const [, year, month, day, hour, minute] = match;
+  const targetWallTime = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  let candidate = targetWallTime;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const parts = cairoDateParts(new Date(candidate));
+    const representedWallTime = Date.UTC(
+      Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+      Number(parts.hour), Number(parts.minute),
+    );
+    const difference = targetWallTime - representedWallTime;
+    candidate += difference;
+    if (difference === 0) break;
+  }
+  const result = new Date(candidate);
+  if (localDateTime(result) !== value) throw new Error("هذا الوقت غير صالح في توقيت القاهرة؛ اختر وقتًا آخر.");
+  return result;
 };
 const defaultEnd = () => {
   const value = new Date();
@@ -107,36 +160,132 @@ function CatalogState({ error, retry }: { error: unknown; retry: () => void }) {
 }
 
 function ReasonField() {
-  return <label className="ab-field ab-wide">سبب موثق (5–500 حرف)
-    <textarea name="reason" minLength={5} maxLength={500} required placeholder="اكتب سبب القرار أو التغيير بوضوح."/>
-  </label>;
+  return <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>;
 }
 
-function JsonArrayField({ name, title, value }: { name: string; title: string; value?: AdminPlanEntitlement[] | null }) {
-  const [items, setItems] = useState<AdminPlanEntitlement[]>(() => [...(value ?? [])]);
+function AuditNoteField() {
+  return <input type="hidden" name="reason" value="تسجيل آلي: إجراء إداري من لوحة التحكم"/>;
+}
+
+function optionalAuditNote(data: FormData): string | undefined {
+  const note = String(data.get("reason") ?? "").trim();
+  return note || undefined;
+}
+
+type ConfigValueMode = "text" | "number" | "boolean" | "json";
+const getConfigValueMode = (value: unknown): ConfigValueMode => {
+  if (typeof value === "boolean") return "boolean";
+  if (typeof value === "number") return "number";
+  if (value !== null && typeof value === "object") return "json";
+  return "text";
+};
+const newConfigKey = () => `plan_item_${crypto.randomUUID().replaceAll("-", "")}`;
+
+function JsonValueField({ value, onChange, onValidityChange }: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  onValidityChange: (valid: boolean) => void;
+}) {
+  const [draft, setDraft] = useState(() => JSON.stringify(value, null, 2));
+  let validDraft = draft.trim().length > 0;
+  try {
+    if (validDraft) JSON.parse(draft);
+  } catch {
+    validDraft = false;
+  }
+  return <div className="ab-config-json">
+    <textarea aria-label="قيمة متقدمة بصيغة JSON" value={draft} aria-invalid={!validDraft} onChange={event => {
+      const next = event.target.value;
+      setDraft(next);
+      try {
+        if (!next.trim()) throw new Error("أدخل قيمة.");
+        onChange(JSON.parse(next));
+        onValidityChange(true);
+      } catch {
+        onValidityChange(false);
+      }
+    }} dir="ltr" spellCheck={false}/>
+    <small>للقيم المركبة فقط. اتركها كما هي إن لم تحتج تعديلًا متقدمًا.</small>
+  </div>;
+}
+
+function JsonArrayField({ name, title, value, collapsible = false }: {
+  name: string;
+  title: string;
+  value?: AdminPlanEntitlement[] | null;
+  collapsible?: boolean;
+}) {
+  const [items, setItems] = useState<AdminPlanEntitlement[]>(() =>
+    (value ?? []).map(item => ({ ...item, key: item.key || newConfigKey() })),
+  );
+  const [invalidKeys, setInvalidKeys] = useState<string[]>([]);
+  const [open, setOpen] = useState(!collapsible || Boolean(value?.length));
   const update = (index: number, patch: Partial<AdminPlanEntitlement>) => {
     setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
   };
-  return <div className="ab-field ab-wide ab-config-editor">
-    <b>{title}</b>
-    <small>لا تُضاف مميزات افتراضية. ضع علامة الاعتماد فقط بعد قرار صريح، ويُرفض نشر نسخة ناقصة.</small>
-    <input type="hidden" name={name} value={JSON.stringify(items)}/>
-    {items.length === 0 && <p className="ab-config-empty">لا توجد عناصر محفوظة. أضف بندًا عند اعتماد ميزة أو إعداد.</p>}
-    <div className="ab-config-list">
-      {items.map((item, index) => <fieldset className="ab-config-item" key={`${name}-${index}`}>
-        <legend>{title} {index + 1}</legend>
-        <label>المفتاح<input required maxLength={64} value={item.key} onChange={event=>update(index,{key:event.target.value})} dir="ltr" placeholder="identifier"/></label>
-        <label>الاسم المعروض<input required maxLength={120} value={item.label} onChange={event=>update(index,{label:event.target.value})} placeholder="اسم واضح"/></label>
-        <label className="ab-config-value">القيمة<input value={displayValue(item.value)} onChange={event=>{
-          const raw=event.target.value;
-          try { update(index,{value:JSON.parse(raw)}); } catch { update(index,{value:raw}); }
-        }} dir="auto" placeholder="أدخل قيمة واضحة لهذا البند"/></label>
-        <label className="ab-config-approved"><input type="checkbox" checked={item.approved} onChange={event=>update(index,{approved:event.target.checked})}/>معتمد صراحةً</label>
-        <button type="button" className="ac-button ac-button-quiet" aria-label={`حذف ${title} ${index + 1}`} onClick={()=>setItems(current=>current.filter((_,itemIndex)=>itemIndex!==index))}>حذف البند</button>
-      </fieldset>)}
-    </div>
-    <button type="button" className="ac-button ac-button-quiet ab-config-add" onClick={()=>setItems(current=>[...current,{key:"",label:"",value:"",approved:false}])}><Plus size={14}/>إضافة بند</button>
-  </div>;
+  const addItem = () => {
+    setItems(current => [...current, { key: newConfigKey(), label: "", value: "", approved: false }]);
+    setOpen(true);
+  };
+  const content = <>
+    <input type="hidden" name={name} value={JSON.stringify(items)} data-testid={`value-${name}-json`}/>
+    <input type="hidden" name={`${name}Valid`} value={invalidKeys.length ? "false" : "true"}/>
+    {items.length === 0
+      ? <p className="ab-config-empty">لا توجد {name === "entitlements" ? "مميزات" : "إعدادات"} مسجلة. أضف ما اعتمدته فقط؛ لا نضيف مزايا افتراضية.</p>
+      : <div className="ab-config-list">
+        {items.map((item, index) => {
+          const mode = getConfigValueMode(item.value);
+          return <fieldset className="ab-config-item" key={`${name}-${item.key}`}>
+            <legend>{title} {index + 1}</legend>
+            <input type="hidden" value={item.key}/>
+            <label className="ab-config-label">الاسم الذي سيظهر
+              <input required maxLength={120} data-testid={`input-${name}-label-${index}`} value={item.label} onChange={event=>update(index,{label:event.target.value})} placeholder={name === "entitlements" ? "اكتب اسم الميزة" : "اكتب اسم الإعداد"}/>
+            </label>
+            <label className="ab-config-type">نوع القيمة
+              <select data-testid={`select-${name}-value-mode-${index}`} value={mode} onChange={event => {
+                const nextMode = event.target.value as ConfigValueMode;
+                const nextValue = nextMode === "boolean" ? false
+                  : nextMode === "number" ? (typeof item.value === "number" ? item.value : 0)
+                    : nextMode === "json" ? (item.value !== null && typeof item.value === "object" ? item.value : {})
+                      : (typeof item.value === "string" ? item.value : displayValue(item.value));
+                update(index, { value: nextValue });
+                setInvalidKeys(current => current.filter(key => key !== item.key));
+              }}>
+                <option value="text">نص</option><option value="number">رقم</option>
+                <option value="boolean">نعم / لا</option><option value="json">قيمة متقدمة</option>
+              </select>
+            </label>
+            <div className="ab-config-value">
+              {mode === "boolean"
+                ? <label className="ab-config-toggle"><input data-testid={`checkbox-${name}-value-${index}`} type="checkbox" checked={item.value === true} onChange={event=>update(index,{value:event.target.checked})}/>نعم، متاح</label>
+                : mode === "number"
+                  ? <label>القيمة الرقمية<input data-testid={`input-${name}-number-${index}`} type="number" step="any" value={String(item.value ?? "")} onChange={event=>update(index,{value:event.target.value === "" ? "" : Number(event.target.value)})}/></label>
+                  : mode === "json"
+                    ? <JsonValueField key={`${item.key}-json`} value={item.value} onChange={next=>update(index,{value:next})} onValidityChange={valid=>setInvalidKeys(current=>valid?current.filter(key=>key!==item.key):current.includes(item.key)?current:[...current,item.key])}/>
+                    : <label>القيمة<input data-testid={`input-${name}-text-${index}`} required value={typeof item.value === "string" ? item.value : displayValue(item.value)} onChange={event=>update(index,{value:event.target.value})} placeholder="اكتب القيمة"/></label>}
+            </div>
+            <label className="ab-config-approved">
+              <input data-testid={`checkbox-${name}-approved-${index}`} type="checkbox" checked={item.approved} onChange={event=>update(index,{approved:event.target.checked})}/>
+              معتمد للنشر
+            </label>
+            <button type="button" data-testid={`button-remove-${name}-${index}`} className="ab-config-remove" aria-label={`حذف ${title} ${index + 1}`} onClick={()=>{
+              setItems(current=>current.filter((_,itemIndex)=>itemIndex!==index));
+              setInvalidKeys(current=>current.filter(key=>key!==item.key));
+            }}>حذف</button>
+          </fieldset>;
+        })}
+      </div>}
+    <button type="button" data-testid={`button-add-${name}`} className="ac-button ac-button-quiet ab-config-add" onClick={addItem}><Plus size={15}/>{name === "entitlements" ? "إضافة ميزة" : "إضافة إعداد"}</button>
+  </>;
+  return collapsible
+    ? <details className="ab-config-details" data-testid={`details-${name}`} open={open} onToggle={event=>setOpen(event.currentTarget.open)}>
+        <summary><span><b>{title}</b><small>اختياري · {items.length.toLocaleString("ar-EG")} بند</small></span><ChevronDown size={16}/></summary>
+        {content}
+      </details>
+    : <section className="ab-field ab-wide ab-config-editor">
+        <div className="ab-config-heading"><span><b>{title}</b><small>اكتب الاسم والقيمة فقط؛ المفتاح التقني يُنشأ تلقائيًا.</small></span><span className="ab-config-count" data-testid={`count-${name}`}>{items.length.toLocaleString("ar-EG")} {name === "entitlements" ? "ميزة" : "إعداد"}</span></div>
+        {content}
+      </section>;
 }
 
 function parseArray(raw: FormDataEntryValue | null, label: string): AdminPlanEntitlement[] {
@@ -153,8 +302,9 @@ function parseArray(raw: FormDataEntryValue | null, label: string): AdminPlanEnt
     }
     const item = candidate as Record<string, unknown>;
     if (typeof item.key !== "string" || typeof item.label !== "string"
-      || !Object.hasOwn(item, "value") || typeof item.approved !== "boolean") {
-      throw new Error(`${label}: استخدم قائمة بعناصر لها key وlabel وvalue وapproved.`);
+        || !item.label.trim() || !Object.hasOwn(item, "value") || typeof item.approved !== "boolean"
+        || (typeof item.value === "string" && !item.value.trim())) {
+      throw new Error(`${label}: أكمل اسم كل بند وقيمته.`);
     }
   }
   return value as AdminPlanEntitlement[];
@@ -173,7 +323,7 @@ function FixedPriceNote({ defaults }: { defaults: AdminBillingPriceDefaults }) {
   return <section className="ab-pricing-note" aria-label="الأسعار المعتمدة">
     <div className="ab-pricing-heading"><Banknote size={17}/><b>مرجع الأسعار المعتمد</b><span>جنيه مصري · سنوي</span></div>
     <div className="ab-pricing-grid">
-      <div><span>الشركات</span><b>{defaults.companyAnnualPricesMinor.map(value=>new Intl.NumberFormat("ar-EG").format(value/100)).join(" / ")}</b><small>ج.م لكل مركبة سنويًا</small></div>
+      <div><span>الشركات</span><b>{defaults.companyAnnualPricesMinor.map(value=>money(value).replace(" ج.م", "")).join(" / ")}</b><small>ج.م لكل مركبة سنويًا</small></div>
       <div><span>مقدّمو الخدمات</span><b>{money(defaults.providerAnnualPriceMinor)}</b><small>لكل فرع سنويًا</small></div>
       <div><span>المحطات</span><b>مجاني</b><small>بلا عمولة أو رسم غسيل</small></div>
       <div><span>إصدار NFC</span><b>{money(defaults.nfcIssuePriceMinor)}</b><small>رسوم إصدار منفصلة</small></div>
@@ -312,9 +462,9 @@ export function AdminPlansPage() {
     setSuccess("");
     const data = new FormData(event.currentTarget);
     const audience = String(data.get("audience")) as Audience;
-    const enteredPrice = audience === "station" ? 0 : Number(data.get("price"));
-    if (!Number.isFinite(enteredPrice) || (audience !== "station" && enteredPrice <= 0)) {
-      setFormError("أدخل سعرًا سنويًا موجبًا؛ تظل المحطات مجانية.");
+    const annualPriceMinor = audience === "station" ? 0 : parseEgpMinor(data.get("price"));
+    if (annualPriceMinor === null || (audience !== "station" && annualPriceMinor <= 0)) {
+      setFormError("أدخل سعرًا سنويًا صحيحًا حتى قرشين؛ تظل المحطات مجانية.");
       return;
     }
     setBusy(true);
@@ -324,14 +474,14 @@ export function AdminPlansPage() {
         code: String(data.get("code")).trim(),
         audience,
         description: String(data.get("description") ?? "").trim(),
-        annualPriceMinor: Math.round(enteredPrice * 100),
+        annualPriceMinor,
         billingUnit: audience === "company" ? "vehicle" : "branch",
         billingCycle: "annual",
         currency: "EGP",
-        effectiveAt: new Date(String(data.get("effectiveAt"))).toISOString(),
+        effectiveAt: cairoDateFromLocalDateTime(String(data.get("effectiveAt"))).toISOString(),
         entitlements: [],
         settings: [],
-        reason: String(data.get("reason")).trim(),
+        reason: optionalAuditNote(data),
       } satisfies AdminPlanInput });
       await refresh();
       setCreateOpen(false);
@@ -350,28 +500,30 @@ export function AdminPlansPage() {
     setSuccess("");
     const data = new FormData(event.currentTarget);
     try {
-      const effectiveAt = new Date(String(data.get("effectiveAt")));
-      if (Number.isNaN(effectiveAt.valueOf())) throw new Error("تاريخ السريان غير صالح.");
+      const effectiveAt = cairoDateFromLocalDateTime(String(data.get("effectiveAt")));
+      if (data.get("entitlementsValid") === "false" || data.get("settingsValid") === "false") {
+        throw new Error("راجع القيمة المتقدمة غير المكتملة قبل الحفظ.");
+      }
       const entitlements = parseArray(data.get("entitlements"), "الاستحقاقات");
       const settings = parseArray(data.get("settings"), "الإعدادات");
       const audience = (versionPlan ?? editSelection!.plan).audience;
-      const enteredPrice = audience === "station" ? 0 : Number(data.get("price"));
-      if (!Number.isFinite(enteredPrice) || (audience !== "station" && enteredPrice <= 0)) {
-        throw new Error("أدخل سعرًا سنويًا موجبًا؛ تظل المحطات مجانية.");
+      const annualPriceMinor = audience === "station" ? 0 : parseEgpMinor(data.get("price"));
+      if (annualPriceMinor === null || (audience !== "station" && annualPriceMinor <= 0)) {
+        throw new Error("أدخل سعرًا سنويًا صحيحًا حتى قرشين؛ تظل المحطات مجانية.");
       }
       setBusy(true);
       const plan = versionPlan ?? editSelection!.plan;
       const payload = {
         displayName: String(data.get("displayName")).trim(),
         description: String(data.get("description") ?? "").trim(),
-        annualPriceMinor: Math.round(enteredPrice * 100),
+        annualPriceMinor,
         billingUnit: plan.audience === "company" ? "vehicle" as const : "branch" as const,
         billingCycle: "annual" as const,
         currency: "EGP" as const,
         effectiveAt: effectiveAt.toISOString(),
         entitlements,
         settings,
-        reason: String(data.get("reason")).trim(),
+        reason: optionalAuditNote(data),
       };
       if(editSelection) await updateDraft.mutateAsync({planId:plan.id,versionId:editSelection.version.id,data:payload});
       else await createVersion.mutateAsync({ planId: plan.id, data: payload });
@@ -440,15 +592,19 @@ export function AdminPlansPage() {
     const data = new FormData(event.currentTarget);
     setFormError(""); setSuccess(""); setBusy(true);
     try {
-      const companyPrices = String(data.get("companyPrices") ?? "").split(",").map(value=>Math.round(Number(value.trim())*100));
-      if(companyPrices.length<1||companyPrices.length>5||companyPrices.some(value=>!Number.isFinite(value)||value<1)) throw new Error("أدخل من سعر واحد إلى خمسة أسعار موجبة مفصولة بفواصل.");
+      const companyPrices = String(data.get("companyPrices") ?? "").split(",").map(value=>parseEgpMinor(value));
+      const providerAnnualPriceMinor = parseEgpMinor(data.get("providerPrice"));
+      const nfcIssuePriceMinor = parseEgpMinor(data.get("nfcPrice"));
+      if(companyPrices.length<1||companyPrices.length>5||companyPrices.some(value=>value===null||value<1)) throw new Error("أدخل من سعر واحد إلى خمسة أسعار موجبة، حتى قرشين، مفصولة بفواصل.");
+      if(providerAnnualPriceMinor===null||providerAnnualPriceMinor<1) throw new Error("أدخل سعرًا سنويًا صحيحًا لمقدّم الخدمة.");
+      if(nfcIssuePriceMinor===null) throw new Error("أدخل سعر إصدار الشريحة بالجنيه والقرش.");
       await updateDefaults.mutateAsync({data:{
-        companyAnnualPricesMinor:companyPrices,
-        providerAnnualPriceMinor:Math.round(Number(data.get("providerPrice"))*100),
-        nfcIssuePriceMinor:Math.round(Number(data.get("nfcPrice"))*100),
-        reason:String(data.get("reason")).trim(),
+        companyAnnualPricesMinor:companyPrices as number[],
+        providerAnnualPriceMinor,
+        nfcIssuePriceMinor,
+        reason: optionalAuditNote(data),
       }});
-      await refresh(); setSuccess("تم حفظ الأسعار الافتراضية مع سبب موثق.");
+      await refresh(); setSuccess("تم حفظ الأسعار الافتراضية وتحديث السجل.");
     } catch(error) { setFormError(apiErrorMessage(error)); } finally { setBusy(false); }
   }
 
@@ -457,14 +613,15 @@ export function AdminPlansPage() {
     const data = new FormData(event.currentTarget);
     setFormError(""); setSuccess(""); setBusy(true);
     try {
-      const from = new Date(String(data.get("effectiveFrom")));
+      const from = cairoDateFromLocalDateTime(String(data.get("effectiveFrom")));
       const toRaw = String(data.get("effectiveTo") ?? "");
-      const to = toRaw ? new Date(toRaw) : null;
-      if(Number.isNaN(from.valueOf()) || (to && Number.isNaN(to.valueOf()))) throw new Error("تحقق من تواريخ التخصيص.");
+      const to = toRaw ? cairoDateFromLocalDateTime(toRaw) : null;
       const branchId = String(data.get("branchId") ?? "");
+      const priceMinor = parseEgpMinor(data.get("price"));
+      if(priceMinor===null||priceMinor<1) throw new Error("أدخل سعرًا مخصصًا موجبًا حتى قرشين.");
       await createOverride.mutateAsync({data:{
         organizationId:overrideOrgId, branchId:branchId || null, planId:overridePlanId,
-        priceMinor:Math.round(Number(data.get("price"))*100), effectiveFrom:from.toISOString(), effectiveTo:to?.toISOString() ?? null,
+        priceMinor, effectiveFrom:from.toISOString(), effectiveTo:to?.toISOString() ?? null,
         supersedesOverrideId:overrideSupersedesId || previousPriceVersions[0]?.id || null, reason:String(data.get("reason")).trim(),
       }});
       await refresh(); setOverrideSupersedesId(""); setSuccess("تم إنشاء تخصيص السعر لمقدّم الخدمة.");
@@ -562,10 +719,10 @@ export function AdminPlansPage() {
     {!query.isLoading&&!query.isError&&section==="defaults"&&<section className="ac-panel ab-form-panel">
       <div className="ab-form-head"><div><span className="ac-eyebrow">مرجع قابل للتحرير</span><h2>الأسعار الافتراضية</h2></div><span className="ac-status ac-status-active">سنوي · جنيه مصري</span></div>
       <form className="ab-form-grid" onSubmit={submitDefaults}>
-        <label className="ab-field ab-wide">أسعار الشركات لكل مركبة سنويًا (ج.م)<input name="companyPrices" required defaultValue={query.data?.pricingDefaults.companyAnnualPricesMinor.map(value=>String(value/100)).join(", ")}/><small>سعر أو أكثر، حتى خمسة؛ افصل بينها بفواصل. لن تُضاف مستويات غير موجودة تلقائيًا.</small></label>
-        <label className="ab-field">مقدّم الخدمة لكل فرع (ج.م)<input name="providerPrice" type="number" min="1" step="0.01" required defaultValue={(query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100}/></label>
-        <label className="ab-field">إصدار NFC (ج.م)<input name="nfcPrice" type="number" min="0" step="0.01" required defaultValue={(query.data?.pricingDefaults.nfcIssuePriceMinor??0)/100}/><small>إصدار NFC منفصل عن الاشتراك. المحطات مجانية ولا تقبل تخصيص سعر.</small></label>
-        <ReasonField/><FormFeedback error={formError}/>
+        <label className="ab-field ab-wide">أسعار الشركات لكل مركبة سنويًا (ج.م)<input name="companyPrices" required defaultValue={query.data?.pricingDefaults.companyAnnualPricesMinor.map(minorToEgpInput).join(", ")}/><small>سعر أو أكثر، حتى خمسة؛ افصل بينها بفواصل. لن تُضاف مستويات غير موجودة تلقائيًا.</small></label>
+        <label className="ab-field">مقدّم الخدمة لكل فرع (ج.م)<input name="providerPrice" type="number" min="1" step="0.01" required defaultValue={minorToEgpInput(query.data?.pricingDefaults.providerAnnualPriceMinor??0)}/></label>
+        <label className="ab-field">إصدار NFC (ج.م)<input name="nfcPrice" type="number" min="0" step="0.01" required defaultValue={minorToEgpInput(query.data?.pricingDefaults.nfcIssuePriceMinor??0)}/><small>إصدار NFC منفصل عن الاشتراك. المحطات مجانية ولا تقبل تخصيص سعر.</small></label>
+        <AuditNoteField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy?"جارٍ الحفظ…":"حفظ الأسعار الافتراضية"} <Check size={14}/></button></div>
       </form>
       <p className="ab-footnote"><ShieldAlert size={15}/>المصدر الوحيد هو مرجع التسعير المحفوظ. لا تُضاف ضرائب أو رسوم تركيب أو استبدال.</p>
@@ -600,21 +757,28 @@ export function AdminPlansPage() {
         <label className="ab-field">الفئة<select name="audience" required value={createAudience} onChange={event => setCreateAudience(event.target.value as Audience)}>
           <option value="company">شركة</option><option value="provider">مقدّم خدمة</option><option value="station">محطة</option>
         </select></label>
-         <label className="ab-field">السعر السنوي (ج.م) · {createAudience === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={createAudience === "station" ? 0 : 0.01} step="0.01" required key={createAudience} readOnly={createAudience === "station"} defaultValue={createAudience === "station" ? 0 : createAudience === "company" ? (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100 : (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100}/><small>{createAudience === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الأسعار الافتراضية، ويمكن تعديلها لهذه الخطة."} · EGP سنويًا</small></label>
+         <label className="ab-field">السعر السنوي (ج.م) · {createAudience === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={createAudience === "station" ? 0 : 0.01} step="0.01" required key={createAudience} readOnly={createAudience === "station"} defaultValue={createAudience === "station" ? 0 : createAudience === "company" ? minorToEgpInput(query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0) : minorToEgpInput(query.data?.pricingDefaults.providerAnnualPriceMinor??0)}/><small>{createAudience === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الأسعار الافتراضية، ويمكن تعديلها لهذه الخطة."} · EGP سنويًا</small></label>
         <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={defaultStart()} required/></label>
-        <ReasonField/><FormFeedback error={formError}/>
+        <AuditNoteField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "حفظ كمسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
-      {(versionPlan || editSelection) && <form className="ab-form-grid" onSubmit={submitVersion}>
-        <label className="ab-field">اسم الإصدار<input name="displayName" required defaultValue={editSelection?.version.displayName??versionPlan?.name??""}/></label>
-        <label className="ab-field">وصف الإصدار<input name="description" maxLength={1000} defaultValue={editSelection?.version.description??""}/></label>
-         <label className="ab-field">السعر السنوي (ج.م) · {(versionPlan?.audience??editSelection?.plan.audience) === "company" ? "لكل مركبة" : "لكل فرع"}<input name="price" type="number" min={(versionPlan?.audience??editSelection?.plan.audience) === "station" ? 0 : 0.01} step="0.01" required readOnly={(versionPlan?.audience??editSelection?.plan.audience) === "station"} defaultValue={editSelection ? editSelection.version.annualPriceMinor/100 : (versionPlan?.audience === "station" ? 0 : versionPlan?.audience === "company" ? (query.data?.pricingDefaults.companyAnnualPricesMinor[0]??0)/100 : (query.data?.pricingDefaults.providerAnnualPriceMinor??0)/100)}/><small>{(versionPlan?.audience??editSelection?.plan.audience) === "station" ? "السعر ثابت صفرًا؛ المحطات مجانية." : "قيمة البداية من الافتراضات أو الإصدار الحالي، ويمكن تعديلها لهذه النسخة."} · EGP سنويًا</small></label>
-        <label className="ab-field">تاريخ السريان<input name="effectiveAt" type="datetime-local" defaultValue={localDateTime(new Date(editSelection?.version.effectiveAt??Date.now()+60_000))} required/></label>
-         <JsonArrayField key={`entitlements-${editSelection?.version.id??versionPlan?.id??"new"}`} name="entitlements" title="استحقاقات الخطة" value={editSelection?.version.entitlements}/>
-         <JsonArrayField key={`settings-${editSelection?.version.id??versionPlan?.id??"new"}`} name="settings" title="إعدادات الخطة" value={editSelection?.version.settings}/>
-         <p className="ab-form-note ab-wide">رسوم إصدار NFC مستقلة عن الاشتراك وتُضبط في مرجع الأسعار. وحدة الباقة سنوية، والاستحقاقات لا تُعتمد تلقائيًا.</p>
-        <ReasonField/><FormFeedback error={formError}/>
-        <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : editSelection?"حفظ تعديلات المسودة":"حفظ إصدار مسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
+       {(versionPlan || editSelection) && <form className="ab-form-grid ab-version-editor" onSubmit={submitVersion}>
+         <label className="ab-field">اسم النسخة<input data-testid="input-plan-version-name" name="displayName" required defaultValue={editSelection?.version.displayName??versionPlan?.name??""}/></label>
+         <label className="ab-field">وصف مختصر<input data-testid="input-plan-version-description" name="description" maxLength={1000} defaultValue={editSelection?.version.description??""}/></label>
+         <section className="ab-version-price ab-wide">
+           <div className="ab-version-price-copy"><span className="ab-price-icon"><Banknote size={19}/></span><span><b>السعر السنوي</b><small>يُحفظ لهذه النسخة فقط؛ لا يغيّر اشتراكًا سابقًا.</small></span></div>
+           <label className="ab-field">{(versionPlan?.audience??editSelection?.plan.audience) === "company" ? "السعر السنوي لكل مركبة" : "السعر السنوي لكل فرع"}
+              <span className="ab-price-input"><input data-testid="input-plan-version-price" name="price" type="number" min={(versionPlan?.audience??editSelection?.plan.audience) === "station" ? 0 : 0.01} max="10000000" step="0.01" inputMode="decimal" aria-describedby="plan-version-price-help" required readOnly={(versionPlan?.audience??editSelection?.plan.audience) === "station"} defaultValue={editSelection ? minorToEgpInput(editSelection.version.annualPriceMinor) : (versionPlan?.audience === "station" ? 0 : versionPlan?.audience === "provider" ? (query.data?.pricingDefaults.providerAnnualPriceMinor == null ? "" : minorToEgpInput(query.data.pricingDefaults.providerAnnualPriceMinor)) : (query.data?.pricingDefaults.companyAnnualPricesMinor[0] == null ? "" : minorToEgpInput(query.data.pricingDefaults.companyAnnualPricesMinor[0])))}/><span>ج.م</span></span>
+              <small id="plan-version-price-help">السعر محفوظ في هذا الإصدار وحده، بوحدة الجنيه والقرش. لا تتغير لقطات اشتراكات قائمة.</small>
+           </label>
+           <label className="ab-field">تاريخ السريان بتوقيت القاهرة<input data-testid="input-plan-version-effective-at" name="effectiveAt" type="datetime-local" defaultValue={localDateTime(new Date(editSelection?.version.effectiveAt??Date.now()+60_000))} required/><small>يصبح الإصدار مجدولًا إذا كان التاريخ مستقبليًا.</small></label>
+           {(versionPlan?.audience??editSelection?.plan.audience) === "station" && <p className="ab-price-station">المحطات مجانية، ولا يقبل سعرًا خاصًا.</p>}
+         </section>
+         <JsonArrayField key={`entitlements-${editSelection?.version.id??versionPlan?.id??"new"}`} name="entitlements" title="مميزات الباقة" value={editSelection?.version.entitlements}/>
+         <JsonArrayField key={`settings-${editSelection?.version.id??versionPlan?.id??"new"}`} name="settings" title="إعدادات إضافية" value={editSelection?.version.settings} collapsible/>
+         <p className="ab-form-note ab-wide"><ShieldAlert size={15}/>{editSelection?"تعديل المسودة لا يغيّر إصدارًا منشورًا.":"سيُنشأ إصدار مستقل؛ لا تُعدّل الإصدارات المنشورة."} لا تظهر أي ميزة للمشترك قبل اعتمادها صراحةً. الاشتراكات القائمة تحتفظ بلقطة نسختها. رسوم إصدار NFC منفصلة عن الاشتراك. المحطات مجانية.</p>
+        <AuditNoteField/><FormFeedback error={formError}/>
+         <div className="ab-form-actions"><button data-testid="button-save-plan-version" className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : editSelection?"حفظ تعديلات المسودة":"حفظ إصدار مسودة"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
       {stopPlan && <form className="ab-form-grid" onSubmit={submitStop}>
         <label className="ab-field ab-wide">إيقاف استقبال الطلبات الجديدة من<input name="stopNewAt" type="datetime-local"/></label>
@@ -691,13 +855,19 @@ export function AdminSubscriptionsPage() {
   const createRequest = useCreateAdminSubscriptionRequest();
   const reviewRequest = useReviewAdminSubscriptionRequest();
   const cancelSubscription = useCancelAdminSubscription();
-  const [tab, setTab] = useState<"requests" | "subscriptions">("requests");
+  const readOrganizationFilter = () => {
+    if (typeof window === "undefined") return "";
+    const value = new URLSearchParams(window.location.search).get("organizationId") ?? "";
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : "";
+  };
+  const [organizationFilter, setOrganizationFilter] = useState(readOrganizationFilter);
+  const [tab, setTab] = useState<"requests" | "subscriptions">(() => organizationFilter ? "subscriptions" : "requests");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sort, setSort] = useState(false);
   const [page, setPage] = useState(1);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [selectedOrgId, setSelectedOrgId] = useState(() => organizationFilter);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [requestType, setRequestType] = useState<RequestKind>("new");
   const [selectedBranchId, setSelectedBranchId] = useState("");
@@ -725,12 +895,14 @@ export function AdminSubscriptionsPage() {
     const rows = sourceRows.filter(row => {
       const snapshotName = "planSnapshot" in row ? snapshotValue(row.planSnapshot, "planName") : "";
       const name = `${row.organizationName} ${row.branchName ?? ""} ${row.id} ${row.planId} ${String(snapshotName ?? "")}`.toLocaleLowerCase();
-      return (statusFilter === "all" || row.status === statusFilter) && (!needle || name.includes(needle));
+      return (!organizationFilter || row.organizationId === organizationFilter)
+        && (statusFilter === "all" || row.status === statusFilter)
+        && (!needle || name.includes(needle));
     });
     return [...rows].sort((a, b) => sort
       ? a.createdAt.localeCompare(b.createdAt)
       : b.createdAt.localeCompare(a.createdAt));
-  }, [sourceRows, search, statusFilter, sort, tab]);
+  }, [sourceRows, search, statusFilter, sort, tab, organizationFilter]);
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
   const activeOrgBranches = (queryBranches.data?.items ?? []).filter(branch =>
     branch.status === "active" && branch.approval_status === "approved" && branch.operational_status === "active",
@@ -742,8 +914,14 @@ export function AdminSubscriptionsPage() {
     setSuccess("");
     const data = new FormData(event.currentTarget);
     const date = (name: string) => {
-      const parsed = new Date(String(data.get(name)));
-      if (Number.isNaN(parsed.valueOf())) throw new Error("تحقق من تاريخي البداية والنهاية.");
+      const raw = String(data.get(name) ?? "");
+      let parsed: Date;
+      try {
+        parsed = cairoDateFromLocalDateTime(raw);
+      } catch {
+        const label = name === "startsAt" ? "بداية الاشتراك" : "نهاية الاشتراك";
+        throw new Error(`أدخل تاريخ ووقت ${label} بتوقيت القاهرة.`);
+      }
       return parsed.toISOString();
     };
     const request = requestType;
@@ -799,9 +977,11 @@ export function AdminSubscriptionsPage() {
     event.preventDefault();
     if (!selectedRow || selectedKind !== "cancel") return;
     const data = new FormData(event.currentTarget);
-    const effectiveAt = new Date(String(data.get("effectiveAt")));
-    if (Number.isNaN(effectiveAt.valueOf())) {
-      setFormError("تاريخ الإلغاء غير صالح.");
+    let effectiveAt: Date;
+    try {
+      effectiveAt = cairoDateFromLocalDateTime(String(data.get("effectiveAt")));
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "تاريخ الإلغاء غير صالح.");
       return;
     }
     setFormError("");
@@ -841,6 +1021,16 @@ export function AdminSubscriptionsPage() {
       <div className="ab-tabs" role="tablist" aria-label="سجلات الاشتراك">
         <button role="tab" aria-selected={tab === "requests"} className={tab === "requests" ? "selected" : ""} onClick={() => { setTab("requests"); setPage(1); setStatusFilter("all"); }}>الطلبات <span>{requests.length.toLocaleString("ar-EG")}</span></button>
         <button role="tab" aria-selected={tab === "subscriptions"} className={tab === "subscriptions" ? "selected" : ""} onClick={() => { setTab("subscriptions"); setPage(1); setStatusFilter("all"); }}>السجلات المحفوظة <span>{subscriptions.length.toLocaleString("ar-EG")}</span></button>
+      </div>
+      <div className="ab-organization-filter">
+        <label className="ab-field">تصفية حسب الجهة
+          <select value={organizationFilter} onChange={event => { setOrganizationFilter(event.target.value); setPage(1); }}>
+            <option value="">كل الجهات</option>
+            {organizationFilter && !(organizations.data?.items ?? []).some(org => org.id === organizationFilter) && <option value={organizationFilter}>الجهة المحددة من ملفها</option>}
+            {(organizations.data?.items ?? []).map(org => <option key={org.id} value={org.id}>{org.name} · {audienceLabel[org.kind as Audience] ?? org.kind}</option>)}
+          </select>
+        </label>
+        {organizationFilter && <button type="button" className="ac-button ac-button-quiet" onClick={() => { setOrganizationFilter(""); setPage(1); }}>مسح تصفية الجهة</button>}
       </div>
       <SearchFilter search={search} onSearch={value => { setSearch(value); setPage(1); }} filter={statusFilter}
         onFilter={value => { setStatusFilter(value); setPage(1); }}

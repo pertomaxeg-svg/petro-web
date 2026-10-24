@@ -192,10 +192,84 @@
 .ab-config-approved input { width:16px; height:16px; accent-color:hsl(var(--primary)); }
 .ab-config-item > .ac-button { justify-self:start; min-height:32px; }
 .ab-config-add { justify-self:start; }
+.ab-version-editor { gap:14px; }
+.ab-version-price { display:grid; grid-template-columns:minmax(0,1fr) minmax(210px,.75fr) minmax(210px,.75fr); align-items:end; gap:14px; padding:15px; border:1px solid hsl(var(--primary)/.2); background:hsl(var(--primary)/.035); }
+.ab-version-price-copy { display:flex; align-items:center; gap:11px; align-self:center; }
+.ab-version-price-copy > span:last-child { display:grid; gap:4px; }
+.ab-version-price-copy b { font-size:15px; }
+.ab-version-price-copy small { color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.6; }
+.ab-price-icon { width:37px; height:37px; display:grid; place-items:center; border-radius:50%; background:hsl(var(--primary)/.1); color:hsl(var(--primary)); }
+.ab-price-input { display:flex; align-items:center; position:relative; }
+.ab-price-input input { padding-inline-start:50px!important; font-size:17px!important; font-weight:700!important; }
+.ab-price-input > span { position:absolute; inset-inline-start:10px; color:hsl(var(--muted-foreground)); font-size:11px; }
+.ab-price-station { grid-column:1/-1; margin:0; color:hsl(var(--muted-foreground)); font-size:11px; }
+.ab-config-editor { display:grid; gap:11px; }
+.ab-config-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.ab-config-heading > span:first-child { display:grid; gap:4px; }
+.ab-config-heading b,.ab-config-details summary b { color:hsl(var(--foreground)); font:700 15px var(--app-font-sans); }
+.ab-config-heading small,.ab-config-details summary small { color:hsl(var(--muted-foreground)); font-size:11px; font-weight:400; }
+.ab-config-count { display:grid; min-width:28px; height:28px; place-items:center; padding-inline:7px; border-radius:999px; color:hsl(var(--primary)); background:hsl(var(--primary)/.09); font-size:11px; font-weight:700; }
+.ab-config-item { grid-template-columns:minmax(0,1.2fr) minmax(150px,.7fr); align-items:start; gap:11px 14px; padding:14px; border-radius:5px; }
+.ab-config-item > label:not(.ab-config-approved) { display:grid; gap:6px; color:hsl(var(--foreground)); font-size:12px; font-weight:600; }
+.ab-config-item input:not([type=checkbox]),.ab-config-item select,.ab-config-item textarea { width:100%; min-height:39px; padding:8px 10px; border:1px solid hsl(var(--border)); border-radius:4px; background:hsl(var(--card)); color:hsl(var(--foreground)); font:13px var(--app-font-sans); }
+.ab-config-item input:focus,.ab-config-item select:focus,.ab-config-item textarea:focus { outline:2px solid hsl(var(--ring)/.28); border-color:hsl(var(--ring)); }
+.ab-config-type { max-width:260px; }
+.ab-config-value { grid-column:1/-1; display:grid; min-width:0; }
+.ab-config-value > label { display:grid; gap:6px; color:hsl(var(--foreground)); font-size:12px; font-weight:600; }
+.ab-config-json { display:grid; gap:6px; }
+.ab-config-json textarea { min-height:84px; resize:vertical; font-family:var(--app-font-mono)!important; }
+.ab-config-json textarea[aria-invalid="true"] { border-color:hsl(var(--destructive)); }
+.ab-config-json small { color:hsl(var(--muted-foreground)); font-size:11px; }
+.ab-config-toggle { display:flex; align-items:center; gap:9px; min-height:39px; color:hsl(var(--foreground)); font-size:12px; }
+.ab-config-toggle input { width:17px; height:17px; accent-color:hsl(var(--primary)); }
+.ab-config-approved { align-self:center; min-height:39px; padding:0 10px; border:1px solid hsl(var(--border)); border-radius:4px; background:hsl(var(--card)); }
+.ab-config-approved:has(input:checked) { border-color:hsl(153 35% 55%); background:hsl(153 32% 95%); }
+.ab-config-remove { justify-self:start; align-self:center; min-height:34px; padding:0 11px; border:1px solid hsl(var(--destructive)/.28); border-radius:4px; background:transparent; color:hsl(var(--destructive)); font:600 11px var(--app-font-sans); cursor:pointer; }
+.ab-config-remove:hover { background:hsl(var(--destructive)/.06); }
+.ab-config-details { grid-column:1/-1; border:1px solid hsl(var(--border)); background:hsl(var(--card)); }
+.ab-config-details summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:58px; padding:10px 14px; cursor:pointer; list-style:none; }
+.ab-config-details summary::-webkit-details-marker { display:none; }
+.ab-config-details summary > span { display:grid; gap:4px; }
+.ab-config-details summary svg { transition:transform .18s ease; }
+.ab-config-details[open] summary svg { transform:rotate(180deg); }
+.ab-config-details > .ab-config-list,.ab-config-details > .ab-config-empty { margin:0 13px 12px; }
+.ab-config-details > .ab-config-add { margin:0 13px 13px; }
 @media(max-width:520px) {
+  .ab-version-price { grid-template-columns:1fr; }
+  .ab-version-price-copy { padding-bottom:3px; }
   .ab-config-item { grid-template-columns:1fr; }
+  .ab-config-type { max-width:none; }
   .ab-config-value { grid-column:auto; }
+  .ab-config-approved { justify-self:start; }
+  .ab-config-details { grid-column:auto; }
   .ab-billing .ac-table th { font-size:12px; }
   .ab-billing .ac-table td { font-size:13px; }
   .ab-billing .ab-tabs { gap:12px; }
+}
+
+/* Governed plan-version editor */
+.ab-billing .ab-version-editor{padding:18px;border:1px solid hsl(var(--border));background:hsl(43 30% 95%);box-shadow:inset 0 3px 0 hsl(var(--primary)/.7)}
+.ab-billing .ab-version-editor>.ab-field{padding:2px}
+.ab-billing .ab-version-editor>.ab-field input{min-height:46px}
+.ab-billing .ab-version-price{border-color:hsl(var(--primary)/.25);background:hsl(var(--primary)/.045)}
+.ab-billing .ab-price-input input{font-variant-numeric:tabular-nums}
+.ab-billing .ab-version-price .ab-field small{font-size:12px;line-height:1.7}
+.ab-billing .ab-version-editor>.ab-form-note{padding:12px 14px;border:1px solid hsl(38 35% 78%);background:hsl(41 43% 94%);color:hsl(34 30% 35%);font-size:12px}
+.ab-billing .ab-form-panel{scroll-margin-top:24px}
+.ab-billing .ab-form-head{padding-bottom:12px;border-bottom:1px solid hsl(var(--border))}
+.ab-billing .ab-config-item{background:hsl(43 28% 98%)}
+.ab-billing .ab-version-actions .ac-button{min-height:38px;padding-inline:12px;font-size:12px}
+.ab-billing .ab-version{padding:14px 0}
+.ab-billing .ab-version > div:first-child b{font-size:14px}
+.ab-billing .ab-version small,.ab-billing .ab-rights{font-size:12px}
+.ab-billing .ab-version .ab-rights b{font-size:12px}
+.ab-billing .ab-form-actions .ac-button{min-height:44px;padding-inline:16px}
+.ab-billing .ab-form-actions .ac-button:disabled{cursor:wait}
+.ab-billing .ab-field input:invalid:not(:placeholder-shown){border-color:hsl(var(--destructive)/.6)}
+@media(max-width:520px){
+  .ab-billing .ab-version-editor{padding:13px}
+  .ab-billing .ab-version-price{padding:13px}
+  .ab-billing .ab-version-price-copy{align-items:flex-start}
+  .ab-billing .ab-form-actions{display:grid;grid-template-columns:1fr}
+  .ab-billing .ab-form-actions .ac-button{width:100%}
 }

@@ -1,0 +1,45 @@
+name: Generate API contract evidence
+on:
+  pull_request:
+    branches: [main]
+    paths: [lib/api-spec/openapi.yaml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - name: Generate using repository Orval configuration
+        run: pnpm --filter @workspace/api-spec run codegen
+      - name: Show generated contract patch for review
+        if: always()
+        run: |
+          git add -N lib/api-client-react/src/generated/api.schemas.ts lib/api-zod/src/generated
+          git diff -- lib/api-client-react/src/generated/api.schemas.ts lib/api-zod/src/generated/api.ts lib/api-zod/src/generated/types
+      - name: Show additive generated client operations
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const source=readFileSync('lib/api-client-react/src/generated/api.ts','utf8');
+          const start=source.indexOf('export const getListAdminWorkforceUrl');
+          const end=source.indexOf('export const getGetAdminFleetCardsUrl',start);
+          const importsStart=source.indexOf('import type {',source.indexOf("from '@tanstack/react-query';"));
+          const importsEnd=source.indexOf("from './api.schemas';",importsStart)+"from './api.schemas';".length;
+          if(start<0||end<0||importsStart<0)throw Error('Generated workforce operations absent');
+          console.log('CONTRACT_CLIENT_IMPORTS_BEGIN');
+          console.log(source.slice(importsStart,importsEnd));
+          console.log('CONTRACT_CLIENT_IMPORTS_END');
+          console.log('CONTRACT_CLIENT_OPERATIONS_BEGIN');
+          console.log(source.slice(start,end));
+          console.log('CONTRACT_CLIENT_OPERATIONS_END');
+          NODE
