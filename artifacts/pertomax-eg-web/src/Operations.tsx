@@ -38,7 +38,7 @@ export function OperationsPage(){
   return()=>{window.clearTimeout(timeout);document.removeEventListener("visibilitychange",check);};
  },[proof,reservationPending]);
  async function verify(event:FormEvent){
-  event.preventDefault();setError("");setProof(null);const selected=items.find(item=>item.assignmentId===assignment);if(!selected)return;
+  event.preventDefault();if(reservationPending)return;setError("");setProof(null);const selected=items.find(item=>item.assignmentId===assignment);if(!selected)return;
   const submittedPin=pin;setPin("");setBusy(true);
   try{
    const payload={branchId:selected.branchId,serviceGroup:selected.serviceGroup,credentialToken:token.trim(),pinCode:submittedPin};
@@ -64,7 +64,7 @@ export function OperationsPage(){
  <label className="fleet-field fleet-wide">الفرع والخدمة<select data-testid="operations-assignment" value={assignment} onChange={event=>setAssignment(event.target.value)} disabled={busy||reservationPending}>{items.map(item=><option key={item.assignmentId} value={item.assignmentId}>{item.organizationName} · {item.branchName} · {names[item.serviceGroup]}</option>)}</select></label>
  <label className="fleet-field fleet-wide">تعريف المركبة<input data-testid="operations-token" value={token} onChange={event=>setToken(event.target.value)} placeholder="اقرأ QR أو شريحة المركبة" autoComplete="off" minLength={16} maxLength={512} required dir="ltr" disabled={busy||reservationPending}/></label>
  <label className="fleet-field">رمز التعبئة<input data-testid="operations-pin" type="password" inputMode="numeric" autoComplete="off" pattern="[0-9]{4}" minLength={4} maxLength={4} required value={pin} onChange={event=>setPin(event.target.value.replace(/[٠-٩]/g,char=>String(char.charCodeAt(0)-1632)).replace(/[۰-۹]/g,char=>String(char.charCodeAt(0)-1776)).replace(/[^0-9]/g,"").slice(0,4))} disabled={busy||reservationPending}/></label>
- <button className="fleet-button" data-testid="operations-verify" disabled={busy||!query.data?.pinVerificationReady||!assignment}>{busy?"جارٍ التحقق…":"التحقق من الرمز"}</button>
+ <button className="fleet-button" data-testid="operations-verify" disabled={busy||reservationPending||!query.data?.pinVerificationReady||!assignment}>{busy?"جارٍ التحقق…":"التحقق من الرمز"}</button>
  </form>
  </>}
  {error&&<p role="alert" className="fleet-feedback is-error">{error}</p>}
@@ -72,7 +72,7 @@ export function OperationsPage(){
  <div><small>المركبة</small><bdi dir="ltr">{proof.vehicle.plate}</bdi></div><div><small>الماركة والطراز</small><b>{proof.vehicle.brand} · {proof.vehicle.model}</b></div>
  <div><small>فئة الوقود</small><b>{formatFleetField("fuelType",proof.vehicle.fuelType)}</b></div><div><small>سعة الخزان</small><b>{formatFleetField("tankCapacityLiters",proof.vehicle.tankCapacityLiters)}</b></div>
  <div><small>السائق</small><b>{proof.driverName}</b></div><div><small>مهلة التحقق</small><b>{proof.expiresAt?new Intl.DateTimeFormat("ar-EG",{timeStyle:"short",timeZone:"Africa/Cairo"}).format(new Date(proof.expiresAt)):"—"}</b></div>
- </div><p className="fleet-muted">هذا تحقق هوية فقط. تنفيذ الخدمة والدفع يحتاجان اعتماد الطلب.</p><button className="fleet-button fleet-quiet" onClick={()=>setProof(null)}>تحقق جديد</button></section>}
+ </div><p className="fleet-muted">هذا تحقق هوية فقط. تنفيذ الخدمة والدفع يحتاجان اعتماد الطلب.</p><button className="fleet-button fleet-quiet" disabled={reservationPending} onClick={()=>setProof(null)}>تحقق جديد</button></section>}
  {proof?.valid&&proof.verificationId&&<ServiceQuotation key={proof.verificationId} proofId={proof.verificationId} onReservationPending={setReservationPending}/>}
  
  </main>;

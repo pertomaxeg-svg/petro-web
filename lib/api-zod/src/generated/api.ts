@@ -584,6 +584,424 @@ export const QuoteWorkerServiceResponse = zod.object({
 
 
 /**
+ * @summary Read actual own assigned service orders
+ */
+export const listWorkerServiceOrdersQueryPageDefault = 1;
+export const listWorkerServiceOrdersQueryPageMax = 100000;
+
+export const listWorkerServiceOrdersQueryPageSizeDefault = 20;
+export const listWorkerServiceOrdersQueryPageSizeMax = 50;
+
+export const listWorkerServiceOrdersQuerySearchMax = 160;
+
+
+
+export const ListWorkerServiceOrdersQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).max(listWorkerServiceOrdersQueryPageMax).default(listWorkerServiceOrdersQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listWorkerServiceOrdersQueryPageSizeMax).default(listWorkerServiceOrdersQueryPageSizeDefault),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']).optional(),
+  "search": zod.coerce.string().max(listWorkerServiceOrdersQuerySearchMax).optional()
+})
+
+
+export const listWorkerServiceOrdersResponseItemsItemAmountMinorRegExp = new RegExp('^[0-9]+$');
+export const listWorkerServiceOrdersResponseItemsItemExpiryAttemptsMin = 0;
+export const listWorkerServiceOrdersResponseItemsItemExpiryAttemptsMax = 5;
+
+
+
+export const ListWorkerServiceOrdersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']),
+  "version": zod.number().int().min(1),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'parts', 'batteries', 'filters', 'consumables']),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(listWorkerServiceOrdersResponseItemsItemAmountMinorRegExp),
+  "currency": zod.enum(['EGP']),
+  "itemSnapshot": zod.record(zod.string(), zod.unknown()),
+  "vehicleSnapshot": zod.record(zod.string(), zod.unknown()),
+  "merchantSnapshot": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "cancelledAt": zod.coerce.date().nullish(),
+  "cancelCode": zod.enum(['operator_cancelled', 'reservation_expired']).nullish(),
+  "cancelledByKind": zod.enum(['user', 'system']).nullish(),
+  "canCancel": zod.boolean(),
+  "requiresReview": zod.boolean(),
+  "expiryAttempts": zod.number().int().min(listWorkerServiceOrdersResponseItemsItemExpiryAttemptsMin).max(listWorkerServiceOrdersResponseItemsItemExpiryAttemptsMax),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['reserved', 'cancelled', 'expiry_failed']),
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorKind": zod.enum(['user', 'system']),
+  "actorName": zod.string(),
+  "detail": zod.record(zod.string(), zod.unknown())
+})).optional()
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "canManage": zod.boolean()
+})
+
+
+/**
+ * @summary Atomically reserve actual funds and product stock, consume the own proof once, and persist an order
+ */
+export const reserveWorkerServiceOrderBodyInputOneQuantityRegExp = new RegExp('^[0-9]{1,9}(\\.[0-9]{1,3})?$');
+export const reserveWorkerServiceOrderBodyInputTwoAmountMinorRegExp = new RegExp('^[0-9]{1,15}$');
+export const reserveWorkerServiceOrderBodyIdempotencyKeyMin = 16;
+export const reserveWorkerServiceOrderBodyIdempotencyKeyMax = 120;
+
+
+export const reserveWorkerServiceOrderBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9._:-]{16,120}$');
+
+
+export const ReserveWorkerServiceOrderBody = zod.object({
+  "proofId": zod.string().uuid(),
+  "referenceId": zod.string().uuid(),
+  "priceVersionId": zod.string().uuid(),
+  "input": zod.union([zod.object({
+  "quantity": zod.string().regex(reserveWorkerServiceOrderBodyInputOneQuantityRegExp)
+}),zod.object({
+  "amountMinor": zod.string().regex(reserveWorkerServiceOrderBodyInputTwoAmountMinorRegExp).describe('Maximum fuel amount in integer EGP piastres')
+})]),
+  "locationId": zod.string().uuid().nullish(),
+  "idempotencyKey": zod.string().min(reserveWorkerServiceOrderBodyIdempotencyKeyMin).max(reserveWorkerServiceOrderBodyIdempotencyKeyMax).regex(reserveWorkerServiceOrderBodyIdempotencyKeyRegExp)
+})
+
+
+export const reserveWorkerServiceOrderResponseAmountMinorRegExp = new RegExp('^[0-9]+$');
+export const reserveWorkerServiceOrderResponseExpiryAttemptsMin = 0;
+export const reserveWorkerServiceOrderResponseExpiryAttemptsMax = 5;
+
+
+
+export const ReserveWorkerServiceOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']),
+  "version": zod.number().int().min(1),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'parts', 'batteries', 'filters', 'consumables']),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(reserveWorkerServiceOrderResponseAmountMinorRegExp),
+  "currency": zod.enum(['EGP']),
+  "itemSnapshot": zod.record(zod.string(), zod.unknown()),
+  "vehicleSnapshot": zod.record(zod.string(), zod.unknown()),
+  "merchantSnapshot": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "cancelledAt": zod.coerce.date().nullish(),
+  "cancelCode": zod.enum(['operator_cancelled', 'reservation_expired']).nullish(),
+  "cancelledByKind": zod.enum(['user', 'system']).nullish(),
+  "canCancel": zod.boolean(),
+  "requiresReview": zod.boolean(),
+  "expiryAttempts": zod.number().int().min(reserveWorkerServiceOrderResponseExpiryAttemptsMin).max(reserveWorkerServiceOrderResponseExpiryAttemptsMax),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['reserved', 'cancelled', 'expiry_failed']),
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorKind": zod.enum(['user', 'system']),
+  "actorName": zod.string(),
+  "detail": zod.record(zod.string(), zod.unknown())
+})).optional()
+})
+
+
+/**
+ * @summary Read a persisted order and actual actor-attributed timeline
+ */
+export const GetWorkerServiceOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const getWorkerServiceOrderResponseAmountMinorRegExp = new RegExp('^[0-9]+$');
+export const getWorkerServiceOrderResponseExpiryAttemptsMin = 0;
+export const getWorkerServiceOrderResponseExpiryAttemptsMax = 5;
+
+
+
+export const GetWorkerServiceOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']),
+  "version": zod.number().int().min(1),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'parts', 'batteries', 'filters', 'consumables']),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(getWorkerServiceOrderResponseAmountMinorRegExp),
+  "currency": zod.enum(['EGP']),
+  "itemSnapshot": zod.record(zod.string(), zod.unknown()),
+  "vehicleSnapshot": zod.record(zod.string(), zod.unknown()),
+  "merchantSnapshot": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "cancelledAt": zod.coerce.date().nullish(),
+  "cancelCode": zod.enum(['operator_cancelled', 'reservation_expired']).nullish(),
+  "cancelledByKind": zod.enum(['user', 'system']).nullish(),
+  "canCancel": zod.boolean(),
+  "requiresReview": zod.boolean(),
+  "expiryAttempts": zod.number().int().min(getWorkerServiceOrderResponseExpiryAttemptsMin).max(getWorkerServiceOrderResponseExpiryAttemptsMax),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['reserved', 'cancelled', 'expiry_failed']),
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorKind": zod.enum(['user', 'system']),
+  "actorName": zod.string(),
+  "detail": zod.record(zod.string(), zod.unknown())
+})).optional()
+})
+
+
+/**
+ * @summary Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+ */
+export const CancelWorkerServiceOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const cancelWorkerServiceOrderBodyIdempotencyKeyMin = 16;
+export const cancelWorkerServiceOrderBodyIdempotencyKeyMax = 120;
+
+
+export const cancelWorkerServiceOrderBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9._:-]{16,120}$');
+
+
+export const CancelWorkerServiceOrderBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "idempotencyKey": zod.string().min(cancelWorkerServiceOrderBodyIdempotencyKeyMin).max(cancelWorkerServiceOrderBodyIdempotencyKeyMax).regex(cancelWorkerServiceOrderBodyIdempotencyKeyRegExp)
+})
+
+
+export const cancelWorkerServiceOrderResponseAmountMinorRegExp = new RegExp('^[0-9]+$');
+export const cancelWorkerServiceOrderResponseExpiryAttemptsMin = 0;
+export const cancelWorkerServiceOrderResponseExpiryAttemptsMax = 5;
+
+
+
+export const CancelWorkerServiceOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']),
+  "version": zod.number().int().min(1),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'parts', 'batteries', 'filters', 'consumables']),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(cancelWorkerServiceOrderResponseAmountMinorRegExp),
+  "currency": zod.enum(['EGP']),
+  "itemSnapshot": zod.record(zod.string(), zod.unknown()),
+  "vehicleSnapshot": zod.record(zod.string(), zod.unknown()),
+  "merchantSnapshot": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "cancelledAt": zod.coerce.date().nullish(),
+  "cancelCode": zod.enum(['operator_cancelled', 'reservation_expired']).nullish(),
+  "cancelledByKind": zod.enum(['user', 'system']).nullish(),
+  "canCancel": zod.boolean(),
+  "requiresReview": zod.boolean(),
+  "expiryAttempts": zod.number().int().min(cancelWorkerServiceOrderResponseExpiryAttemptsMin).max(cancelWorkerServiceOrderResponseExpiryAttemptsMax),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['reserved', 'cancelled', 'expiry_failed']),
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorKind": zod.enum(['user', 'system']),
+  "actorName": zod.string(),
+  "detail": zod.record(zod.string(), zod.unknown())
+})).optional()
+})
+
+
+/**
+ * @summary Read actual central scoped service orders
+ */
+export const listAdminServiceOrdersQueryPageDefault = 1;
+export const listAdminServiceOrdersQueryPageMax = 100000;
+
+export const listAdminServiceOrdersQueryPageSizeDefault = 20;
+export const listAdminServiceOrdersQueryPageSizeMax = 50;
+
+export const listAdminServiceOrdersQuerySearchMax = 160;
+
+
+
+export const ListAdminServiceOrdersQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).max(listAdminServiceOrdersQueryPageMax).default(listAdminServiceOrdersQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminServiceOrdersQueryPageSizeMax).default(listAdminServiceOrdersQueryPageSizeDefault),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']).optional(),
+  "search": zod.coerce.string().max(listAdminServiceOrdersQuerySearchMax).optional()
+})
+
+
+export const listAdminServiceOrdersResponseItemsItemAmountMinorRegExp = new RegExp('^[0-9]+$');
+export const listAdminServiceOrdersResponseItemsItemExpiryAttemptsMin = 0;
+export const listAdminServiceOrdersResponseItemsItemExpiryAttemptsMax = 5;
+
+
+
+export const ListAdminServiceOrdersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']),
+  "version": zod.number().int().min(1),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'parts', 'batteries', 'filters', 'consumables']),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(listAdminServiceOrdersResponseItemsItemAmountMinorRegExp),
+  "currency": zod.enum(['EGP']),
+  "itemSnapshot": zod.record(zod.string(), zod.unknown()),
+  "vehicleSnapshot": zod.record(zod.string(), zod.unknown()),
+  "merchantSnapshot": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "cancelledAt": zod.coerce.date().nullish(),
+  "cancelCode": zod.enum(['operator_cancelled', 'reservation_expired']).nullish(),
+  "cancelledByKind": zod.enum(['user', 'system']).nullish(),
+  "canCancel": zod.boolean(),
+  "requiresReview": zod.boolean(),
+  "expiryAttempts": zod.number().int().min(listAdminServiceOrdersResponseItemsItemExpiryAttemptsMin).max(listAdminServiceOrdersResponseItemsItemExpiryAttemptsMax),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['reserved', 'cancelled', 'expiry_failed']),
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorKind": zod.enum(['user', 'system']),
+  "actorName": zod.string(),
+  "detail": zod.record(zod.string(), zod.unknown())
+})).optional()
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "canManage": zod.boolean()
+})
+
+
+/**
+ * @summary Read a persisted order and actual actor-attributed timeline
+ */
+export const GetAdminServiceOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const getAdminServiceOrderResponseAmountMinorRegExp = new RegExp('^[0-9]+$');
+export const getAdminServiceOrderResponseExpiryAttemptsMin = 0;
+export const getAdminServiceOrderResponseExpiryAttemptsMax = 5;
+
+
+
+export const GetAdminServiceOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']),
+  "version": zod.number().int().min(1),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'parts', 'batteries', 'filters', 'consumables']),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(getAdminServiceOrderResponseAmountMinorRegExp),
+  "currency": zod.enum(['EGP']),
+  "itemSnapshot": zod.record(zod.string(), zod.unknown()),
+  "vehicleSnapshot": zod.record(zod.string(), zod.unknown()),
+  "merchantSnapshot": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "cancelledAt": zod.coerce.date().nullish(),
+  "cancelCode": zod.enum(['operator_cancelled', 'reservation_expired']).nullish(),
+  "cancelledByKind": zod.enum(['user', 'system']).nullish(),
+  "canCancel": zod.boolean(),
+  "requiresReview": zod.boolean(),
+  "expiryAttempts": zod.number().int().min(getAdminServiceOrderResponseExpiryAttemptsMin).max(getAdminServiceOrderResponseExpiryAttemptsMax),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['reserved', 'cancelled', 'expiry_failed']),
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorKind": zod.enum(['user', 'system']),
+  "actorName": zod.string(),
+  "detail": zod.record(zod.string(), zod.unknown())
+})).optional()
+})
+
+
+/**
+ * @summary Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+ */
+export const CancelAdminServiceOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const cancelAdminServiceOrderBodyIdempotencyKeyMin = 16;
+export const cancelAdminServiceOrderBodyIdempotencyKeyMax = 120;
+
+
+export const cancelAdminServiceOrderBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9._:-]{16,120}$');
+
+
+export const CancelAdminServiceOrderBody = zod.object({
+  "expectedVersion": zod.number().int().min(1),
+  "idempotencyKey": zod.string().min(cancelAdminServiceOrderBodyIdempotencyKeyMin).max(cancelAdminServiceOrderBodyIdempotencyKeyMax).regex(cancelAdminServiceOrderBodyIdempotencyKeyRegExp)
+})
+
+
+export const cancelAdminServiceOrderResponseAmountMinorRegExp = new RegExp('^[0-9]+$');
+export const cancelAdminServiceOrderResponseExpiryAttemptsMin = 0;
+export const cancelAdminServiceOrderResponseExpiryAttemptsMax = 5;
+
+
+
+export const CancelAdminServiceOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['reserved', 'in_progress', 'delivered', 'review_required', 'cancelled']),
+  "paymentStatus": zod.enum(['held', 'unpaid', 'paid']),
+  "version": zod.number().int().min(1),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'parts', 'batteries', 'filters', 'consumables']),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(cancelAdminServiceOrderResponseAmountMinorRegExp),
+  "currency": zod.enum(['EGP']),
+  "itemSnapshot": zod.record(zod.string(), zod.unknown()),
+  "vehicleSnapshot": zod.record(zod.string(), zod.unknown()),
+  "merchantSnapshot": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "cancelledAt": zod.coerce.date().nullish(),
+  "cancelCode": zod.enum(['operator_cancelled', 'reservation_expired']).nullish(),
+  "cancelledByKind": zod.enum(['user', 'system']).nullish(),
+  "canCancel": zod.boolean(),
+  "requiresReview": zod.boolean(),
+  "expiryAttempts": zod.number().int().min(cancelAdminServiceOrderResponseExpiryAttemptsMin).max(cancelAdminServiceOrderResponseExpiryAttemptsMax),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['reserved', 'cancelled', 'expiry_failed']),
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorKind": zod.enum(['user', 'system']),
+  "actorName": zod.string(),
+  "detail": zod.record(zod.string(), zod.unknown())
+})).optional()
+})
+
+
+/**
  * @summary Read paginated central card requests, issued credentials, stock, and history
  */
 export const getAdminFleetCardsQueryStatusMax = 32;

@@ -132,6 +132,7 @@ import type {
   ListAdminOrganizationMemberships200,
   ListAdminOrganizationMembershipsParams,
   ListAdminOrganizationRequestsParams,
+  ListAdminServiceOrdersParams,
   ListAdminWorkforceParams,
   ListBranchesPaginatedParams,
   ListOrganizationChangeRequestsParams,
@@ -139,6 +140,7 @@ import type {
   ListOrganizationJoinRequestsParams,
   ListOrganizationsParams,
   ListPlatformUsersParams,
+  ListWorkerServiceOrdersParams,
   MembershipList,
   MessageResult,
   Organization,
@@ -157,6 +159,9 @@ import type {
   RecoveryRequest,
   ResubmitOrganizationChangeRequest,
   ReviewAdminFinanceTopup,
+  ServiceOrder,
+  ServiceOrderCancelRequest,
+  ServiceOrderList,
   SetMembershipRequest,
   SetPlatformUserRolesRequest,
   SignInRequest,
@@ -176,6 +181,7 @@ import type {
   WorkerPairProof,
   WorkerPairVerificationInput,
   WorkerServiceOptions,
+  WorkerServiceOrderRequest,
   WorkerServiceQuote,
   WorkerServiceQuoteRequest,
   WorkforcePage
@@ -1605,6 +1611,595 @@ export const useQuoteWorkerService = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getQuoteWorkerServiceMutationOptions(options));
+    }
+
+
+export const getListWorkerServiceOrdersUrl = (params?: ListWorkerServiceOrdersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/operations/service-orders?${stringifiedParams}` : `/api/operations/service-orders`
+}
+
+/**
+ * @summary Read actual own assigned service orders
+ */
+export const listWorkerServiceOrders = async (params?: ListWorkerServiceOrdersParams, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderList> => {
+
+  return customFetch<ServiceOrderList>(getListWorkerServiceOrdersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkerServiceOrdersQueryKey = (params?: ListWorkerServiceOrdersParams,) => {
+    return [
+    `/api/operations/service-orders`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWorkerServiceOrdersQueryOptions = <TData = Awaited<ReturnType<typeof listWorkerServiceOrders>>, TError = ErrorType<void>>(params?: ListWorkerServiceOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkerServiceOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkerServiceOrdersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkerServiceOrders>>> = ({ signal }) => listWorkerServiceOrders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkerServiceOrders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkerServiceOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkerServiceOrders>>>
+export type ListWorkerServiceOrdersQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read actual own assigned service orders
+ */
+
+export function useListWorkerServiceOrders<TData = Awaited<ReturnType<typeof listWorkerServiceOrders>>, TError = ErrorType<void>>(
+ params?: ListWorkerServiceOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkerServiceOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkerServiceOrdersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReserveWorkerServiceOrderUrl = () => {
+
+
+
+
+  return `/api/operations/service-orders`
+}
+
+/**
+ * @summary Atomically reserve actual funds and product stock, consume the own proof once, and persist an order
+ */
+export const reserveWorkerServiceOrder = async (workerServiceOrderRequest: WorkerServiceOrderRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrder> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrder>(getReserveWorkerServiceOrderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workerServiceOrderRequest)
+  }
+);}
+
+
+
+
+
+export const getReserveWorkerServiceOrderMutationKey = () => ['reserveWorkerServiceOrder'] as const;
+
+export const getReserveWorkerServiceOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reserveWorkerServiceOrder>>, TError,ReserveWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reserveWorkerServiceOrder>>, TError,ReserveWorkerServiceOrderMutationVariables, TContext> => {
+
+const mutationKey = getReserveWorkerServiceOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reserveWorkerServiceOrder>>, ReserveWorkerServiceOrderMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reserveWorkerServiceOrder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReserveWorkerServiceOrderMutationResult = NonNullable<Awaited<ReturnType<typeof reserveWorkerServiceOrder>>>
+    export type ReserveWorkerServiceOrderMutationBody = BodyType<WorkerServiceOrderRequest>
+    export type ReserveWorkerServiceOrderMutationError = ErrorType<void>
+    export type ReserveWorkerServiceOrderMutationVariables = {data: BodyType<WorkerServiceOrderRequest>}
+
+    /**
+ * @summary Atomically reserve actual funds and product stock, consume the own proof once, and persist an order
+ */
+export const useReserveWorkerServiceOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reserveWorkerServiceOrder>>, TError,ReserveWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reserveWorkerServiceOrder>>,
+        TError,
+        ReserveWorkerServiceOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReserveWorkerServiceOrderMutationOptions(options));
+    }
+
+export const getGetWorkerServiceOrderUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}`
+}
+
+/**
+ * @summary Read a persisted order and actual actor-attributed timeline
+ */
+export const getWorkerServiceOrder = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrder> => {
+
+  return customFetch<ServiceOrder>(getGetWorkerServiceOrderUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerServiceOrderQueryKey = (id: string,) => {
+    return [
+    `/api/operations/service-orders/${id}`
+    ] as const;
+    }
+
+
+export const getGetWorkerServiceOrderQueryOptions = <TData = Awaited<ReturnType<typeof getWorkerServiceOrder>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerServiceOrderQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkerServiceOrder>>> = ({ signal }) => getWorkerServiceOrder(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrder>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerServiceOrderQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkerServiceOrder>>>
+export type GetWorkerServiceOrderQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read a persisted order and actual actor-attributed timeline
+ */
+
+export function useGetWorkerServiceOrder<TData = Awaited<ReturnType<typeof getWorkerServiceOrder>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerServiceOrderQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCancelWorkerServiceOrderUrl = (id: string,) => {
+
+
+
+
+  return `/api/operations/service-orders/${id}/cancel`
+}
+
+/**
+ * @summary Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+ */
+export const cancelWorkerServiceOrder = async (id: string,
+    serviceOrderCancelRequest: ServiceOrderCancelRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrder> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrder>(getCancelWorkerServiceOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(serviceOrderCancelRequest)
+  }
+);}
+
+
+
+
+
+export const getCancelWorkerServiceOrderMutationKey = () => ['cancelWorkerServiceOrder'] as const;
+
+export const getCancelWorkerServiceOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelWorkerServiceOrder>>, TError,CancelWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelWorkerServiceOrder>>, TError,CancelWorkerServiceOrderMutationVariables, TContext> => {
+
+const mutationKey = getCancelWorkerServiceOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelWorkerServiceOrder>>, CancelWorkerServiceOrderMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  cancelWorkerServiceOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelWorkerServiceOrderMutationResult = NonNullable<Awaited<ReturnType<typeof cancelWorkerServiceOrder>>>
+    export type CancelWorkerServiceOrderMutationBody = BodyType<ServiceOrderCancelRequest>
+    export type CancelWorkerServiceOrderMutationError = ErrorType<void>
+    export type CancelWorkerServiceOrderMutationVariables = {id: string;data: BodyType<ServiceOrderCancelRequest>}
+
+    /**
+ * @summary Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+ */
+export const useCancelWorkerServiceOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelWorkerServiceOrder>>, TError,CancelWorkerServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelWorkerServiceOrder>>,
+        TError,
+        CancelWorkerServiceOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelWorkerServiceOrderMutationOptions(options));
+    }
+
+export const getListAdminServiceOrdersUrl = (params?: ListAdminServiceOrdersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/service-orders?${stringifiedParams}` : `/api/admin/service-orders`
+}
+
+/**
+ * @summary Read actual central scoped service orders
+ */
+export const listAdminServiceOrders = async (params?: ListAdminServiceOrdersParams, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrderList> => {
+
+  return customFetch<ServiceOrderList>(getListAdminServiceOrdersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminServiceOrdersQueryKey = (params?: ListAdminServiceOrdersParams,) => {
+    return [
+    `/api/admin/service-orders`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminServiceOrdersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminServiceOrders>>, TError = ErrorType<void>>(params?: ListAdminServiceOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminServiceOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminServiceOrdersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminServiceOrders>>> = ({ signal }) => listAdminServiceOrders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminServiceOrders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminServiceOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminServiceOrders>>>
+export type ListAdminServiceOrdersQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read actual central scoped service orders
+ */
+
+export function useListAdminServiceOrders<TData = Awaited<ReturnType<typeof listAdminServiceOrders>>, TError = ErrorType<void>>(
+ params?: ListAdminServiceOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminServiceOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminServiceOrdersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminServiceOrderUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/service-orders/${id}`
+}
+
+/**
+ * @summary Read a persisted order and actual actor-attributed timeline
+ */
+export const getAdminServiceOrder = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrder> => {
+
+  return customFetch<ServiceOrder>(getGetAdminServiceOrderUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminServiceOrderQueryKey = (id: string,) => {
+    return [
+    `/api/admin/service-orders/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminServiceOrderQueryOptions = <TData = Awaited<ReturnType<typeof getAdminServiceOrder>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminServiceOrderQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminServiceOrder>>> = ({ signal }) => getAdminServiceOrder(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrder>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminServiceOrderQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminServiceOrder>>>
+export type GetAdminServiceOrderQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read a persisted order and actual actor-attributed timeline
+ */
+
+export function useGetAdminServiceOrder<TData = Awaited<ReturnType<typeof getAdminServiceOrder>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminServiceOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminServiceOrderQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCancelAdminServiceOrderUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/service-orders/${id}/cancel`
+}
+
+/**
+ * @summary Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+ */
+export const cancelAdminServiceOrder = async (id: string,
+    serviceOrderCancelRequest: ServiceOrderCancelRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceOrder> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ServiceOrder>(getCancelAdminServiceOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(serviceOrderCancelRequest)
+  }
+);}
+
+
+
+
+
+export const getCancelAdminServiceOrderMutationKey = () => ['cancelAdminServiceOrder'] as const;
+
+export const getCancelAdminServiceOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAdminServiceOrder>>, TError,CancelAdminServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelAdminServiceOrder>>, TError,CancelAdminServiceOrderMutationVariables, TContext> => {
+
+const mutationKey = getCancelAdminServiceOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelAdminServiceOrder>>, CancelAdminServiceOrderMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  cancelAdminServiceOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelAdminServiceOrderMutationResult = NonNullable<Awaited<ReturnType<typeof cancelAdminServiceOrder>>>
+    export type CancelAdminServiceOrderMutationBody = BodyType<ServiceOrderCancelRequest>
+    export type CancelAdminServiceOrderMutationError = ErrorType<void>
+    export type CancelAdminServiceOrderMutationVariables = {id: string;data: BodyType<ServiceOrderCancelRequest>}
+
+    /**
+ * @summary Cancel an unstarted held order using CAS and exact retry; release all holds atomically
+ */
+export const useCancelAdminServiceOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAdminServiceOrder>>, TError,CancelAdminServiceOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelAdminServiceOrder>>,
+        TError,
+        CancelAdminServiceOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelAdminServiceOrderMutationOptions(options));
     }
 
 

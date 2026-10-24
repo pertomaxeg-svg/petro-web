@@ -1,12 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { QuoteWorkerServiceBody } from "@workspace/api-zod";
+import { ReserveWorkerServiceOrderBody, CancelWorkerServiceOrderBody } from "@workspace/api-zod";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 
 const router: IRouter = Router();
 type Session = NonNullable<Awaited<ReturnType<typeof requireSession>>>;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const key=/^[A-Za-z0-9._:-]{16,120}$/;
 const statuses=["reserved","in_progress","delivered","review_required","cancelled"];
 async function rpc(session:Session,name:string,args:Record<string,unknown>){
  return (session.supabase.rpc as unknown as (name:string,args:Record<string,unknown>)=>Promise<{data:unknown;error:{code?:string;message?:string}|null}>).call(session.supabase,name,args);
@@ -31,12 +30,10 @@ function reply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
 }
 router.post("/operations/service-orders",async(req:Request,res:Response)=>{
  setNoStore(res);const session=await requireSession(req,res);if(!session)return;
- if(!isRecord(req.body)||typeof req.body.idempotencyKey!=="string"||!key.test(req.body.idempotencyKey)){res.status(400).json({message:"مرجع المحاولة غير صالح."});return;}
- const {idempotencyKey,...input}=req.body;
- const parsed=QuoteWorkerServiceBody.strict().safeParse(input);
- if(!parsed.success||!isRecord(input.input)||Object.keys(input.input).length!==1){res.status(400).json({message:"اختر خدمة وسعرًا حاليًا وأدخل مبلغًا أو كمية صالحة."});return;}
+ const parsed=ReserveWorkerServiceOrderBody.strict().safeParse(req.body);
+ if(!parsed.success||!isRecord(req.body.input)||Object.keys(req.body.input).length!==1){res.status(400).json({message:"اختر خدمة وسعرًا حاليًا وأدخل مبلغًا أو كمية صالحة."});return;}
  const q=parsed.data;
- reply(res,await rpc(session,"petro_worker_reserve_service_order",{p_proof_id:q.proofId,p_reference_id:q.referenceId,p_price_version_id:q.priceVersionId,p_input:q.input,p_location_id:q.locationId??null,p_request_key:idempotencyKey}));
+ reply(res,await rpc(session,"petro_worker_reserve_service_order",{p_proof_id:q.proofId,p_reference_id:q.referenceId,p_price_version_id:q.priceVersionId,p_input:q.input,p_location_id:q.locationId??null,p_request_key:q.idempotencyKey}));
 });
 function filters(query:Request["query"]):Record<string,unknown>|null{
  if(Object.keys(query).some(k=>!["page","pageSize","status","search"].includes(k)))return null;
@@ -65,8 +62,9 @@ for(const mode of ["operations","admin"]as const){
  });
  router.post(prefix+"/:id/cancel",async(req:Request,res:Response)=>{
  setNoStore(res);const session=await requireSession(req,res);if(!session)return;
- const b=req.body;
- if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","idempotencyKey"].includes(k))||!Number.isSafeInteger(b.expectedVersion)||Number(b.expectedVersion)<1||typeof b.idempotencyKey!=="string"||!key.test(b.idempotencyKey)){res.status(400).json({message:"مرجع الطلب أو نسخته أو مرجع المحاولة غير صالح."});return;}
+ const parsed=CancelWorkerServiceOrderBody.strict().safeParse(req.body);
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||!parsed.success||!Number.isSafeInteger(parsed.data.expectedVersion)){res.status(400).json({message:"مرجع الطلب أو نسخته أو مرجع المحاولة غير صالح."});return;}
+ const b=parsed.data;
  if(mode==="admin"){
  const permission=await rpc(session,"petro_service_orders_query",{p_filters:{view:"central",page:1,pageSize:1}});
  if(permission.error){reply(res,permission);return;}

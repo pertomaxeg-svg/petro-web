@@ -3057,6 +3057,170 @@ export interface WorkerServiceQuote {
   quotedAt: string;
 }
 
+export interface WorkerServiceOrderRequest {
+  proofId: string;
+  referenceId: string;
+  priceVersionId: string;
+  input: WorkerServiceQuantityInput | WorkerServiceAmountInput;
+  locationId?: string | null;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export interface ServiceOrderCancelRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     * @pattern ^[A-Za-z0-9._:-]{16,120}$
+     */
+  idempotencyKey: string;
+}
+
+export type ServiceOrderStatus = typeof ServiceOrderStatus[keyof typeof ServiceOrderStatus];
+
+
+export const ServiceOrderStatus = {
+  reserved: 'reserved',
+  in_progress: 'in_progress',
+  delivered: 'delivered',
+  review_required: 'review_required',
+  cancelled: 'cancelled',
+} as const;
+
+export type ServiceOrderPaymentStatus = typeof ServiceOrderPaymentStatus[keyof typeof ServiceOrderPaymentStatus];
+
+
+export const ServiceOrderPaymentStatus = {
+  held: 'held',
+  unpaid: 'unpaid',
+  paid: 'paid',
+} as const;
+
+export type ServiceOrderServiceGroup = typeof ServiceOrderServiceGroup[keyof typeof ServiceOrderServiceGroup];
+
+
+export const ServiceOrderServiceGroup = {
+  fuel: 'fuel',
+  wash: 'wash',
+  oils: 'oils',
+  parts: 'parts',
+  batteries: 'batteries',
+  filters: 'filters',
+  consumables: 'consumables',
+} as const;
+
+export type ServiceOrderKind = typeof ServiceOrderKind[keyof typeof ServiceOrderKind];
+
+
+export const ServiceOrderKind = {
+  fuel: 'fuel',
+  service: 'service',
+  product: 'product',
+} as const;
+
+export type ServiceOrderCurrency = typeof ServiceOrderCurrency[keyof typeof ServiceOrderCurrency];
+
+
+export const ServiceOrderCurrency = {
+  EGP: 'EGP',
+} as const;
+
+export type ServiceOrderItemSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderVehicleSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderMerchantSnapshot = { [key: string]: unknown };
+
+export type ServiceOrderCancelCode = typeof ServiceOrderCancelCode[keyof typeof ServiceOrderCancelCode] | null;
+
+
+export const ServiceOrderCancelCode = {
+  operator_cancelled: 'operator_cancelled',
+  reservation_expired: 'reservation_expired',
+} as const;
+
+export type ServiceOrderCancelledByKind = typeof ServiceOrderCancelledByKind[keyof typeof ServiceOrderCancelledByKind] | null;
+
+
+export const ServiceOrderCancelledByKind = {
+  user: 'user',
+  system: 'system',
+} as const;
+
+export type ServiceOrderTimelineItemKind = typeof ServiceOrderTimelineItemKind[keyof typeof ServiceOrderTimelineItemKind];
+
+
+export const ServiceOrderTimelineItemKind = {
+  reserved: 'reserved',
+  cancelled: 'cancelled',
+  expiry_failed: 'expiry_failed',
+} as const;
+
+export type ServiceOrderTimelineItemActorKind = typeof ServiceOrderTimelineItemActorKind[keyof typeof ServiceOrderTimelineItemActorKind];
+
+
+export const ServiceOrderTimelineItemActorKind = {
+  user: 'user',
+  system: 'system',
+} as const;
+
+export type ServiceOrderTimelineItemDetail = { [key: string]: unknown };
+
+export type ServiceOrderTimelineItem = {
+  id: string;
+  kind: ServiceOrderTimelineItemKind;
+  version: number;
+  createdAt: string;
+  actorKind: ServiceOrderTimelineItemActorKind;
+  actorName: string;
+  detail: ServiceOrderTimelineItemDetail;
+};
+
+export interface ServiceOrder {
+  id: string;
+  status: ServiceOrderStatus;
+  paymentStatus: ServiceOrderPaymentStatus;
+  /** @minimum 1 */
+  version: number;
+  serviceGroup: ServiceOrderServiceGroup;
+  kind: ServiceOrderKind;
+  quantity: string;
+  /** @pattern ^[0-9]+$ */
+  amountMinor: string;
+  currency: ServiceOrderCurrency;
+  itemSnapshot: ServiceOrderItemSnapshot;
+  vehicleSnapshot: ServiceOrderVehicleSnapshot;
+  merchantSnapshot: ServiceOrderMerchantSnapshot;
+  createdAt: string;
+  expiresAt: string;
+  startedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelCode?: ServiceOrderCancelCode;
+  cancelledByKind?: ServiceOrderCancelledByKind;
+  canCancel: boolean;
+  requiresReview: boolean;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  expiryAttempts: number;
+  timeline?: ServiceOrderTimelineItem[];
+}
+
+export interface ServiceOrderList {
+  items: ServiceOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  canManage: boolean;
+}
+
 /**
  * Request rejected or unavailable
  */
@@ -3255,6 +3419,64 @@ page?: number;
  */
 pageSize?: number;
 };
+
+export type ListWorkerServiceOrdersParams = {
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
+status?: ListWorkerServiceOrdersStatus;
+/**
+ * @maxLength 160
+ */
+search?: string;
+};
+
+export type ListWorkerServiceOrdersStatus = typeof ListWorkerServiceOrdersStatus[keyof typeof ListWorkerServiceOrdersStatus];
+
+
+export const ListWorkerServiceOrdersStatus = {
+  reserved: 'reserved',
+  in_progress: 'in_progress',
+  delivered: 'delivered',
+  review_required: 'review_required',
+  cancelled: 'cancelled',
+} as const;
+
+export type ListAdminServiceOrdersParams = {
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
+status?: ListAdminServiceOrdersStatus;
+/**
+ * @maxLength 160
+ */
+search?: string;
+};
+
+export type ListAdminServiceOrdersStatus = typeof ListAdminServiceOrdersStatus[keyof typeof ListAdminServiceOrdersStatus];
+
+
+export const ListAdminServiceOrdersStatus = {
+  reserved: 'reserved',
+  in_progress: 'in_progress',
+  delivered: 'delivered',
+  review_required: 'review_required',
+  cancelled: 'cancelled',
+} as const;
 
 export type GetAdminFleetCardsParams = {
 view: GetAdminFleetCardsView;
