@@ -28,4 +28,8 @@ The isolated runner must prove rollback refuses non-empty assignment/audit/recei
 
 Preflight: ledger 0029; new objects absent; snapshot default ACL and legacy status RPC/affected grants. Postflight: new objects, RLS/no direct grants, RPC grants exactly authenticated, unchanged legacy/default ACL. No synthetic live users, memberships or assignments.
 
-Status: prepared; not applied. OpenAPI generation and operational PIN/order integration remain subsequent tasks; the HTTP contract above records this version.
+Status: applied alone on 24 October 2026, ledger `20261024052703`.
+Final GREEN: commit `97fb8ce28d089e9d1466436d12d744f8d033fae1`, run 40066038275, acceptance job 120789493239 and real-auth-storage job 120789493056. SQL/API/browser save/reload, role/scope/replay/revocation/temporary-password/provider-service gates passed. Rollback refused persisted synthetic records and restored the exact schema/default ACL after isolated cleanup. Real Auth/PostgREST worker JWT tests and Storage tests passed using the pinned upstream Docker images.
+OpenAPI and generated client/Zod contracts are committed; generation run 40066038258 reports no schema contract drift. The API enforces shared generated request validation and strict mutation fields.
+Fresh preflight matched live 0029, source SHA and absent new objects. Postflight: RLS on all three new tables; no direct SELECT/INSERT/UPDATE/DELETE for anon/authenticated/service_role; public RPC ACL only postgres/authenticated; no client execution of the private gate; 24 default ACL scopes/hash and legacy status definition/admin fleet ACL unchanged. Live assignment count zero; no production users, memberships or assignments created.
+Operational PIN verification, order/payment/inventory integration, physical NFC, full role-by-role visual review and deployment remain open. This rollout activates the schema/API contract; it does not deploy the web/API runtime.
