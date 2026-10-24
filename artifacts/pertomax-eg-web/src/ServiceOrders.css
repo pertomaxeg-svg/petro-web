@@ -3,3 +3,15 @@
 .so-execution{border-top:1px solid #dce5e2;margin-top:24px;padding-top:16px;min-width:0}.so-requirements{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.so-requirements span{font-size:12px;background:#edf4f1;border:1px solid #d8e7df;padding:7px 10px;border-radius:8px}.so-evidence-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px;margin:18px 0}.so-evidence-grid article{display:flex;flex-direction:column;gap:9px;padding:14px;border:1px solid #dce5e2;border-radius:12px;min-width:0}.so-evidence-grid small{overflow-wrap:anywhere;color:#64736d}.so-evidence-inputs{display:grid;gap:12px;margin:16px 0}.so-upload{display:flex;gap:12px;align-items:end;min-width:0}.so-upload label{min-width:0;flex:1}.so-execution input[type=file]{max-width:100%;min-width:0;white-space:normal;font-size:13px}.so-image-backdrop{position:fixed;inset:0;background:#062019d9;z-index:110;display:flex;align-items:center;justify-content:center;padding:18px}.so-image-dialog{background:#fff;padding:18px;border-radius:15px;max-width:min(100%,1000px);max-height:94dvh;overflow:auto;min-width:0}.so-image-dialog img{max-width:100%;max-height:75dvh;object-fit:contain;display:block}.so-execution .fleet-form{margin:20px 0}@media(max-width:600px){.so-upload{flex-direction:column;align-items:stretch}.so-image-backdrop{padding:8px}.so-execution .fleet-form{grid-template-columns:minmax(0,1fr)}}
 
 .so-amount-caption{display:block;font-size:12px;color:#617371;margin-top:14px}.so-amount-caption+.so-amount{margin-top:4px}
+
+.so-receipt {border:1px solid var(--fleet-border,#d8e1df);border-radius:14px;padding:clamp(16px,3vw,28px);margin-block:18px;background:var(--fleet-surface,#fff);overflow-wrap:anywhere}
+.so-receipt header {border-bottom:1px solid #d8e1df;padding-bottom:12px;margin-bottom:16px}
+.so-receipt header b {display:inline-block;letter-spacing:.06em}
+.so-payment-form {max-width:480px}
+.so-payment-form input {letter-spacing:.25em}
+@media print {
+ body:has(.so-receipt) * {visibility:hidden}
+ body:has(.so-receipt) .so-receipt,body:has(.so-receipt) .so-receipt * {visibility:visible}
+ .so-receipt {position:absolute;inset:0 auto auto 0;width:100%;border:0;margin:0;padding:20px;background:#fff;color:#111;direction:rtl;box-sizing:border-box}
+ .so-no-print {display:none!important}
+}

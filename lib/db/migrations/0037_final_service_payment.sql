@@ -127,7 +127,7 @@ BEGIN
  rule:=petro_private.service_order_documentation_rule(o.id);
  IF(rule->>'odometerRequired')::boolean AND(d.odometer_event_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.petro_vehicle_odometer_events WHERE id=d.odometer_event_id AND status='accepted')) THEN RAISE EXCEPTION 'ODOMETER_REQUIRES_REVIEW' USING ERRCODE='55000';END IF;
  FOREACH required_kind IN ARRAY ARRAY['odometer','wash_before','wash_after','serial'] LOOP
- IF CASE required_kind WHEN 'odometer' THEN (rule->>'odometerRequired')::boolean WHEN 'wash_before' THEN(rule->>'washBeforeRequired')::boolean WHEN 'wash_after' THEN(rule->>'washAfterRequired')::boolean ELSE(rule->>'serialRequired')::boolean END THEN
+ IF (CASE required_kind WHEN 'odometer' THEN (rule->>'odometerRequired')::boolean WHEN 'wash_before' THEN(rule->>'washBeforeRequired')::boolean WHEN 'wash_after' THEN(rule->>'washAfterRequired')::boolean ELSE(rule->>'serialRequired')::boolean END) THEN
  IF NOT EXISTS(SELECT 1 FROM petro_private.service_order_evidence e JOIN storage.objects s ON s.id=e.storage_object_id AND s.bucket_id='petro-private-documents' AND s.name=e.object_path
  WHERE e.order_id=o.id AND e.kind=required_kind AND e.status='accepted' AND s.owner_id::text=e.uploader_id::text AND s.metadata->>'mimetype'=e.content_type AND s.metadata->>'size'=e.byte_size::text) THEN RAISE EXCEPTION 'ORDER_EVIDENCE_REQUIRES_REVIEW' USING ERRCODE='55000';END IF;
  END IF;

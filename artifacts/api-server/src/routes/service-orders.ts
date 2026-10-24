@@ -1,5 +1,6 @@
 import { Router, raw, type IRouter, type Request, type Response } from "express";
 import { ReserveWorkerServiceOrderBody, CancelWorkerServiceOrderBody, StartWorkerServiceOrderBody, DeliverWorkerServiceOrderBody, CreateWorkerServiceOrderEvidenceBody } from "@workspace/api-zod";
+import { pairPinDigest, fleetHmacSecret } from "../lib/fleetPairIdentity";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 
@@ -15,6 +16,12 @@ function reply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
  const code=result.error.code??"";
  const status=code==="42501"?403:code==="P0002"?404:code==="22023"?400:["40001","23505","23514","55000"].includes(code)?409:["PGRST202","42883"].includes(code)?503:500;
  const messages:Record<string,string>={
+ ORDER_NOT_CONFIRMABLE:"حالة الطلب لا تسمح بتأكيد الدفع الآن.",
+ DELIVERY_REQUIRES_REVIEW:"التنفيذ يحتاج مراجعة العمليات قبل الدفع.",
+ ODOMETER_REQUIRES_REVIEW:"قراءة العداد تحتاج اعتمادًا قبل الدفع.",
+ ORDER_EVIDENCE_REQUIRES_REVIEW:"صور التنفيذ لم تعد متاحة للتحقق؛ راجع العمليات.",
+ INSUFFICIENT_CAPTURE_FUNDS:"الرصيد المتاح لا يسمح بتأكيد القيمة الفعلية.",
+ PHYSICAL_DELIVERY_REQUIRES_REVIEW:"صرف المخزون يحتاج مراجعة قبل الدفع.",
  ORDER_NOT_STARTABLE:"انتهت مهلة الحجز أو بدأت الخدمة بالفعل. حدّث الطلب.",
  ORDER_NOT_DELIVERABLE:"حالة الطلب لا تسمح بتسجيل التنفيذ الآن.",
  ORDER_IDENTITY_CHANGED:"تغيّر ربط السائق أو المركبة أو التعريف؛ راجع العمليات.",
@@ -165,6 +172,31 @@ router.get("/operations/service-order-evidence/:id/download",async(req:Request,r
  const signed=await session.supabase.storage.from("petro-private-documents").createSignedUrl(d.objectPath,60);
  if(signed.error||!signed.data?.signedUrl){res.status(503).json({message:"تعذر فتح الصورة الخاصة؛ أعد المحاولة."});return;}
  res.json({url:signed.data.signedUrl,expiresInSeconds:60});
+});
+
+
+for(const mode of ["operations","admin"]as const){
+ router.get("/"+mode+"/service-orders/:id/payment",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).length){res.status(400).json({message:"مرجع الطلب غير صالح."});return;}
+ if(mode==="admin"){const permission=await rpc(session,"petro_service_orders_query",{p_filters:{view:"central",orderId:req.params.id}});if(permission.error){reply(res,permission);return;}}
+ const result=await rpc(session,"petro_service_order_payment",{p_order_id:req.params.id});
+ if(result.error){reply(res,result);return;}if(!isRecord(result.data)){res.status(502).json({message:"تعذر قراءة الدفع."});return;}
+ res.json({...result.data,pinConfirmationReady:mode==="operations"&&!!fleetHmacSecret()});
+ });
+}
+router.post("/operations/service-orders/:id/confirm",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const b=req.body;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","idempotencyKey","pinCode"].includes(k))
+ ||!Number.isSafeInteger(b.expectedVersion)||Number(b.expectedVersion)<1||typeof b.idempotencyKey!=="string"||!requestKey.test(b.idempotencyKey)
+ ||typeof b.pinCode!=="string"||!/^\d{4}$/.test(b.pinCode)){res.status(400).json({message:"أدخل رمز التعبئة المكون من أربعة أرقام ومرجع المحاولة الصالح."});return;}
+ if(!fleetHmacSecret()){res.status(503).json({message:"تأكيد الرمز غير متاح حاليًا."});return;}
+ const context=await rpc(session,"petro_service_order_payment_context",{p_order_id:req.params.id});
+ if(context.error){reply(res,context);return;}
+ if(!isRecord(context.data)||typeof context.data.vehicleId!=="string"||!uuid.test(context.data.vehicleId)){res.status(502).json({message:"تعذر التحقق من مرجع المركبة."});return;}
+ const digest=pairPinDigest(context.data.vehicleId,b.pinCode);
+ reply(res,await rpc(session,"petro_confirm_service_order",{p_order_id:req.params.id,p_expected_version:b.expectedVersion,p_pin_hmac:digest,p_request_key:b.idempotencyKey}));
 });
 
 export default router;
