@@ -1,0 +1,26 @@
+name: Service settlement checks
+
+on:
+  push:
+    paths:
+      - 'scripts/service-settlement/**'
+      - '.github/workflows/service-settlement-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/service-settlement/**'
+      - '.github/workflows/service-settlement-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  settlement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/service-settlement/plan.test.mjs
