@@ -398,5 +398,21 @@ BEGIN
  BEGIN UPDATE petro_private.service_order_payments SET charged_amount_minor=1 WHERE order_id=v_order;RAISE EXCEPTION 'Payment history edited';EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;END;
  BEGIN UPDATE petro_private.service_order_receipts SET snapshot='{}' WHERE order_id=v_order;RAISE EXCEPTION 'Receipt history edited';EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;END;
 END $payment$;
+
+DO $product_payment$
+DECLARE ids jsonb;o jsonb;r jsonb;movements_before bigint;
+BEGIN
+ SELECT q.ids INTO ids FROM pg_temp.payment_test q;
+ PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003702',true);
+ o:=public.petro_worker_reserve_service_order((ids->>'partProof')::uuid,(ids->>'part')::uuid,(ids->>'partPrice')::uuid,'{"quantity":"1"}',(ids->>'location')::uuid,'pay-part-reserve-0001');
+ PERFORM public.petro_start_service_order((o->>'id')::uuid,1,'pay-part-start-0001');
+ PERFORM public.petro_deliver_service_order((o->>'id')::uuid,2,'{"actualQuantity":"1"}','pay-part-deliver-0001');
+ SELECT count(*) INTO movements_before FROM public.petro_inventory_movements;
+ r:=public.petro_confirm_service_order((o->>'id')::uuid,3,repeat('a',64),'pay-part-confirm-0001');
+ IF r->>'paid'<>'true' OR r->'payment'->>'chargedAmountMinor'<>'10000' OR r->'payment'->>'releasedAmountMinor'<>'0' THEN RAISE EXCEPTION 'Product actual payment mismatch';END IF;
+ PERFORM public.petro_confirm_service_order((o->>'id')::uuid,3,repeat('a',64),'pay-part-confirm-0001');
+ IF(SELECT count(*) FROM public.petro_inventory_movements)<>movements_before THEN RAISE EXCEPTION 'Product payment issued/restocked physical stock twice';END IF;
+END $product_payment$;
+
 SET CONSTRAINTS ALL IMMEDIATE;
 ROLLBACK;
