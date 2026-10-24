@@ -42,7 +42,7 @@ export function ServiceOrdersPage({central=false,canManage=true}:{central?:boole
  const me=useGetAuthMe({query:{queryKey:getGetAuthMeQueryKey(),retry:false}});
  const prefix=central?"/admin/service-orders":"/operations/orders";
  const api=central?"/api/admin/service-orders":"/api/operations/service-orders";
- const [,params]=useRoute(prefix+"/:id");const id=params?.id;
+ const [,workerParams]=useRoute("/operations/orders/:id");const [,centralParams]=useRoute("/admin/service-orders/:id");const id=central?centralParams?.id:workerParams?.id;
  const userId=me.data?.id;const active=me.data?.state==="active"&&!me.data?.passwordChangeRequired;
  const cache=useQueryClient();const [page,setPage]=useState(1);const [status,setStatus]=useState("");const [search,setSearch]=useState("");const [draft,setDraft]=useState("");
  const [error,setError]=useState("");const [busy,setBusy]=useState(false);

@@ -448,7 +448,7 @@ paths:
         "400": { description: Invalid input }
         "401": { description: Authentication required }
         "403": { description: Proof or assignment no longer valid }
-        "409": { description: Price, funding, stock or idempotency conflict }
+        "409": { description: "Price, funding, stock or idempotency conflict" }
   /operations/service-orders/{id}:
     get:
       operationId: getWorkerServiceOrder

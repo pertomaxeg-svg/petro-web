@@ -11,3 +11,12 @@ The native named pg_cron job runs every minute, batch100, SKIP LOCKED/advisory g
 RED must show the absent order/reserve/cancel/expiry contract before implementation. Require full SQL/API/browser/actual Auth/native scheduler tests from the saved detailed reservation plan, no paid/captured claim in this stage, and preserving rollback/defaultACL before application.
 
 Status: database implementation under acceptance; HTTP/UI and actual committed scheduler exercise pending. NOT applied live; no production orders or scheduler were created.
+
+
+## API and interface progress, 24 October 2026
+- RED HTTP gate 534a4ec: isolated test failed with missing POST /operations/service-orders (404), as expected.
+- 6a718f4 SQL/rollback suite and real Auth/Storage regression passed in Actions 40088465050. This did not exercise committed cron expiry.
+- Added actual order API, own worker and scoped central screens, exact retry, CAS cancellation, history/reload/browser tests. Initial type check found route-prop typing errors; fixed with explicit route wrappers and typed literal detail matches.
+- Added actual committed native scheduler test to disposable Supabase with existing genuinely confirmed owner/worker Auth accounts, exact synthetic fuel/product orders and no scheduler Auth principal. Test pending.
+- New API contracts under generation. First generation caught an unquoted YAML comma description; corrected.
+- 0035 remains NOT applied live. No runtime deployment. No live business writes.
