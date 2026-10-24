@@ -397,6 +397,7 @@ export const SetAdminWorkerAssignmentResponse = zod.object({
 
 
 export const GetWorkerCapabilitiesResponse = zod.object({
+  "pinVerificationReady": zod.boolean(),
   "items": zod.array(zod.object({
   "assignmentId": zod.string().uuid(),
   "assignmentVersion": zod.number().int().min(1),
@@ -407,6 +408,73 @@ export const GetWorkerCapabilitiesResponse = zod.object({
   "organizationKind": zod.enum(['station', 'provider']),
   "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'batteries', 'filters', 'parts', 'consumables', 'card_issuance'])
 }))
+})
+
+
+/**
+ * @summary Verify a scanned credential and driver PIN within the caller's current branch service assignment
+ */
+export const verifyWorkerDriverPairBodyCredentialTokenMin = 16;
+export const verifyWorkerDriverPairBodyCredentialTokenMax = 512;
+
+
+export const verifyWorkerDriverPairBodyCredentialTokenRegExp = new RegExp('^[A-Za-z0-9_-]{16,512}$');
+export const verifyWorkerDriverPairBodyPinCodeMin = 4;
+export const verifyWorkerDriverPairBodyPinCodeMax = 4;
+
+
+export const verifyWorkerDriverPairBodyPinCodeRegExp = new RegExp('^[0-9]{4}$');
+export const verifyWorkerDriverPairBodyIdempotencyKeyMin = 16;
+export const verifyWorkerDriverPairBodyIdempotencyKeyMax = 120;
+
+
+
+export const VerifyWorkerDriverPairBody = zod.object({
+  "branchId": zod.string().uuid(),
+  "serviceGroup": zod.enum(['fuel', 'wash', 'oils', 'batteries', 'filters', 'parts', 'consumables']),
+  "credentialToken": zod.string().min(verifyWorkerDriverPairBodyCredentialTokenMin).max(verifyWorkerDriverPairBodyCredentialTokenMax).regex(verifyWorkerDriverPairBodyCredentialTokenRegExp),
+  "pinCode": zod.string().min(verifyWorkerDriverPairBodyPinCodeMin).max(verifyWorkerDriverPairBodyPinCodeMax).regex(verifyWorkerDriverPairBodyPinCodeRegExp),
+  "idempotencyKey": zod.string().min(verifyWorkerDriverPairBodyIdempotencyKeyMin).max(verifyWorkerDriverPairBodyIdempotencyKeyMax)
+})
+
+export const VerifyWorkerDriverPairResponse = zod.object({
+  "valid": zod.boolean(),
+  "locked": zod.boolean().optional(),
+  "retryAt": zod.coerce.date().nullish(),
+  "verificationId": zod.string().uuid().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "driverName": zod.string().optional(),
+  "vehicle": zod.object({
+  "plate": zod.string(),
+  "brand": zod.string(),
+  "model": zod.string(),
+  "fuelType": zod.string(),
+  "tankCapacityLiters": zod.number().nullish()
+}).optional()
+})
+
+
+/**
+ * @summary Recheck the caller's own unexpired proof against current assignment, credential and driver link
+ */
+export const GetWorkerPairProofParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetWorkerPairProofResponse = zod.object({
+  "valid": zod.boolean(),
+  "locked": zod.boolean().optional(),
+  "retryAt": zod.coerce.date().nullish(),
+  "verificationId": zod.string().uuid().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "driverName": zod.string().optional(),
+  "vehicle": zod.object({
+  "plate": zod.string(),
+  "brand": zod.string(),
+  "model": zod.string(),
+  "fuelType": zod.string(),
+  "tankCapacityLiters": zod.number().nullish()
+}).optional()
 })
 
 

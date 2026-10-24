@@ -453,7 +453,6 @@ export interface AdminFleetDriverPairPinRevealResult {
 export interface AdminFleetVerifyPairResult {
   valid: boolean;
   locked: boolean;
-  /** @nullable */
   retryAt?: string | null;
   verificationId?: string;
   [key: string]: unknown;
@@ -2920,7 +2919,62 @@ export interface WorkerCapability {
 }
 
 export interface WorkerCapabilities {
+  pinVerificationReady: boolean;
   items: WorkerCapability[];
+}
+
+export type WorkerPairVerificationInputServiceGroup = typeof WorkerPairVerificationInputServiceGroup[keyof typeof WorkerPairVerificationInputServiceGroup];
+
+
+export const WorkerPairVerificationInputServiceGroup = {
+  fuel: 'fuel',
+  wash: 'wash',
+  oils: 'oils',
+  batteries: 'batteries',
+  filters: 'filters',
+  parts: 'parts',
+  consumables: 'consumables',
+} as const;
+
+export interface WorkerPairVerificationInput {
+  branchId: string;
+  serviceGroup: WorkerPairVerificationInputServiceGroup;
+  /**
+     * @minLength 16
+     * @maxLength 512
+     * @pattern ^[A-Za-z0-9_-]{16,512}$
+     */
+  credentialToken: string;
+  /**
+     * @minLength 4
+     * @maxLength 4
+     * @pattern ^[0-9]{4}$
+     */
+  pinCode: string;
+  /**
+     * @minLength 16
+     * @maxLength 120
+     */
+  idempotencyKey: string;
+}
+
+export interface WorkerPairProofVehicle {
+  plate: string;
+  brand: string;
+  model: string;
+  fuelType: string;
+  tankCapacityLiters?: number | null;
+}
+
+export interface WorkerPairProof {
+  valid: boolean;
+  locked?: boolean;
+  /** @nullable */
+  retryAt?: string | null;
+  verificationId?: string;
+  expiresAt?: string;
+  driverName?: string;
+  vehicle?: WorkerPairProofVehicle;
 }
 
 /**

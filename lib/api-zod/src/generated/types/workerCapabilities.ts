@@ -8,5 +8,6 @@
 import type { WorkerCapability } from './workerCapability';
 
 export interface WorkerCapabilities {
+  pinVerificationReady: boolean;
   items: WorkerCapability[];
 }

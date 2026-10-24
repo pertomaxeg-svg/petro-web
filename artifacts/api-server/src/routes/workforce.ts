@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { fleetHmacSecret, pairPinDigest } from "../lib/fleetPairIdentity";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { ListAdminWorkforceQueryParams, SetAdminWorkerAssignmentBody } from "@workspace/api-zod";
+import { ListAdminWorkforceQueryParams, SetAdminWorkerAssignmentBody, VerifyWorkerDriverPairBody } from "@workspace/api-zod";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 
@@ -38,17 +38,13 @@ router.get("/operations/capabilities",async(req:Request,res:Response)=>{
  reply(res,result);
 });
 const operationUUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const operationGroups=new Set(["fuel","wash","oils","batteries","filters","parts","consumables"]);
 router.post("/operations/pair-verifications",async(req:Request,res:Response)=>{
  setNoStore(res);const session=await requireSession(req,res);if(!session)return;
- const input=req.body;
- if(!isRecord(input)||Object.keys(input).some(key=>!["branchId","serviceGroup","credentialToken","pinCode","idempotencyKey"].includes(key))
- ||typeof input.branchId!=="string"||!operationUUID.test(input.branchId)||typeof input.serviceGroup!=="string"||!operationGroups.has(input.serviceGroup)
- ||typeof input.credentialToken!=="string"||!/^[A-Za-z0-9_-]{16,512}$/.test(input.credentialToken.trim())
- ||typeof input.pinCode!=="string"||!/^\d{4}$/.test(input.pinCode)
- ||typeof input.idempotencyKey!=="string"||input.idempotencyKey.trim().length<16||input.idempotencyKey.length>120){
+ const parsed=VerifyWorkerDriverPairBody.strict().safeParse(req.body);
+ if(!parsed.success||parsed.data.idempotencyKey.trim().length<16){
  res.status(400).json({message:"اختر الفرع والخدمة وأدخل تعريف المركبة ورمز التعبئة المكون من أربعة أرقام."});return;
  }
+ const input=parsed.data;
  if(!fleetHmacSecret()){res.status(503).json({message:"التحقق غير متاح مؤقتًا؛ راجع مسؤول التشغيل."});return;}
  const credentialHash=createHash("sha256").update(input.credentialToken.trim(),"utf8").digest("hex");
  const context=await rpc(session,"petro_worker_credential_context",{p_branch_id:input.branchId,p_service_group:input.serviceGroup,p_credential_hash:credentialHash});
