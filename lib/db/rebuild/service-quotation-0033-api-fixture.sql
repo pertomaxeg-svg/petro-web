@@ -277,7 +277,7 @@ BEGIN
   bank_id := gen_random_uuid();
   INSERT INTO public.petro_finance_bank_accounts(
     id,bank_name,display_label,account_last4,status,reason,created_by,approved_by,approved_at
-  ) VALUES(bank_id,'بنك اصطناعي للاختبار','وجهة محلية اصطناعية','1601','active',
+  ) VALUES(bank_id,'بنك اصطناعي للاختبار','وجهة محلية اصطناعية','3301','active',
     'حساب اصطناعي لقاعدة الاختبار فقط',actor,actor,now());
   INSERT INTO public.petro_finance_accounts(
     account_code,display_name,account_kind,normal_side,receiving_bank_account_id
