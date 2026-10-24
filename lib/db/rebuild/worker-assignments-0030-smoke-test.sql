@@ -55,4 +55,18 @@ DO $revoked$ BEGIN
  IF jsonb_array_length(public.petro_worker_capabilities()->'items')<>0 THEN RAISE EXCEPTION 'Revoked membership retained capability'; END IF;
 END $revoked$;
 RESET ROLE;
+UPDATE public.petro_memberships SET active=true WHERE id='00000000-0000-4000-8000-000000003031';
+UPDATE public.petro_branches SET operational_status='suspended' WHERE id='00000000-0000-4000-8000-000000003021';
+SET LOCAL ROLE authenticated;
+DO $suspended_branch$ BEGIN
+ IF jsonb_array_length(public.petro_worker_capabilities()->'items')<>0 THEN RAISE EXCEPTION 'Suspended branch retained capability'; END IF;
+END $suspended_branch$;
+RESET ROLE;
+UPDATE public.petro_branches SET operational_status='active' WHERE id='00000000-0000-4000-8000-000000003021';
+UPDATE public.petro_profiles SET password_change_required=true WHERE user_id='00000000-0000-4000-8000-000000003002';
+SET LOCAL ROLE authenticated;
+DO $temporary_password$ BEGIN
+ BEGIN PERFORM public.petro_worker_capabilities(); RAISE EXCEPTION 'Temporary password bypassed operational gate'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $temporary_password$;
+RESET ROLE;
 ROLLBACK;

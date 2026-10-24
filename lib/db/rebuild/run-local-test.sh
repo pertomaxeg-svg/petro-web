@@ -419,8 +419,27 @@ default_acl_snapshot >"$tmp_dir/default-acl-before-0029.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0029_fleet_card_fulfillment_filter.sql" >/dev/null
 default_acl_snapshot >"$tmp_dir/default-acl-after-0029.txt"
 cmp "$tmp_dir/default-acl-before-0029.txt" "$tmp_dir/default-acl-after-0029.txt"
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0030.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0030.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0030_worker_branch_service_assignments.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0030.txt"
+cmp "$tmp_dir/default-acl-before-0030.txt" "$tmp_dir/default-acl-after-0030.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/worker-assignments-0030-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0030_worker_branch_service_assignments.sql" >"$tmp_dir/0030-rollback-refusal.log" 2>&1; then
+  echo "0030 rollback unexpectedly deleted persisted synthetic worker records" >&2
+  exit 1
+fi
+rg -q 'rollback refuses to delete workforce records' "$tmp_dir/0030-rollback-refusal.log"
+# This runner owns the disposable cluster; these records are exclusively synthetic API/browser fixtures.
+psql --no-psqlrc --set ON_ERROR_STOP=1 -c "DELETE FROM petro_private.worker_assignment_events; DELETE FROM petro_private.worker_assignment_commands; DELETE FROM public.petro_worker_assignments;" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0030_worker_branch_service_assignments.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0030-rollback.sql"
+cmp "$tmp_dir/schema-before-0030.sql" "$tmp_dir/schema-after-0030-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0030-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0030.txt" "$tmp_dir/default-acl-after-0030-rollback.txt"
+echo "PASS: worker branch/service authorization, API/browser persistence, data-preserving rollback refusal and exact schema/ACL rollback"
+
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/fleet-directory-photo-0028-smoke-test.sql" >/dev/null
 echo "PASS: rejected and unfinished directory photos excluded"
 node "$script_dir/finance-concurrency-smoke-test.mjs"

@@ -10,6 +10,8 @@ import managementRouter from "./management";
 import organizationWorkflowsRouter from "./organization-workflows";
 import supabaseRouter from "./supabase";
 
+import workforceRouter from "./workforce";
+
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -20,6 +22,7 @@ router.use(billingRouter);
 router.use(catalogRouter);
 router.use(financeRouter);
 router.use(fleetRouter);
+router.use(workforceRouter);
 router.use(inventoryRouter);
 router.use(organizationWorkflowsRouter);
 
