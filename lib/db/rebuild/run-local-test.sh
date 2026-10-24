@@ -425,6 +425,7 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0030
 default_acl_snapshot >"$tmp_dir/default-acl-after-0030.txt"
 cmp "$tmp_dir/default-acl-before-0030.txt" "$tmp_dir/default-acl-after-0030.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/worker-assignments-0030-smoke-test.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/operational-pin-0031-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0030_worker_branch_service_assignments.sql" >"$tmp_dir/0030-rollback-refusal.log" 2>&1; then
   echo "0030 rollback unexpectedly deleted persisted synthetic worker records" >&2
