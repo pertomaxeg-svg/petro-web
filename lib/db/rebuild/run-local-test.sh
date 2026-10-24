@@ -466,6 +466,7 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0036
 default_acl_snapshot >"$tmp_dir/default-acl-after-0036.txt"
 cmp "$tmp_dir/default-acl-before-0036.txt" "$tmp_dir/default-acl-after-0036.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-execution-0036-smoke-test.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM petro_private.service_order_executions")" != "0" ]; then
  if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0036_service_execution_evidence.sql" >"$tmp_dir/0036-rollback-refusal.log" 2>&1; then
