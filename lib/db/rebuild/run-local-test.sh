@@ -468,7 +468,9 @@ cmp "$tmp_dir/default-acl-before-0036.txt" "$tmp_dir/default-acl-after-0036.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-execution-0036-smoke-test.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0037.sql"
 default_acl_snapshot >"$tmp_dir/default-acl-before-0037.txt"
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-contract.sql")" = "f"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0037_final_service_payment.sql" >/dev/null
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-contract.sql")" = "t"
 default_acl_snapshot >"$tmp_dir/default-acl-after-0037.txt"
 cmp "$tmp_dir/default-acl-before-0037.txt" "$tmp_dir/default-acl-after-0037.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null

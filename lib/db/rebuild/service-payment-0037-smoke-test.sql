@@ -9,9 +9,8 @@ DO $$ BEGIN
  RAISE EXCEPTION 'Final order confirmation and actual payment are missing';END IF;
 END $$;
 
--- Commits disposable fixtures into the local throwaway cluster for the real
--- SQL/connection-level reserve integration test. The cluster is dropped by the
--- caller; this script never runs against Supabase.
+-- Creates disposable fixtures in this isolated transaction and rolls them back.
+-- This script never runs against hosted Supabase.
 INSERT INTO auth.users(id,email,raw_user_meta_data,email_confirmed_at)
 VALUES
  ('00000000-0000-4000-8000-000000003701','payment-it-owner@example.invalid',
@@ -366,7 +365,7 @@ BEGIN
 
  -- Adversarial changes are confined to nested disposable-fixture subtransactions.
  BEGIN
-  UPDATE petro_private.petro_fleet_driver_pair_secrets SET active=false WHERE vehicle_id=(ids->>'vehicle')::uuid AND active;
+  UPDATE petro_private.petro_fleet_driver_pair_secrets SET active=false,disabled_at=clock_timestamp(),disabled_by=auth.uid() WHERE vehicle_id=(ids->>'vehicle')::uuid AND active;
   PERFORM public.petro_confirm_service_order(v_order,3,repeat('a',64),'pay-revoked-identity-01');RAISE EXCEPTION 'Revoked original PIN secret captured money';
  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  BEGIN
