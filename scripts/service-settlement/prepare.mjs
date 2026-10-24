@@ -26,7 +26,7 @@ export function prepareServiceSettlement({ operationId, proof, operation, accoun
       accounts.companyOrganizationId !== operation.companyOrganizationId ||
       accounts.merchantBranchId !== operation.branchId)
     throw new Error('ACCOUNT_SCOPE_MISMATCH');
-  if (accounts.companyAccountKind !== 'company_wallet' ||
+  if (!['company_funding','branch_funding'].includes(accounts.companyAccountKind) ||
       accounts.stationAccountKind !== 'merchant_payable' ||
       accounts.platformAccountKind !== 'platform_revenue')
     throw new Error('ACCOUNT_TYPE_MISMATCH');
