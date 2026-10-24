@@ -543,6 +543,139 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Current writer scope required; auditors cannot cancel }
         "409": { description: Version conflict or order already started }
+  /operations/service-orders/{id}/execution:
+    get:
+      operationId: getWorkerServiceOrderExecution
+      tags: [workforce]
+      summary: Read scoped execution rules and actual private evidence and delivery
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Persisted execution separate from payment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderExecutionResult" }
+        "401": { description: Authentication required }
+        "403": { description: Current scope required }
+  /admin/service-orders/{id}/execution:
+    get:
+      operationId: getAdminServiceOrderExecution
+      tags: [workforce]
+      summary: Read scoped execution rules and actual private evidence and delivery
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Persisted execution separate from payment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderExecutionResult" }
+        "401": { description: Authentication required }
+        "403": { description: Current scope required }
+  /operations/service-orders/{id}/start:
+    post:
+      operationId: startWorkerServiceOrder
+      tags: [workforce]
+      summary: Start an unexpired held order using CAS and exact retry
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceOrderStartRequest" }
+      responses:
+        "200":
+          description: Persisted execution or exact retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderExecutionResult" }
+        "400": { description: Invalid input }
+        "403": { description: Current own worker scope required }
+        "409": { description: Version or evidence or authorization conflict }
+  /operations/service-orders/{id}/deliver:
+    post:
+      operationId: deliverWorkerServiceOrder
+      tags: [workforce]
+      summary: Record actual documented delivery and issue only the physical quantity without final payment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceOrderDeliverRequest" }
+      responses:
+        "200":
+          description: Persisted execution or exact retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderExecutionResult" }
+        "400": { description: Invalid input }
+        "403": { description: Current own worker scope required }
+        "409": { description: Version or evidence or authorization conflict }
+  /operations/service-orders/{id}/evidence:
+    post:
+      operationId: createWorkerServiceOrderEvidence
+      tags: [workforce]
+      summary: Create an idempotent private upload intent scoped to the current own order phase
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceOrderEvidenceRequest" }
+      responses:
+        "200":
+          description: Own private upload intent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderEvidenceFile" }
+        "403": { description: Current own worker scope required }
+        "409": { description: Order phase or idempotency conflict }
+  /operations/service-order-evidence/{id}/content:
+    put:
+      operationId: uploadWorkerServiceOrderEvidence
+      tags: [workforce]
+      summary: Upload a matching PNG or JPEG and finalize authoritative Storage metadata with exact same-file retry
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Accepted immutable evidence
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderEvidenceFile" }
+        "400": { description: File size or signature mismatch }
+        "403": { description: Current order scope required }
+        "409": { description: Different existing file or invalid order phase }
+        "503": { description: Uncertain upload result retry the same file }
+  /operations/service-order-evidence/{id}/download:
+    get:
+      operationId: getWorkerServiceOrderEvidenceDownload
+      tags: [workforce]
+      summary: Reauthorize accepted order evidence and issue a short-lived private URL
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Short-lived private image URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresInSeconds]
+                properties:
+                  url: { type: string }
+                  expiresInSeconds: { type: integer }
+        "403": { description: Current scoped read required }
   /admin/fleet/cards:
     get:
       operationId: getAdminFleetCards
@@ -4690,7 +4823,7 @@ components:
             required: [id, kind, version, createdAt, actorKind, actorName, detail]
             properties:
               id: { type: string }
-              kind: { type: string, enum: [reserved, cancelled, expiry_failed] }
+              kind: { type: string, enum: [reserved, cancelled, expiry_failed, started, delivered] }
               version: { type: integer }
               createdAt: { type: string, format: date-time }
               actorKind: { type: string, enum: [user, system] }
@@ -4707,3 +4840,92 @@ components:
         page: { type: integer }
         pageSize: { type: integer }
         canManage: { type: boolean }
+
+    ServiceOrderStartRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, idempotencyKey]
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120, pattern: '^[A-Za-z0-9._:-]{16,120}$' }
+    ServiceOrderDeliverRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, idempotencyKey, input]
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120, pattern: '^[A-Za-z0-9._:-]{16,120}$' }
+        input:
+          type: object
+          additionalProperties: false
+          required: [actualQuantity]
+          properties:
+            actualQuantity: { type: string, pattern: '^[0-9]{1,9}(\.[0-9]{1,3})?$' }
+            readingKm: { type: string, nullable: true, pattern: '^[0-9]{1,11}(\.[0-9]{1,3})?$' }
+            serialNumber: { type: string, nullable: true, maxLength: 120 }
+    ServiceOrderEvidenceRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, fileName, contentType, byteSize, idempotencyKey]
+      properties:
+        kind: { type: string, enum: [odometer, wash_before, wash_after, serial] }
+        fileName: { type: string, minLength: 1, maxLength: 160 }
+        contentType: { type: string, enum: [image/png, image/jpeg] }
+        byteSize: { type: integer, minimum: 1, maximum: 10485760 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 120, pattern: '^[A-Za-z0-9._:-]{16,120}$' }
+    ServiceOrderEvidenceFile:
+      type: object
+      required: [id, orderId, bucket, objectPath, contentType, byteSize, status]
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        bucket: { type: string, enum: [petro-private-documents] }
+        objectPath: { type: string }
+        contentType: { type: string, enum: [image/png, image/jpeg] }
+        byteSize: { type: integer }
+        status: { type: string, enum: [pending, accepted] }
+    ServiceOrderExecutionResult:
+      allOf:
+        - { $ref: "#/components/schemas/ServiceOrder" }
+        - type: object
+          required: [documentationRule, delivery, canStart, canDeliver, evidence]
+          properties:
+            canStart: { type: boolean }
+            canDeliver: { type: boolean }
+            documentationRule:
+              type: object
+              required: [version, serviceGroup, odometerRequired, washBeforeRequired, washAfterRequired, serialRequired]
+              properties:
+                version: { type: integer }
+                serviceGroup: { type: string }
+                odometerRequired: { type: boolean }
+                washBeforeRequired: { type: boolean }
+                washAfterRequired: { type: boolean }
+                serialRequired: { type: boolean }
+            delivery:
+              type: object
+              nullable: true
+              required: [actualQuantity, actualAmountMinor, identityCurrent, performedAt]
+              properties:
+                actualQuantity: { type: string }
+                actualAmountMinor: { type: string }
+                identityCurrent: { type: boolean }
+                performedAt: { type: string, format: date-time }
+                serialNumber: { type: string, nullable: true }
+                readingKm: { type: string, nullable: true }
+                odometerStatus: { type: string, nullable: true }
+                odometerEventId: { type: string, format: uuid, nullable: true }
+            evidence:
+              type: array
+              items:
+                type: object
+                required: [id, kind, fileName, contentType, byteSize, status, createdAt]
+                properties:
+                  id: { type: string, format: uuid }
+                  kind: { type: string, enum: [odometer, wash_before, wash_after, serial] }
+                  fileName: { type: string }
+                  contentType: { type: string }
+                  byteSize: { type: integer }
+                  status: { type: string, enum: [pending, accepted] }
+                  createdAt: { type: string, format: date-time }
+                  acceptedAt: { type: string, format: date-time, nullable: true }

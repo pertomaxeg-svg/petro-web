@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGetAuthMe, getGetAuthMeQueryKey } from "@workspace/api-client-react";
 import "./FleetAdmin.css";
 import "./ServiceOrders.css";
+import { ServiceOrderExecution } from "./ServiceOrderExecution";
 
 type Order={
  id:string;status:string;paymentStatus:string;version:number;serviceGroup:string;kind:string;
@@ -18,10 +19,10 @@ type List={items:Order[];total:number;page:number;pageSize:number;canManage:bool
 const states:Record<string,string>={reserved:"محجوز",in_progress:"قيد التنفيذ",delivered:"تم التسليم",review_required:"يحتاج مراجعة",cancelled:"ملغى"};
 const payments:Record<string,string>={held:"المبلغ محجوز",unpaid:"غير مدفوع",paid:"مدفوع"};
 const services:Record<string,string>={fuel:"وقود",wash:"غسيل",oils:"زيوت",parts:"قطع غيار",batteries:"بطاريات",filters:"فلاتر",consumables:"مستهلكات"};
-const eventNames:Record<string,string>={reserved:"حجز المال والمخزون المطلوب",cancelled:"إلغاء الحجز وتحرير الموارد",expiry_failed:"تعذّر تحرير الحجز تلقائيًا"};
+const eventNames:Record<string,string>={started:"بدء تنفيذ الخدمة",delivered:"تسجيل التنفيذ الفعلي",reserved:"حجز المال والمخزون المطلوب",cancelled:"إلغاء الحجز وتحرير الموارد",expiry_failed:"تعذّر تحرير الحجز تلقائيًا"};
 const units:Record<string,string>={litre:"لتر",piece:"قطعة",service:"خدمة",pack:"عبوة"};
 const money=(minor:string)=>/^[0-9]+$/.test(minor)?(BigInt(minor)/100n).toLocaleString("ar-EG")+"."+String(BigInt(minor)%100n).padStart(2,"0")+" جنيه":"—";
-const date=(value:string|null)=>value?new Date(value).toLocaleString("ar-EG",{dateStyle:"medium",timeStyle:"short"}):"—";
+const date=(value:string|null)=>value?new Date(value).toLocaleString("ar-EG",{dateStyle:"medium",timeStyle:"short",timeZone:"Africa/Cairo"}):"—";
 class OrderError extends Error{constructor(message:string,public status:number){super(message);}}
 async function request<T>(url:string,body?:unknown):Promise<T>{
  const r=await fetch(url,{credentials:"include",...(body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})});
@@ -77,6 +78,7 @@ export function ServiceOrdersPage({central=false,canManage=true}:{central?:boole
  {!id&&<form className="so-filters" onSubmit={filter}><label className="fleet-field">ابحث بالمركبة أو الخدمة أو الفرع<input value={draft} maxLength={160} onChange={e=>setDraft(e.target.value)} data-testid="orders-search"/></label><label className="fleet-field">حالة الطلب<select value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="">كل الحالات</option>{Object.entries(states).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><button className="fleet-button">بحث</button></form>}
  {query.isLoading?<div className="so-state" role="status">جارٍ تحميل الطلبات…</div>:query.isError?<div className="so-state" role="alert"><p>{query.error.message}</p><button className="fleet-button" onClick={()=>void query.refetch()}>إعادة المحاولة</button></div>:order?<article className="so-detail" data-testid="order-detail"><Summary order={order}/>
  {order.status==="reserved"&&<p className="so-notice">تم حجز المبلغ{order.kind==="product"?" والكمية في المخزن":""}. لم يُسجّل دفع أو تسليم بعد. إذا انتهت المهلة قبل البدء، يُحرّر الحجز تلقائيًا؛ تعرض الصفحة النتيجة بعد تسجيلها.</p>}
+ {userId&&<ServiceOrderExecution key={order.id} orderId={order.id} userId={userId} central={central}/>}
  {order.cancelledAt&&<p className="so-notice" data-testid="order-cancelled">أُلغي الحجز {date(order.cancelledAt)} {order.cancelCode==="reservation_expired"?"بسبب انتهاء المهلة، بواسطة النظام.":"بواسطة مستخدم مخول."} المبلغ غير مدفوع، وقد حُرّر الرصيد{order.kind==="product"?" والمخزون المحجوز":""}.</p>}
  {order.requiresReview&&<p role="alert" className="fleet-feedback is-error">توقف التحرير التلقائي بعد تعذّر إتمامه. ما زال المبلغ محجوزًا لحين المراجعة. محاولات التحرير: {order.expiryAttempts}.</p>}
  <div className="so-actions"><button className="fleet-button fleet-quiet" disabled={busy} onClick={()=>void query.refetch()}>تحديث الحالة</button>

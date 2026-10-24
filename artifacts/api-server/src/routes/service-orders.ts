@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, raw, type IRouter, type Request, type Response } from "express";
 import { ReserveWorkerServiceOrderBody, CancelWorkerServiceOrderBody } from "@workspace/api-zod";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
@@ -15,6 +15,18 @@ function reply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
  const code=result.error.code??"";
  const status=code==="42501"?403:code==="P0002"?404:code==="22023"?400:["40001","23505","23514","55000"].includes(code)?409:["PGRST202","42883"].includes(code)?503:500;
  const messages:Record<string,string>={
+ ORDER_NOT_STARTABLE:"انتهت مهلة الحجز أو بدأت الخدمة بالفعل. حدّث الطلب.",
+ ORDER_NOT_DELIVERABLE:"حالة الطلب لا تسمح بتسجيل التنفيذ الآن.",
+ ORDER_IDENTITY_CHANGED:"تغيّر ربط السائق أو المركبة أو التعريف؛ راجع العمليات.",
+ WASH_BEFORE_REQUIRED:"ارفع صورة الغسيل قبل البدء أولًا.",
+ WASH_AFTER_REQUIRED:"ارفع صورة الغسيل بعد التنفيذ أولًا.",
+ ODOMETER_REQUIRED:"أدخل قراءة العداد الفعلية.",
+ ODOMETER_IMAGE_REQUIRED:"ارفع صورة العداد أولًا.",
+ SERIAL_EVIDENCE_REQUIRED:"أدخل الرقم التسلسلي وارفع صورته.",
+ DELIVERY_EXCEEDS_AUTHORIZATION:"الكمية الفعلية تتجاوز الحجز أو لا توافق وحدة الصنف.",
+ EVIDENCE_UPLOAD_UNVERIFIED:"لم يُتحقق من الملف وحجمه ونوعه في التخزين. أعد رفع الملف نفسه.",
+ ORDER_EVIDENCE_PHASE:"لا يمكن إرفاق هذه الصورة في حالة الطلب الحالية.",
+ ORDER_EVIDENCE_LIMIT:"وصل الطلب إلى الحد المسموح للمرفقات.",
  OPERATIONAL_PROOF_REQUIRED:"انتهى التحقق أو تغيّر التفويض؛ تحقق من المركبة والسائق مجددًا.",
  OPERATIONAL_PROOF_ALREADY_USED:"استُخدم التحقق في حجز آخر؛ راجع طلباتك قبل إعادة التحقق.",
  IDEMPOTENCY_CONFLICT:"استُخدم مرجع المحاولة مع بيانات مختلفة. راجع نتيجة المحاولة السابقة.",
@@ -73,4 +85,84 @@ for(const mode of ["operations","admin"]as const){
  reply(res,await rpc(session,"petro_cancel_service_order",{p_order_id:req.params.id,p_expected_version:b.expectedVersion,p_request_key:b.idempotencyKey}));
  });
 }
+
+const requestKey=/^[A-Za-z0-9._:-]{16,120}$/;
+const evidenceKinds=["odometer","wash_before","wash_after","serial"];
+function validVersionBody(body:unknown,delivery=false){
+ if(!isRecord(body)||Object.keys(body).some(k=>!(delivery?["expectedVersion","idempotencyKey","input"]:["expectedVersion","idempotencyKey"]).includes(k))
+ ||!Number.isSafeInteger(body.expectedVersion)||Number(body.expectedVersion)<1||typeof body.idempotencyKey!=="string"||!requestKey.test(body.idempotencyKey))return false;
+ if(!delivery)return true;
+ const i=body.input;
+ return isRecord(i)&&Object.keys(i).every(k=>["actualQuantity","readingKm","serialNumber"].includes(k))
+ &&typeof i.actualQuantity==="string"&&/^[0-9]{1,9}(\.[0-9]{1,3})?$/.test(i.actualQuantity)
+ &&(i.readingKm===undefined||i.readingKm===null||typeof i.readingKm==="string"&&/^[0-9]{1,11}(\.[0-9]{1,3})?$/.test(i.readingKm))
+ &&(i.serialNumber===undefined||i.serialNumber===null||typeof i.serialNumber==="string"&&i.serialNumber.trim().length<=120);
+}
+for(const mode of ["operations","admin"]as const){
+ router.get("/"+mode+"/service-orders/:id/execution",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).length){res.status(400).json({message:"مرجع الطلب غير صالح."});return;}
+ if(mode==="admin"){const permission=await rpc(session,"petro_service_orders_query",{p_filters:{view:"central",orderId:req.params.id}});if(permission.error){reply(res,permission);return;}}
+ reply(res,await rpc(session,"petro_service_order_execution",{p_order_id:req.params.id}));
+ });
+}
+for(const action of ["start","deliver"]as const){
+ router.post("/operations/service-orders/:id/"+action,async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||!validVersionBody(req.body,action==="deliver")){res.status(400).json({message:"راجع نسخة الطلب والكمية والعداد ومرجع المحاولة."});return;}
+ reply(res,await rpc(session,action==="start"?"petro_start_service_order":"petro_deliver_service_order",{p_order_id:req.params.id,p_expected_version:req.body.expectedVersion,p_request_key:req.body.idempotencyKey,...(action==="deliver"?{p_input:req.body.input}:{})}));
+ });
+}
+router.post("/operations/service-orders/:id/evidence",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const b=req.body;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||!isRecord(b)||Object.keys(b).some(k=>!["kind","fileName","contentType","byteSize","idempotencyKey"].includes(k))
+ ||typeof b.kind!=="string"||!evidenceKinds.includes(b.kind)||typeof b.fileName!=="string"||b.fileName.length<1||b.fileName.length>160
+ ||!["image/png","image/jpeg"].includes(String(b.contentType))||!Number.isSafeInteger(b.byteSize)||Number(b.byteSize)<1||Number(b.byteSize)>10485760
+ ||typeof b.idempotencyKey!=="string"||!requestKey.test(b.idempotencyKey)){res.status(400).json({message:"اختر صورة PNG أو JPEG لا تتجاوز 10 ميجابايت."});return;}
+ reply(res,await rpc(session,"petro_create_service_order_evidence",{p_order_id:req.params.id,p_kind:b.kind,p_file_name:b.fileName,p_content_type:b.contentType,p_byte_size:b.byteSize,p_request_key:b.idempotencyKey}));
+});
+function isImage(type:string,bytes:Buffer){
+ return type==="image/png"?bytes.length>=8&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):type==="image/jpeg"&&bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+}
+router.put("/operations/service-order-evidence/:id/content",raw({type:"application/octet-stream",limit:"10mb"}),async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const id=req.params.id;
+ if(typeof id!=="string"||!uuid.test(id)||!Buffer.isBuffer(req.body)){res.status(400).json({message:"الصورة غير صالحة."});return;}
+ const file=await rpc(session,"petro_service_order_evidence_file",{p_evidence_id:id,p_action:"read"});
+ if(file.error){reply(res,file);return;}const data=file.data;
+ if(!isRecord(data)||data.bucket!=="petro-private-documents"||typeof data.objectPath!=="string"||typeof data.contentType!=="string"){res.status(502).json({message:"تعذر التحقق من بيانات المرفق."});return;}
+ const bytes=req.body as Buffer;
+ if(bytes.length!==Number(data.byteSize)||!isImage(data.contentType,bytes)){res.status(400).json({message:"حجم الصورة أو محتواها لا يطابق طلب الرفع."});return;}
+ const bucket=session.supabase.storage.from("petro-private-documents");
+ let needsExisting=data.status==="accepted";
+ if(!needsExisting){
+ const allowed=await rpc(session,"petro_service_order_evidence_file",{p_evidence_id:id,p_action:"upload"});
+ if(allowed.error){reply(res,allowed);return;}
+ const uploaded=await bucket.upload(data.objectPath,bytes,{contentType:data.contentType,upsert:false,cacheControl:"0"});
+ if(uploaded.error){
+ const status=String((uploaded.error as unknown as {statusCode?:string}).statusCode??"");
+ if(status==="409"||status==="400"&&/already exists|Duplicate/i.test(uploaded.error.message))needsExisting=true;
+ else {res.status(503).json({message:"تعذر تأكيد حفظ الصورة؛ أعد رفع الملف نفسه للمحاولة ذاتها."});return;}
+ }
+ }
+ if(needsExisting){
+ const existing=await bucket.download(data.objectPath);
+ if(existing.error||!existing.data){res.status(503).json({message:"تعذر التأكد من الصورة المحفوظة؛ أعد المحاولة."});return;}
+ const stored=Buffer.from(await existing.data.arrayBuffer());
+ if(!stored.equals(bytes)){res.status(409).json({message:"هذا المرفق يحوي صورة مختلفة؛ أنشئ مرفقًا جديدًا دون استبدال الصورة السابقة."});return;}
+ }
+ reply(res,await rpc(session,"petro_finalize_service_order_evidence",{p_evidence_id:id,p_request_key:"order-evidence-finalize:"+id}));
+});
+router.get("/operations/service-order-evidence/:id/download",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)){res.status(400).json({message:"مرجع المرفق غير صالح."});return;}
+ const result=await rpc(session,"petro_service_order_evidence_file",{p_evidence_id:req.params.id,p_action:"read"});
+ if(result.error){reply(res,result);return;}const d=result.data;
+ if(!isRecord(d)||typeof d.objectPath!=="string"||d.status!=="accepted"){res.status(409).json({message:"لم يكتمل رفع الصورة بعد."});return;}
+ const signed=await session.supabase.storage.from("petro-private-documents").createSignedUrl(d.objectPath,60);
+ if(signed.error||!signed.data?.signedUrl){res.status(503).json({message:"تعذر فتح الصورة الخاصة؛ أعد المحاولة."});return;}
+ res.json({url:signed.data.signedUrl,expiresInSeconds:60});
+});
+
 export default router;
