@@ -4,7 +4,7 @@ import { prepareServiceSettlement } from './prepare.mjs';
 
 const proof = { valid: true, locked: false, verificationId: '550e8400-e29b-41d4-a716-446655440000', expiresAt: '2026-10-24T12:02:00Z', branchId: 'merchant-branch', vehicleId: 'vehicle-1', serviceGroup: 'fuel' };
 const operation = { serviceGroup: 'fuel', branchId: 'merchant-branch', vehicleId: 'vehicle-1', companyOrganizationId: 'org-1', amountMinor: 10000, stationShareMinor: 9000 };
-const accounts = { currency: 'EGP', companyOrganizationId: 'org-1', merchantBranchId: 'merchant-branch', companyAccountKind: 'company_wallet', stationAccountKind: 'merchant_payable', platformAccountKind: 'platform_revenue', companyAccountId: 'company-1', stationAccountId: 'merchant-1', platformAccountId: 'platform-1' };
+const accounts = { currency: 'EGP', companyOrganizationId: 'org-1', merchantBranchId: 'merchant-branch', companyAccountKind: 'company_funding', stationAccountKind: 'merchant_payable', platformAccountKind: 'platform_revenue', companyAccountId: 'company-1', stationAccountId: 'merchant-1', platformAccountId: 'platform-1' };
 const base = { operationId: 'op-1', proof, operation, accounts, now: '2026-10-24T12:00:00Z' };
 
 test('prepares balanced settlement but never posts it', () => {
