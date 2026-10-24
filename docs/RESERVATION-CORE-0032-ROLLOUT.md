@@ -17,4 +17,4 @@ Rollback SHA-256: `30716a7fa3f6bfca1d75010c43795553cb574c1777b3b0982ab514d166fe6
 
 GREEN: commit6e0519eb3020f2c9786f516c2b450b920647f17b, run40070333103, acceptance120802283933 and real-auth-storage120802284100. All isolated SQL/API/browser and actual Auth/Storage checks passed through0032. The internal-core checks created real disposable finance holds and verified exact original schema/defaultACL rollback. Generated contracts40070333240 have no drift.
 
-Status: acceptance complete and allowlisted; NOT applied live yet.
+Status: applied alone on24 October2026 as`20261024095204`. Direct postflight: wrapper ACL remains postgres/service_role only; new core is SECURITY INVOKER with empty search_path and postgres-only EXECUTE. All24 defaultACL scopes/hash and legacy status definition unchanged;0009 deferred. Existing usage/hold/journal/proof counts remain zero. No production business data or secrets changed; web/API runtime not deployed.
