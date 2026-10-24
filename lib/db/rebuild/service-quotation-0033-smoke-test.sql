@@ -394,13 +394,25 @@ BEGIN
   quote:=public.petro_worker_quote_service((ids->>'fuelProof')::uuid,(ids->>'fuel')::uuid,(ids->>'price')::uuid,'{"quantity":"1"}',NULL);
   IF quote->>'canReserve' IS DISTINCT FROM 'false' OR quote->>'denialCode' IS DISTINCT FROM 'insufficient_funds' THEN RAISE EXCEPTION 'Quote skipped available funding'; END IF;
   PERFORM petro_private.finance_release_reservation(hold_id,'00000000-0000-4000-8000-000000003302');
-  SELECT organization_id INTO merchant_id FROM petro_private.worker_pin_proofs p JOIN public.petro_branches b ON b.id=p.merchant_branch_id WHERE p.id=(ids->>'partProof')::uuid;
-  UPDATE public.petro_organizations SET kind='provider' WHERE id=merchant_id;
+  DECLARE provider_id uuid:=gen_random_uuid(); provider_branch uuid:=gen_random_uuid(); provider_membership uuid:=gen_random_uuid(); provider_proof jsonb;
   BEGIN
-   PERFORM public.petro_worker_service_options((ids->>'partProof')::uuid,NULL,1,20);
-   RAISE EXCEPTION 'Expired/unsubscribed provider offered new service';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  UPDATE public.petro_organizations SET kind='station' WHERE id=merchant_id;
+   INSERT INTO public.petro_organizations(id,name,kind,code,status,approval_status,operational_status,created_by)
+   VALUES(provider_id,'مقدم اختبار بلا اشتراك','provider','QUOTE-NO-SUB-PROVIDER','active','approved','active','00000000-0000-4000-8000-000000003301');
+   INSERT INTO public.petro_branches(id,organization_id,name,code,status,approval_status,operational_status)
+   VALUES(provider_branch,provider_id,'فرع اختبار بلا اشتراك','QUOTE-NO-SUB-BRANCH','active','approved','active');
+   INSERT INTO public.petro_memberships(id,user_id,organization_id,role,scope,active)
+   VALUES(provider_membership,'00000000-0000-4000-8000-000000003302',provider_id,'worker','branches',true);
+   INSERT INTO public.petro_membership_branches(organization_id,membership_id,branch_id) VALUES(provider_id,provider_membership,provider_branch);
+   PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003301',true);
+   PERFORM public.petro_admin_worker_assignment('00000000-0000-4000-8000-000000003302',provider_branch,'parts',true,0,'quote-unsubscribed-provider-001');
+   PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003302',true);
+   provider_proof:=public.petro_worker_verify_pair(provider_branch,'parts',repeat('e',64),repeat('a',64),'quote-unsubscribed-proof-001');
+   IF provider_proof->>'valid' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'Unsubscribed provider identity fixture invalid'; END IF;
+   BEGIN
+    PERFORM public.petro_worker_service_options((provider_proof->>'verificationId')::uuid,NULL,1,20);
+    RAISE EXCEPTION 'Unsubscribed provider offered new service';
+   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END;
  END;
  UPDATE petro_private.worker_pin_proofs SET expires_at=clock_timestamp()-interval '1 millisecond',created_at=clock_timestamp()-interval '1 minute' WHERE id=(ids->>'fuelProof')::uuid;
  BEGIN
