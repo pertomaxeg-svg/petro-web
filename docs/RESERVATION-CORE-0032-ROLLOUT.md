@@ -12,4 +12,9 @@ No table/default ACL, old rows, balance or price is modified by installing the m
 RED: run40070191079 / acceptance120801758475, missing shared reservation core as expected.
 Require GREEN disposable actual funded hold, missing legacy proof denial, same-request replay, changed-payload conflict, actual finance hold linkage, policy rejection atomicity, private-core client denial and exact original schema/defaultACL restoration. Source/rollback SHA256 fingerprints must be recorded before live application. No live synthetic users, prices or business records.
 
-Status: source prepared for acceptance; NOT applied live.
+Source SHA-256: `d3946d2aff2cd2bdee19099030cdb4d9def85c61a9715cc593d5f1c3496da2bb`.
+Rollback SHA-256: `30716a7fa3f6bfca1d75010c43795553cb574c1777b3b0982ab514d166fe6fab`.
+
+GREEN: commit6e0519eb3020f2c9786f516c2b450b920647f17b, run40070333103, acceptance120802283933 and real-auth-storage120802284100. All isolated SQL/API/browser and actual Auth/Storage checks passed through0032. The internal-core checks created real disposable finance holds and verified exact original schema/defaultACL rollback. Generated contracts40070333240 have no drift.
+
+Status: acceptance complete and allowlisted; NOT applied live yet.
