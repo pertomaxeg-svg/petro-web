@@ -466,8 +466,29 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0036
 default_acl_snapshot >"$tmp_dir/default-acl-after-0036.txt"
 cmp "$tmp_dir/default-acl-before-0036.txt" "$tmp_dir/default-acl-after-0036.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-execution-0036-smoke-test.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0037.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0037.txt"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0037_final_service_payment.sql" >/dev/null
+default_acl_snapshot >"$tmp_dir/default-acl-after-0037.txt"
+cmp "$tmp_dir/default-acl-before-0037.txt" "$tmp_dir/default-acl-after-0037.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM petro_private.service_order_confirmation_commands")" != "0" ]; then
+ if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0037_final_service_payment.sql" >"$tmp_dir/0037-rollback-refusal.log" 2>&1; then
+  echo "0037 rollback erased financial confirmation history" >&2
+  exit 1
+ fi
+ rg -q 'rollback refuses to remove financial or confirmation history' "$tmp_dir/0037-rollback-refusal.log"
+ # NEW relations with this disposable runner's synthetic records only.
+ # Never delete or rewrite immutable finance journal/inventory history.
+ psql --no-psqlrc --set ON_ERROR_STOP=1 -c "TRUNCATE petro_private.service_order_confirmation_commands,petro_private.service_order_receipts,petro_private.service_order_receivables,petro_private.service_order_payments,petro_private.service_order_events RESTART IDENTITY;" >/dev/null
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0037_final_service_payment.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0037-rollback.sql"
+cmp "$tmp_dir/schema-before-0037.sql" "$tmp_dir/schema-after-0037-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0037-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0037.txt" "$tmp_dir/default-acl-after-0037-rollback.txt"
+echo "PASS: final PIN limiter, actual partial financial capture, merchant receipt/receivable and preserving schema/defaultACL rollback"
 if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM petro_private.service_order_executions")" != "0" ]; then
  if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0036_service_execution_evidence.sql" >"$tmp_dir/0036-rollback-refusal.log" 2>&1; then
   echo "0036 rollback erased execution history" >&2
