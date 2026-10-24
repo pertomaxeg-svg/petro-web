@@ -449,6 +449,7 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0034
 default_acl_snapshot >"$tmp_dir/default-acl-after-0034.txt"
 cmp "$tmp_dir/default-acl-before-0034.txt" "$tmp_dir/default-acl-after-0034.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/system-attribution-0034-smoke-test.sql" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-orders-0035-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
 # Prove rollback cannot erase a persisted system executor. Disposable fixture only.
 psql --no-psqlrc --set ON_ERROR_STOP=1 <<'SQL' >/dev/null

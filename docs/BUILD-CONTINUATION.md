@@ -28,3 +28,7 @@ Quote fixtures need actual washMode/vehicleType/vehicleSize attributes, approved
 A temporary unused PL/pgSQL id variable caused ambiguity in0034 tests; removed.
 JS String.replace replacement strings interpret dollar-backtick and dollar-quote sequences. Do not use dollar-quoted SQL needles in JS replacement strings; prefer simple SQL strings or a replacement callback. Approved-runner now has a node--check CI step.
 GitHub Actions runs on PR#1 to main. Current sources are on the approved branch, no main merge. Use the full GREEN source commit for evidence, not later documentation-only run as proof of new behavior.
+
+
+## Current verified checkpoint update
+Commit6424147b501dfd99ec190a03ce31a2ab975ab3e4 passed full run40087267595 (acceptance120852655469 and actual Auth/Storage120852655660); approved-runner JS syntax check passed and live0034 probe true. Next0035 plan is docs/superpowers/plans/2026-10-24-order-reservation.md. Start from its actual reserve/cancel/expiry RED gate; do not treat absent new functionality as a regression of accepted0034.
