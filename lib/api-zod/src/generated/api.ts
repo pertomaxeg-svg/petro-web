@@ -317,6 +317,7 @@ export const GetAdminFleetCardsQueryParams = zod.object({
   "view": zod.enum(['overview', 'requests', 'issued', 'stock', 'history']),
   "organizationId": zod.coerce.string().uuid().optional(),
   "vehicleId": zod.coerce.string().uuid().optional(),
+  "fulfillmentMethod": zod.enum(['install', 'pickup']).optional().describe('Installation or branch-pickup requests only; valid only with view=requests'),
   "status": zod.coerce.string().max(getAdminFleetCardsQueryStatusMax).optional(),
   "search": zod.coerce.string().max(getAdminFleetCardsQuerySearchMax).optional(),
   "page": zod.coerce.number().int().min(1).max(getAdminFleetCardsQueryPageMax).default(getAdminFleetCardsQueryPageDefault),

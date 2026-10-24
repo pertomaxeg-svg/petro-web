@@ -5,12 +5,17 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GetAdminFleetCardsFulfillmentMethod } from './getAdminFleetCardsFulfillmentMethod';
 import type { GetAdminFleetCardsView } from './getAdminFleetCardsView';
 
 export type GetAdminFleetCardsParams = {
 view: GetAdminFleetCardsView;
 organizationId?: string;
 vehicleId?: string;
+/**
+ * Installation or branch-pickup requests only; valid only with view=requests
+ */
+fulfillmentMethod?: GetAdminFleetCardsFulfillmentMethod;
 /**
  * @maxLength 32
  */

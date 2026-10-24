@@ -290,10 +290,15 @@ router.get("/admin/fleet/cards", async (req: Request, res: Response): Promise<vo
     fail(res, 400, "معايير إدارة البطاقات غير صالحة.");
     return;
   }
+  if (parsed.data.fulfillmentMethod && parsed.data.view !== "requests") {
+    fail(res, 400, "طريقة التنفيذ متاحة لتصفية الطلبات فقط.");
+    return;
+  }
   const filters = {
     organizationId: parsed.data.organizationId ?? null,
     vehicleId: parsed.data.vehicleId ?? null,
     status: parsed.data.status ?? null,
+    fulfillmentMethod: parsed.data.fulfillmentMethod ?? null,
     search: parsed.data.search ?? null,
     page: parsed.data.page,
     pageSize: parsed.data.pageSize,

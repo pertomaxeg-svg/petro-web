@@ -185,6 +185,7 @@ export * from './financeVersionedReasonAction';
 export * from './fleetConsumptionRateInput';
 export * from './fuelPreviewRequest';
 export * from './fuelPreviewResult';
+export * from './getAdminFleetCardsFulfillmentMethod';
 export * from './getAdminFleetCardsParams';
 export * from './getAdminFleetCardsView';
 export * from './getAdminFleetCatalogCoverage';

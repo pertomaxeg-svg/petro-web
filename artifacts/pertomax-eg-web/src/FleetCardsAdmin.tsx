@@ -156,6 +156,7 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [fulfillmentMethod, setFulfillmentMethod] = useState<"" | "install" | "pickup">("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const params = useMemo<GetAdminFleetCardsParams>(() => ({
@@ -163,8 +164,9 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
     ...(organizationId ? { organizationId } : {}),
     ...(vehicleId ? { vehicleId } : {}),
     ...(status ? { status } : {}),
+    ...(view === "requests" && fulfillmentMethod ? { fulfillmentMethod } : {}),
     ...(search ? { search } : {}),
-  }), [view, page, pageSize, organizationId, vehicleId, status, search]);
+  }), [view, page, pageSize, organizationId, vehicleId, status, search, fulfillmentMethod]);
   const query = useGetAdminFleetCards(params, {
     query: { queryKey: getGetAdminFleetCardsQueryKey(params), retry: false, refetchOnMount: "always" },
   });
@@ -209,6 +211,7 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
     setView(next);
     setPage(1);
     setStatus("");
+    setFulfillmentMethod("");
   };
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -219,6 +222,7 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
     setSearch("");
     setSearchDraft("");
     setStatus("");
+    setFulfillmentMethod("");
     setPage(1);
   };
   const retryAll = () => {
@@ -258,6 +262,11 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
       </button>)}
     </nav>
 
+    {view === "requests" && <nav className="fc-state-tabs" aria-label="طريقة تنفيذ طلبات البطاقات">
+      {([["", "كل الطلبات"], ["install", "طلبات التركيب"], ["pickup", "طلبات الاستلام من الفرع"]] as const).map(([value, label]) =>
+        <button type="button" key={value} data-testid={`fc-requests-${value || "all"}`} aria-pressed={fulfillmentMethod === value} onClick={() => { setSelectedRequest(null); setFulfillmentMethod(value); setPage(1); }}>{label}</button>
+      )}
+    </nav>}
     {view === "issued" && <nav className="fc-state-tabs" aria-label="تصنيف البطاقات الصادرة">
       {[["", "كل البطاقات"], ["active", "البطاقات الفعالة"], ["inactive", "البطاقات غير الفعالة"]].map(([value, label]) =>
         <button type="button" key={value} data-testid={`fc-issued-${value || "all"}`} aria-pressed={status === value} onClick={() => { setStatus(value); setPage(1); }}>{label}</button>
@@ -289,7 +298,7 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
             )}
           </select>
         </label>
-        {(search || status) && <button type="button" className="fc-clear" onClick={resetFilters}>مسح عوامل التصفية</button>}
+        {(search || status || fulfillmentMethod) && <button type="button" className="fc-clear" onClick={resetFilters}>مسح عوامل التصفية</button>}
         <span className="fc-result-count">{query.isSuccess ? `${new Intl.NumberFormat("ar-EG").format(total)} سجل` : "بيانات مباشرة من النظام"}</span>
       </div>}
 
@@ -317,8 +326,8 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
             const requestType = credentialTypeLabel(row.type ?? row.unitType);
             const payment = row.paymentState;
             const displaysFee = view === "requests" && row.issuePriceMinor !== undefined;
-            return <tr key={rowKey}>
-              <td><b>{identifier}</b><small>{requestTypeLabel(row.requestType) || safeText(row.reason)}</small>{view === "requests" && <small className="fc-request-reference">{requestReference(row)}</small>}</td>
+            return <tr key={rowKey} data-request-id={view === "requests" && typeof row.id === "string" ? row.id : undefined}>
+              <td><b>{identifier}</b><small>{requestTypeLabel(row.requestType) || safeText(row.reason)}</small>{view === "requests" && <><small className="fc-request-reference">{requestReference(row)}</small><small>{row.fulfillmentMethod === "install" ? "تركيب بالموقع" : row.fulfillmentMethod === "pickup" ? "استلام من الفرع" : "طريقة التنفيذ غير محددة"}</small></>}</td>
               <td><b>{safeText(row.organizationName)}</b><small>{safeText(row.branchName)}</small></td>
               <td><span className="fc-type">{String(row.type ?? row.unitType) === "nfc" ? <Smartphone size={15}/> : <CreditCard size={15}/>} {requestType}</span></td>
               <td><span className={`fc-status status-${String(row.status ?? "unknown")}`}>{statusText(row.status)}</span></td>
@@ -380,8 +389,10 @@ export function FleetCardsAdmin({ canMutate, canActivateNfc = false, onOpenActio
           <div><dt>رسوم الإصدار</dt><dd>{egp(selectedRequest.issuePriceMinor)}</dd></div>
           <div><dt>طريقة الاستلام</dt><dd>{selectedRequest.fulfillmentMethod === "install" ? "تركيب بالموقع" : selectedRequest.fulfillmentMethod === "pickup" ? "استلام من الفرع" : "غير محددة"}</dd></div>
           <div className="fc-request-fact-wide"><dt>المكان</dt><dd>{safeText(selectedRequest.fulfillmentMethod === "install" ? selectedRequest.installationAddress : selectedRequest.pickupLocation)}</dd></div>
+          {selectedRequest.fulfillmentMethod === "install" && <>
           <div><dt>جهة التواصل</dt><dd>{safeText(selectedRequest.fulfillmentContactName)}</dd></div>
           <div><dt>هاتف التواصل</dt><dd><bdi dir="ltr">{safeText(selectedRequest.fulfillmentContactPhone)}</bdi></dd></div>
+          </>}
           <div><dt>موعد التنفيذ</dt><dd>{dateText(selectedRequest.scheduledAt)}</dd></div>
           <div><dt>تاريخ الطلب</dt><dd>{dateText(selectedRequest.createdAt)}</dd></div>
           <div className="fc-request-fact-wide"><dt>السبب المسجل</dt><dd>{safeText(selectedRequest.reason)}</dd></div>

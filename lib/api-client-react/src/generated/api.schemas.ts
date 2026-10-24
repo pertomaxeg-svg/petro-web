@@ -2967,6 +2967,10 @@ view: GetAdminFleetCardsView;
 organizationId?: string;
 vehicleId?: string;
 /**
+ * Installation or branch-pickup requests only; valid only with view=requests
+ */
+fulfillmentMethod?: GetAdminFleetCardsFulfillmentMethod;
+/**
  * @maxLength 32
  */
 status?: string;
@@ -2995,6 +2999,14 @@ export const GetAdminFleetCardsView = {
   issued: 'issued',
   stock: 'stock',
   history: 'history',
+} as const;
+
+export type GetAdminFleetCardsFulfillmentMethod = typeof GetAdminFleetCardsFulfillmentMethod[keyof typeof GetAdminFleetCardsFulfillmentMethod];
+
+
+export const GetAdminFleetCardsFulfillmentMethod = {
+  install: 'install',
+  pickup: 'pickup',
 } as const;
 
 export type AuthCallbackParams = {
