@@ -65,6 +65,9 @@ jobs:
           retention-days: 7
 
   real-auth-storage:
+    env:
+      # CLI v2.58.5 supports the original upstream registry; avoid ECR shared-IP data quotas.
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
