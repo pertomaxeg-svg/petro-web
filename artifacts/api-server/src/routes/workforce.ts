@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { fleetHmacSecret, pairPinDigest } from "../lib/fleetPairIdentity";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { ListAdminWorkforceQueryParams, SetAdminWorkerAssignmentBody, VerifyWorkerDriverPairBody } from "@workspace/api-zod";
+import { ListAdminWorkforceQueryParams, SetAdminWorkerAssignmentBody, VerifyWorkerDriverPairBody, GetWorkerServiceOptionsQueryParams, QuoteWorkerServiceBody } from "@workspace/api-zod";
 import { requireSession } from "./management";
 import { isRecord, setNoStore } from "../lib/supabaseServer";
 
@@ -76,24 +76,17 @@ function quoteReply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
 }
 router.get("/operations/service-options",async(req:Request,res:Response)=>{
  setNoStore(res);const session=await requireSession(req,res);if(!session)return;
- const q=req.query;const page=q.page??"1";const pageSize=q.pageSize??"20";
- if(Object.keys(q).some(key=>!["proofId","search","page","pageSize"].includes(key))||typeof q.proofId!=="string"||!operationUUID.test(q.proofId)
- ||(q.search!==undefined&&(typeof q.search!=="string"||q.search.length>160))
- ||typeof page!=="string"||!/^[0-9]{1,6}$/.test(page)||Number(page)<1||Number(page)>100000
- ||typeof pageSize!=="string"||!/^[0-9]{1,2}$/.test(pageSize)||Number(pageSize)<1||Number(pageSize)>50){
- res.status(400).json({message:"معايير اختيار الخدمة غير صالحة."});return;}
- quoteReply(res,await rpc(session,"petro_worker_service_options",{p_proof_id:q.proofId,p_search:q.search??null,p_page:Number(page),p_page_size:Number(pageSize)}));
+ const parsed=GetWorkerServiceOptionsQueryParams.strict().safeParse(req.query);
+ if(!parsed.success){res.status(400).json({message:"معايير اختيار الخدمة غير صالحة."});return;}
+ const q=parsed.data;
+ quoteReply(res,await rpc(session,"petro_worker_service_options",{p_proof_id:q.proofId,p_search:q.search??null,p_page:q.page,p_page_size:q.pageSize}));
 });
 router.post("/operations/service-quotes",async(req:Request,res:Response)=>{
- setNoStore(res);const session=await requireSession(req,res);if(!session)return;const q=req.body;
- if(!isRecord(q)||Object.keys(q).some(key=>!["proofId","referenceId","priceVersionId","input","locationId"].includes(key))
- ||!["proofId","referenceId","priceVersionId"].every(key=>typeof q[key]==="string"&&operationUUID.test(q[key] as string))
- ||(q.locationId!==undefined&&q.locationId!==null&&(typeof q.locationId!=="string"||!operationUUID.test(q.locationId)))
- ||!isRecord(q.input)||Object.keys(q.input).length!==1
- ||!(typeof q.input.quantity==="string"&&/^[0-9]{1,9}(\.[0-9]{1,3})?$/.test(q.input.quantity)
- ||typeof q.input.amountMinor==="string"&&/^[0-9]{1,15}$/.test(q.input.amountMinor))){
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const parsed=QuoteWorkerServiceBody.strict().safeParse(req.body);
+ if(!parsed.success||!isRecord(req.body.input)||Object.keys(req.body.input).length!==1){
  res.status(400).json({message:"اختر صنفًا وسعرًا حاليًا وأدخل كمية أو مبلغًا صالحًا."});return;}
+ const q=parsed.data;
  quoteReply(res,await rpc(session,"petro_worker_quote_service",{p_proof_id:q.proofId,p_reference_id:q.referenceId,p_price_version_id:q.priceVersionId,p_input:q.input,p_location_id:q.locationId??null}));
 });
-
 export default router;

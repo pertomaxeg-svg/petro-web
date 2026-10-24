@@ -2977,6 +2977,86 @@ export interface WorkerPairProof {
   vehicle?: WorkerPairProofVehicle;
 }
 
+export interface WorkerServiceLocation {
+  id: string;
+  name: string;
+  availableQuantity: string;
+}
+
+export type WorkerServicePricedItemKind = typeof WorkerServicePricedItemKind[keyof typeof WorkerServicePricedItemKind];
+
+
+export const WorkerServicePricedItemKind = {
+  fuel: 'fuel',
+  service: 'service',
+  product: 'product',
+} as const;
+
+export interface WorkerServicePricedItem {
+  id: string;
+  name: string;
+  kind: WorkerServicePricedItemKind;
+  brandName?: string | null;
+  unitCode: string;
+  /**
+     * @minimum 0
+     * @maximum 3
+     */
+  quantityScale: number;
+  priceVersionId: string;
+  /** Exact unit price in EGP piastres; fuel may contain fractional piastres */
+  unitPriceMinor: string;
+  locations?: WorkerServiceLocation[];
+}
+
+export interface WorkerServiceOptions {
+  items: WorkerServicePricedItem[];
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  pageSize: number;
+  expiresAt: string;
+}
+
+export interface WorkerServiceQuantityInput {
+  /** @pattern ^[0-9]{1,9}(\.[0-9]{1,3})?$ */
+  quantity: string;
+}
+
+export interface WorkerServiceAmountInput {
+  /**
+     * Maximum fuel amount in integer EGP piastres
+     * @pattern ^[0-9]{1,15}$
+     */
+  amountMinor: string;
+}
+
+export interface WorkerServiceQuoteRequest {
+  proofId: string;
+  referenceId: string;
+  priceVersionId: string;
+  input: WorkerServiceQuantityInput | WorkerServiceAmountInput;
+  locationId?: string | null;
+}
+
+export interface WorkerServiceQuote {
+  proofId: string;
+  item: WorkerServicePricedItem;
+  locationId?: string | null;
+  quantity: string;
+  /** @pattern ^[0-9]+$ */
+  amountMinor: string;
+  canReserve: boolean;
+  denialCode?: string | null;
+  expiresAt: string;
+  quotedAt: string;
+}
+
 /**
  * Request rejected or unavailable
  */
@@ -3157,6 +3237,24 @@ export const ListAdminWorkforceView = {
   assignments: 'assignments',
   candidates: 'candidates',
 } as const;
+
+export type GetWorkerServiceOptionsParams = {
+proofId: string;
+/**
+ * @maxLength 160
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
+};
 
 export type GetAdminFleetCardsParams = {
 view: GetAdminFleetCardsView;

@@ -319,8 +319,8 @@ BEGIN
  INSERT INTO public.petro_fuel_types(id,code,name_ar,vehicle_fuel_family,unit_code,created_by,updated_by) VALUES(fuel,'quote_gasoline','وقود اختبار التسعير','gasoline','litre',actor,actor);
  INSERT INTO public.petro_fuel_price_versions(id,fuel_type_id,version,price_per_unit,unit_code,valid_from,status,reason,created_by,published_at,published_by)
  VALUES(price,fuel,1,12.5,'litre',now()-interval '1 second','published','سعر وقود اختبار التسعير',actor,now(),actor);
- INSERT INTO public.petro_catalog_items(id,organization_id,category_id,item_kind,name,unit_code,display_status,review_status,created_by,updated_by)
- SELECT wash_item,merchant.org_id,id,'service','غسيل اختبار التسعير','service','active','approved',actor,actor FROM public.petro_catalog_categories WHERE code='wash';
+ INSERT INTO public.petro_catalog_items(id,organization_id,category_id,item_kind,name,unit_code,attributes,display_status,review_status,created_by,updated_by)
+ SELECT wash_item,merchant.org_id,id,'service','غسيل اختبار التسعير','service','{"washMode":"interior_exterior","vehicleType":"car","vehicleSize":"medium"}'::jsonb,'active','approved',actor,actor FROM public.petro_catalog_categories WHERE code='wash';
  INSERT INTO public.petro_catalog_items(id,organization_id,category_id,item_kind,name,brand_name,unit_code,display_status,review_status,created_by,updated_by)
  SELECT part,merchant.org_id,id,'product','قطعة اختبار التسعير','ماركة الاختبار','piece','active','approved',actor,actor FROM public.petro_catalog_categories WHERE code='parts';
  INSERT INTO public.petro_catalog_branch_availability(organization_id,item_id,branch_id,available,reason,created_by,updated_by)

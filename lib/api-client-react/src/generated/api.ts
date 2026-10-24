@@ -116,6 +116,7 @@ import type {
   GetAdminOrganizationBranch200,
   GetAdminOrganizationFinanceAccountsParams,
   GetMerchantCatalogItemsParams,
+  GetWorkerServiceOptionsParams,
   HealthStatus,
   InvitationCreatedResult,
   InvitationList,
@@ -174,6 +175,9 @@ import type {
   WorkerCapabilities,
   WorkerPairProof,
   WorkerPairVerificationInput,
+  WorkerServiceOptions,
+  WorkerServiceQuote,
+  WorkerServiceQuoteRequest,
   WorkforcePage
 } from './api.schemas';
 
@@ -1429,6 +1433,179 @@ export function useGetWorkerPairProof<TData = Awaited<ReturnType<typeof getWorke
 
 
 
+
+
+export const getGetWorkerServiceOptionsUrl = (params: GetWorkerServiceOptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/operations/service-options?${stringifiedParams}` : `/api/operations/service-options`
+}
+
+/**
+ * @summary Read current approved branch service choices after a valid caller-bound PIN proof
+ */
+export const getWorkerServiceOptions = async (params: GetWorkerServiceOptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<WorkerServiceOptions> => {
+
+  return customFetch<WorkerServiceOptions>(getGetWorkerServiceOptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerServiceOptionsQueryKey = (params?: GetWorkerServiceOptionsParams,) => {
+    return [
+    `/api/operations/service-options`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWorkerServiceOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getWorkerServiceOptions>>, TError = ErrorType<void>>(params: GetWorkerServiceOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerServiceOptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkerServiceOptions>>> = ({ signal }) => getWorkerServiceOptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerServiceOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkerServiceOptions>>>
+export type GetWorkerServiceOptionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read current approved branch service choices after a valid caller-bound PIN proof
+ */
+
+export function useGetWorkerServiceOptions<TData = Awaited<ReturnType<typeof getWorkerServiceOptions>>, TError = ErrorType<void>>(
+ params: GetWorkerServiceOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerServiceOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerServiceOptionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getQuoteWorkerServiceUrl = () => {
+
+
+
+
+  return `/api/operations/service-quotes`
+}
+
+/**
+ * @summary Compute an exact EGP quote and current policy, funding and stock eligibility without reserving
+ */
+export const quoteWorkerService = async (workerServiceQuoteRequest: WorkerServiceQuoteRequest, options?: Parameters<typeof customFetch>[1]): Promise<WorkerServiceQuote> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WorkerServiceQuote>(getQuoteWorkerServiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workerServiceQuoteRequest)
+  }
+);}
+
+
+
+
+
+export const getQuoteWorkerServiceMutationKey = () => ['quoteWorkerService'] as const;
+
+export const getQuoteWorkerServiceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteWorkerService>>, TError,QuoteWorkerServiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof quoteWorkerService>>, TError,QuoteWorkerServiceMutationVariables, TContext> => {
+
+const mutationKey = getQuoteWorkerServiceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof quoteWorkerService>>, QuoteWorkerServiceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  quoteWorkerService(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QuoteWorkerServiceMutationResult = NonNullable<Awaited<ReturnType<typeof quoteWorkerService>>>
+    export type QuoteWorkerServiceMutationBody = BodyType<WorkerServiceQuoteRequest>
+    export type QuoteWorkerServiceMutationError = ErrorType<void>
+    export type QuoteWorkerServiceMutationVariables = {data: BodyType<WorkerServiceQuoteRequest>}
+
+    /**
+ * @summary Compute an exact EGP quote and current policy, funding and stock eligibility without reserving
+ */
+export const useQuoteWorkerService = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteWorkerService>>, TError,QuoteWorkerServiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof quoteWorkerService>>,
+        TError,
+        QuoteWorkerServiceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getQuoteWorkerServiceMutationOptions(options));
+    }
 
 
 export const getGetAdminFleetCardsUrl = (params: GetAdminFleetCardsParams,) => {

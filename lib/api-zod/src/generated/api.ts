@@ -479,6 +479,111 @@ export const GetWorkerPairProofResponse = zod.object({
 
 
 /**
+ * @summary Read current approved branch service choices after a valid caller-bound PIN proof
+ */
+export const getWorkerServiceOptionsQuerySearchMax = 160;
+
+export const getWorkerServiceOptionsQueryPageDefault = 1;
+export const getWorkerServiceOptionsQueryPageMax = 100000;
+
+export const getWorkerServiceOptionsQueryPageSizeDefault = 20;
+export const getWorkerServiceOptionsQueryPageSizeMax = 50;
+
+
+
+export const GetWorkerServiceOptionsQueryParams = zod.object({
+  "proofId": zod.coerce.string().uuid(),
+  "search": zod.coerce.string().max(getWorkerServiceOptionsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).max(getWorkerServiceOptionsQueryPageMax).default(getWorkerServiceOptionsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(getWorkerServiceOptionsQueryPageSizeMax).default(getWorkerServiceOptionsQueryPageSizeDefault)
+})
+
+export const getWorkerServiceOptionsResponseItemsItemQuantityScaleMin = 0;
+export const getWorkerServiceOptionsResponseItemsItemQuantityScaleMax = 3;
+
+export const getWorkerServiceOptionsResponseTotalMin = 0;
+
+
+export const getWorkerServiceOptionsResponsePageSizeMax = 50;
+
+
+
+export const GetWorkerServiceOptionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "brandName": zod.string().nullish(),
+  "unitCode": zod.string(),
+  "quantityScale": zod.number().int().min(getWorkerServiceOptionsResponseItemsItemQuantityScaleMin).max(getWorkerServiceOptionsResponseItemsItemQuantityScaleMax),
+  "priceVersionId": zod.string().uuid(),
+  "unitPriceMinor": zod.string().describe('Exact unit price in EGP piastres; fuel may contain fractional piastres'),
+  "locations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "availableQuantity": zod.string()
+})).optional()
+})),
+  "total": zod.number().int().min(getWorkerServiceOptionsResponseTotalMin),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(getWorkerServiceOptionsResponsePageSizeMax),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Compute an exact EGP quote and current policy, funding and stock eligibility without reserving
+ */
+export const quoteWorkerServiceBodyInputOneQuantityRegExp = new RegExp('^[0-9]{1,9}(\\.[0-9]{1,3})?$');
+export const quoteWorkerServiceBodyInputTwoAmountMinorRegExp = new RegExp('^[0-9]{1,15}$');
+
+
+export const QuoteWorkerServiceBody = zod.object({
+  "proofId": zod.string().uuid(),
+  "referenceId": zod.string().uuid(),
+  "priceVersionId": zod.string().uuid(),
+  "input": zod.union([zod.object({
+  "quantity": zod.string().regex(quoteWorkerServiceBodyInputOneQuantityRegExp)
+}),zod.object({
+  "amountMinor": zod.string().regex(quoteWorkerServiceBodyInputTwoAmountMinorRegExp).describe('Maximum fuel amount in integer EGP piastres')
+})]),
+  "locationId": zod.string().uuid().nullish()
+})
+
+export const quoteWorkerServiceResponseItemQuantityScaleMin = 0;
+export const quoteWorkerServiceResponseItemQuantityScaleMax = 3;
+
+export const quoteWorkerServiceResponseAmountMinorRegExp = new RegExp('^[0-9]+$');
+
+
+export const QuoteWorkerServiceResponse = zod.object({
+  "proofId": zod.string().uuid(),
+  "item": zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "kind": zod.enum(['fuel', 'service', 'product']),
+  "brandName": zod.string().nullish(),
+  "unitCode": zod.string(),
+  "quantityScale": zod.number().int().min(quoteWorkerServiceResponseItemQuantityScaleMin).max(quoteWorkerServiceResponseItemQuantityScaleMax),
+  "priceVersionId": zod.string().uuid(),
+  "unitPriceMinor": zod.string().describe('Exact unit price in EGP piastres; fuel may contain fractional piastres'),
+  "locations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "availableQuantity": zod.string()
+})).optional()
+}),
+  "locationId": zod.string().uuid().nullish(),
+  "quantity": zod.string(),
+  "amountMinor": zod.string().regex(quoteWorkerServiceResponseAmountMinorRegExp),
+  "canReserve": zod.boolean(),
+  "denialCode": zod.string().nullish(),
+  "expiresAt": zod.coerce.date(),
+  "quotedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Read paginated central card requests, issued credentials, stock, and history
  */
 export const getAdminFleetCardsQueryStatusMax = 32;
