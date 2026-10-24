@@ -301,7 +301,7 @@ GRANT SELECT ON pg_temp.attribution_ids TO authenticated;
 DO $actors$
 DECLARE actor uuid:='00000000-0000-4000-8000-000000003401'; account uuid; hold uuid; hold2 uuid;
  merchant record; product uuid:=gen_random_uuid(); location uuid:=gen_random_uuid(); reservation uuid:=gen_random_uuid(); source uuid:=gen_random_uuid();
- v_constraint text; system_movement bigint; history jsonb; id bigint;
+ v_constraint text; system_movement bigint; history jsonb;
 BEGIN
  SELECT a.id INTO STRICT account FROM public.petro_finance_accounts a JOIN public.petro_organizations o ON o.id=a.organization_id JOIN public.petro_branches b ON b.id=a.branch_id
  WHERE o.code='SYSTEM-IT-A' AND b.code='SYSTEM-IT-A1' AND a.account_kind='branch_funding';
@@ -317,6 +317,11 @@ BEGIN
   UPDATE public.petro_finance_reservations SET status='released',closed_at=now(),closed_by=actor,closed_by_system='service_order_expiry' WHERE id=hold;
   RAISE EXCEPTION 'Both human and system financial executors accepted';
  EXCEPTION WHEN check_violation THEN NULL; END;
+
+  BEGIN
+   UPDATE public.petro_finance_reservations SET status='released',closed_at=now(),closed_by_system='unknown_system' WHERE id=hold;
+   RAISE EXCEPTION 'Unknown system financial executor accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
  UPDATE public.petro_finance_reservations SET status='released',closed_at=now(),closed_by_system='service_order_expiry' WHERE id=hold;
  IF NOT EXISTS(SELECT 1 FROM public.petro_finance_reservations WHERE id=hold AND status='released' AND closed_by IS NULL AND closed_by_system='service_order_expiry') THEN RAISE EXCEPTION 'System attribution invented a user actor'; END IF;
  hold2:=petro_private.finance_reserve_funds(account,'fleet_usage',gen_random_uuid(),1000,'حجز اختبار مسار المستخدم',actor);
@@ -347,7 +352,7 @@ BEGIN
   RAISE EXCEPTION 'Expiry system issued or consumed physical stock';
  EXCEPTION WHEN check_violation THEN NULL; END;
  INSERT INTO public.petro_inventory_movements(organization_id,location_id,item_id,reservation_id,movement_kind,reserved_delta,reason,system_actor)
- VALUES(merchant.org_id,location,product,reservation,'release',-1,'تحرير اختباري من النظام فقط','service_order_expiry') RETURNING public.petro_inventory_movements.id INTO system_movement;
+ VALUES(merchant.org_id,location,product,reservation,'release',-1,'تحرير اختباري من النظام فقط','service_order_expiry') RETURNING id INTO system_movement;
  PERFORM set_config('request.jwt.claim.sub',actor::text,true);
  history:=public.petro_inventory_admin_query('movements',jsonb_build_object('organizationId',merchant.org_id,'locationId',location,'page',1,'pageSize',20));
  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(history->'items') r WHERE r->>'id'=system_movement::text AND r->>'actorName'='النظام' AND r->>'actorKind'='system') THEN RAISE EXCEPTION 'System history was hidden or attributed to a person: %',history; END IF;
