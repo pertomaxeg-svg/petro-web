@@ -208,3 +208,7 @@ Applied only0031 as20261024062426 after GREEN40069746677 at864f718d: acceptance1
 
 ##24 October2026 — reservation core0032
 Applied alone as20261024095204 after GREEN40070333103 at6e0519eb (acceptance120802283933, actual Auth/Storage120802284100). Source d3946d2aff2cd2bdee19099030cdb4d9def85c61a9715cc593d5f1c3496da2bb; rollback30716a7fa3f6bfca1d75010c43795553cb574c1777b3b0982ab514d166fe6fab. Actual disposable funded holds/replay/policy rejection and exact schema/defaultACL rollback passed. Live defaultACL24/hash and legacy unchanged, wrapper still service_role-only, new private core SECURITY INVOKER/postgres-only; no live business records.0033 quotation next; service orders/payment/runtime deployment remain incomplete.
+
+
+##24 October2026 — scoped quotation0033
+Applied alone as20261024102845 after full GREEN40085731237 at5085fa5c: SQL/API/browser120848152121 and actual Auth/Storage120848152013; generated contracts40085731236 have no drift. Sourcecc360afbeb42fb547b546a8fdb97a6303c36ce07a409ef8f9958b17b3c229031; rollbackeb795380e12855eee5ccabcdbc2c1450524b599eae3a0d983397397254800725. Worker quote100EGP→8litres and policy/tank/precision/funds/stock/provider/role/expiry/current-price/read-only guards passed, with responsive browser evidence. New public authenticated-only RPCs/private postgres-only helpers; preserved previous definitions/grants/defaultACL. No live prices/users/transactions. No order reservation/payment or runtime deployment claimed. Next: system attribution for real expiry, then actual order lifecycle.

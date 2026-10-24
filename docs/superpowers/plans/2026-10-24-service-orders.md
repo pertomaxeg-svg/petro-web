@@ -22,3 +22,12 @@ Live DB activation is separate from web/API deployment. Existing hosting destina
 ## Current checkpoint
 
 0032 postflight ledger20261024095204, defaultACL24/hashc70fd3da5a6b0c24f1ac2bac5657bcb3 and legacy RPC unchanged. Public reservation wrapper remains service_role-only; private core postgres-only/SECURITY INVOKER. Existing live usage/finance holds/journal/proof row counts all zero. No web/API deployment claimed.
+
+
+## Updated checkpoint after0033
+Accepted/live as20261024102845; full GREEN at5085fa5c in40085731237, SQL/API/browser120848152121 and actual Auth/Storage120848152013. Contracts40085731236 no drift. No reservation or payment is created by quotation; runtime remains undeployed.
+
+## Immediate prerequisite for real reservation expiry —0034
+Read-only live schema review found that financial hold closure and inventory movements currently require a human Auth actor. Before introducing an automatic expiry job, model its system executor explicitly rather than inventing a human action, synthetic Auth account, service-role JWT claim or session identity. Add controlled nullable system-attribution fields to reservation closure and inventory movements/completion, preserving existing human paths, nonfinancial actor constraints, RLS and grants. Only the exact service_order_expiry system actor is supported initially; it cannot mark consumed/paid financial entries. Client-facing mutation schemas never accept system-attribution inputs. Adapt inventory history to display the system label without losing rows lacking a human profile. Rollback must refuse persisted system-attributed records; never delete them for a downgrade. Test human and system exclusivity, unchanged legacy release/consume behavior, role denial, honest history and exact rollback/defaultACL. No expiry job or new financial command is activated by this attribution-only prerequisite.
+
+Then implement actual order reservation/execution/expiry with a narrow pg_cron job in Supabase, after testing the scheduler and application changes in both disposable PostgreSQL17 and actual loopback Supabase. pg_cron1.6.4 is available but not installed live. Do not fake an active scheduler; do not drop the extension on rollback because that could remove unrelated jobs. The job must target only unstarted expired orders, use bounded SKIP LOCKED processing, preserve executed stock, make releases atomic and record system/attempt/error-code history. Orders must not be activated with indefinite unstarted holds or a fabricated human executor.
