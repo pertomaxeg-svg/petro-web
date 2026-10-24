@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { formatOrderMoney as money } from "./orderDisplay";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 type Evidence={id:string;kind:string;fileName:string;contentType:string;byteSize:number;status:"pending"|"accepted"};
 type Execution={id:string;status:string;version:number;quantity:string;amountMinor:string;serviceGroup:string;kind:string;canStart:boolean;canDeliver:boolean;documentationRule:{odometerRequired:boolean;washBeforeRequired:boolean;washAfterRequired:boolean;serialRequired:boolean};evidence:Evidence[];delivery:null|{actualQuantity:string;actualAmountMinor:string;readingKm:string|null;odometerStatus:string|null;serialNumber:string|null;identityCurrent:boolean}};
@@ -10,7 +11,6 @@ async function request<T>(url:string,body?:unknown,bytes?:File):Promise<T>{
  return data;
 }
 const names:Record<string,string>={odometer:"صورة العداد",wash_before:"الغسيل قبل التنفيذ",wash_after:"الغسيل بعد التنفيذ",serial:"صورة الرقم التسلسلي"};
-const money=(s:string)=>/^[0-9]+$/.test(s)?(BigInt(s)/100n).toLocaleString("ar-EG")+"."+String(BigInt(s)%100n).padStart(2,"0")+" جنيه":"—";
 const digits=(s:string)=>s.replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)).replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/٫/g,".");
 export function ServiceOrderExecution({orderId,userId,central=false}:{orderId:string;userId:string;central?:boolean}){
  const cache=useQueryClient();const api=(central?"/api/admin":"/api/operations")+"/service-orders/"+orderId;

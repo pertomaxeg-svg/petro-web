@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGetAuthMe, getGetAuthMeQueryKey } from "@workspace/api-client-react";
 import "./FleetAdmin.css";
 import "./ServiceOrders.css";
+import { formatOrderMoney as money } from "./orderDisplay";
 import { ServiceOrderExecution } from "./ServiceOrderExecution";
 
 type Order={
@@ -21,7 +22,6 @@ const payments:Record<string,string>={held:"المبلغ محجوز",unpaid:"غ�
 const services:Record<string,string>={fuel:"وقود",wash:"غسيل",oils:"زيوت",parts:"قطع غيار",batteries:"بطاريات",filters:"فلاتر",consumables:"مستهلكات"};
 const eventNames:Record<string,string>={started:"بدء تنفيذ الخدمة",delivered:"تسجيل التنفيذ الفعلي",reserved:"حجز المال والمخزون المطلوب",cancelled:"إلغاء الحجز وتحرير الموارد",expiry_failed:"تعذّر تحرير الحجز تلقائيًا"};
 const units:Record<string,string>={litre:"لتر",piece:"قطعة",service:"خدمة",pack:"عبوة"};
-const money=(minor:string)=>/^[0-9]+$/.test(minor)?(BigInt(minor)/100n).toLocaleString("ar-EG")+"."+String(BigInt(minor)%100n).padStart(2,"0")+" جنيه":"—";
 const date=(value:string|null)=>value?new Date(value).toLocaleString("ar-EG",{dateStyle:"medium",timeStyle:"short",timeZone:"Africa/Cairo"}):"—";
 class OrderError extends Error{constructor(message:string,public status:number){super(message);}}
 async function request<T>(url:string,body?:unknown):Promise<T>{
@@ -32,7 +32,7 @@ async function request<T>(url:string,body?:unknown):Promise<T>{
 }
 function Summary({order:o}:{order:Order}){
  return <><div className="so-status-row"><span className={"so-badge so-"+o.status}>{states[o.status]??"حالة غير معروفة"}</span><span className="so-payment">{payments[o.paymentStatus]??"حالة دفع غير معروفة"}</span><span>{services[o.serviceGroup]??"خدمة"}</span></div>
- <h2>{o.itemSnapshot.name??"صنف الطلب"}</h2><div className="so-amount">{money(o.amountMinor)}</div>
+ <h2>{o.itemSnapshot.name??"صنف الطلب"}</h2><small className="so-amount-caption">قيمة الحجز</small><div className="so-amount">{money(o.amountMinor)}</div>
  <dl className="so-facts"><div><dt>المركبة</dt><dd>{o.vehicleSnapshot.plate??"—"} · {[o.vehicleSnapshot.brand,o.vehicleSnapshot.model].filter(Boolean).join(" ")}</dd></div>
  <div><dt>السائق</dt><dd>{o.vehicleSnapshot.driverName??"—"}</dd></div>
  <div><dt>مقدم الخدمة والفرع</dt><dd>{o.merchantSnapshot.organizationName??"—"} · {o.merchantSnapshot.branchName??"—"}</dd></div>

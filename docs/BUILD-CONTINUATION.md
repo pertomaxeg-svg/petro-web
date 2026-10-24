@@ -42,3 +42,7 @@ Runtime web/API remains NOT deployed. Hosting destination/runtime secret readine
 
 ## Working preference reaffirmed24Oct2026
 The owner explicitly requires one established repository/database discovery baseline, followed by continuous implementation from engineering reference/approved role dashboards and sections. Do NOT restart a broad repository/schema scan before each module. Reuse this checkpoint and cached/file-specific context. Read only files/resources affected by the current task; perform targeted authorization/schema/grant pre/postflight for actual migrations, and fresh branch-head CAS before commits to prevent overwriting other changes. This is verification of the changed scope, not a new project audit. Do not pause construction to repeat generic plans or reports.
+
+
+##0036 current source checkpoint
+Execution/evidence/delivery SQL/API/worker UI now accepted at1e497761 /40114257411, acceptance120933287497, real Auth/Storage120933287638. Source5ee6b3212f6a67049ceea710d2b94cc2f545c8c790ce2dedc7fb7a9adea331a5 / rollbackd39fff8b8b29349936cae391c415db57db08efb0fa260e3b60cea1a77b461ce0. Full details docs/SERVICE-EXECUTION-0036-ROLLOUT.md. Next exact work: targeted activation/postflight of0036, final confirmation/partial finance capture/merchant receivable+receipt, then settlement/refunds and approved role sections. Do not restart the project audit. Reuse cached/current affected files and this plan. No paid or runtime deployment claimed.
