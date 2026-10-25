@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 
 const port = Number(process.env.PORT ?? 5000);
 const basePath = process.env.BASE_PATH ?? '/';
-const proxyBasePath = basePath.replace(/\\/+$/, '');
+const proxyBasePath = basePath === '/' ? '' : basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
 const apiProxyPath = `${proxyBasePath}/api`;
 
 if (!Number.isInteger(port) || port <= 0) {
