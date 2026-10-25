@@ -2349,7 +2349,7 @@ components:
       properties:
         action:
           type: string
-          enum: [category.create, category.update, category.status, fuel.type.create, fuel.type.update, fuel.type.status, fuel.price.create_draft, fuel.price.publish, fuel.price.cancel, item.review]
+          enum: [category.create, category.update, category.status, unit.create, unit.status, fuel.type.create, fuel.type.update, fuel.type.status, fuel.price.create_draft, fuel.price.publish, fuel.price.cancel, item.review]
         payload:
           type: object
           additionalProperties: true
