@@ -11,10 +11,10 @@ const documentTypes: Record<string,string> = {
  vehicle_registration:"رخصة المركبة", national_id:"الهوية",
 };
 export function reviewStatusLabel(value:string):string {
- return reviewStates[value] ?? "حالة غير معروفة";
+ return Object.prototype.hasOwnProperty.call(reviewStates,value) ? reviewStates[value] : "حالة غير معروفة";
 }
 export function documentTypeLabel(value:string):string {
- return documentTypes[value] ?? value;
+ return Object.prototype.hasOwnProperty.call(documentTypes,value) ? documentTypes[value] : value;
 }
 export function reviewRequestTitle(item:{requestType:string;title:string}):string {
  if(item.requestType!=="document")return item.title;

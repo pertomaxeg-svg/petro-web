@@ -22,3 +22,10 @@ test("only document-title prefixes are translated",()=>{
  assert.equal(reviewRequestTitle({requestType:"document",title:"مستند odometer_evidence"}),"صورة العداد");
  assert.equal(reviewRequestTitle({requestType:"document",title:"مستند تفويض خاص"}),"تفويض خاص");
 });
+
+test("user document names matching object prototype keys remain ordinary text",()=>{
+ for(const value of ["constructor","__proto__","toString"]){
+  assert.equal(documentTypeLabel(value),value);
+  assert.equal(reviewStatusLabel(value),"حالة غير معروفة");
+ }
+});
