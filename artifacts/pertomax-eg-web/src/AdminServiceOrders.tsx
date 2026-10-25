@@ -147,7 +147,7 @@ export default function AdminServiceOrders() {
 
     <section className="aso-summary" aria-label="ملخص طلبات الخدمات">
       <span className="aso-summary-icon"><ClipboardList size={20}/></span>
-      <div><small>النتائج المطابقة للمرشحات</small><b>{query.isLoading ? "…" : (query.data?.total ?? "—").toLocaleString?.("ar-EG") ?? query.data?.total ?? "—"}</b></div>
+      <div><small>النتائج المطابقة للمرشحات</small><b>{query.isLoading ? "…" : query.data ? query.data.total.toLocaleString("ar-EG") : "—"}</b></div>
       <span className="aso-summary-note">مصدر البيانات: سجل طلبات الخدمة</span>
     </section>
 
