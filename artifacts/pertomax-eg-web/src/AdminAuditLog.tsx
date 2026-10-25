@@ -110,7 +110,7 @@ export default function AdminAuditLog() {
       <div>
         <span className="ac-eyebrow">الحوكمة والامتثال <i/></span>
         <h1>سجل التدقيق المركزي</h1>
-        <p>سجل قراءة فقط للقرارات والتغييرات المسجلة في المنصة.</p>
+        <p>سجل قراءة فقط للقرارات والتغييرات المسجلة في المنصة؛ التواريخ بتوقيت القاهرة.</p>
       </div>
       <button className="ac-button ac-button-quiet" type="button" onClick={() => void query.refetch()} disabled={query.isFetching}>
         <RefreshCw size={15}/> تحديث السجل
@@ -119,7 +119,7 @@ export default function AdminAuditLog() {
 
     <section className="audit-summary" aria-label="ملخص سجل التدقيق">
       <span className="audit-summary-icon"><ShieldCheck size={20}/></span>
-      <div><small>إجمالي السجلات المطابقة</small><b>{(query.data?.total ?? 0).toLocaleString("ar-EG")}</b></div>
+      <div><small>إجمالي السجلات المطابقة</small><b aria-live="polite">{query.isLoading ? "جارٍ التحميل…" : query.isError ? "—" : (query.data?.total ?? 0).toLocaleString("ar-EG")}</b></div>
       <span className="audit-summary-note">التفاصيل الحساسة محجوبة من العرض.</span>
     </section>
 
