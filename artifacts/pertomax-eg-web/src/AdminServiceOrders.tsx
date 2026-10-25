@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, ArrowLeft, CircleAlert, Clock3, ClipboardList, RefreshCw, Search } from "lucide-react";
-import { ApiError, customFetch } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 
 type JsonRecord = Record<string, unknown>;
 type ServiceOrder = {
@@ -78,13 +78,14 @@ function dateTime(value: string | undefined | null): string {
 }
 
 function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    const data = error.data;
-    if (data && typeof data === "object" && "message" in data && typeof data.message === "string") {
-      return data.message;
+  if (error && typeof error === "object") {
+    const value = error as { status?: unknown; message?: unknown; data?: unknown };
+    if (value.data && typeof value.data === "object" && "message" in value.data && typeof value.data.message === "string") {
+      return value.data.message;
     }
-    if (error.status === 401) return "يلزم تسجيل الدخول من جديد.";
-    if (error.status === 403) return "لا تملك صلاحية عرض طلبات الخدمات المركزية.";
+    if (value.status === 401) return "يلزم تسجيل الدخول من جديد.";
+    if (value.status === 403) return "لا تملك صلاحية عرض طلبات الخدمات المركزية.";
+    if (typeof value.message === "string") return value.message;
   }
   return "تعذر تحميل السجل. أعد المحاولة.";
 }
