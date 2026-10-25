@@ -100,6 +100,18 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
   useEffect(() => {
     setFleetExpanded(path.startsWith("/admin/fleet"));
   }, [path]);
+  useEffect(() => { setDrawerOpen(false); }, [path]);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDrawerOpen(false);
+        document.querySelector<HTMLButtonElement>(".ac-mobile-menu")?.focus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [drawerOpen]);
   async function exit() {
     setSignOutError("");
     try {
@@ -170,7 +182,7 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
   </nav>;
   return <div className={`ac-app ${collapsed ? "ac-collapsed" : ""}`} dir="rtl">
     <header className="ac-topbar">
-      <button className="ac-mobile-menu" aria-label="فتح قائمة الأقسام" onClick={()=>setDrawerOpen(true)}><Menu size={19}/></button>
+      <button className="ac-mobile-menu" aria-label="فتح قائمة الأقسام" aria-expanded={drawerOpen} aria-controls="central-navigation" onClick={()=>setDrawerOpen(true)}><Menu size={19}/></button>
       <Link href="/admin" className="ac-brand" aria-label="Pertomax EG — لوحة الإدارة"><img src={`${import.meta.env.BASE_URL}petro-max-lockup.png`} alt="Pertomax EG"/></Link>
       <div className="ac-context"><span>الإدارة المركزية</span><b>{pageTitle}</b></div>
       <div className="ac-top-user"><span className="ac-owner-chip"><ShieldCheck size={15}/> {roleTitle}</span><span className="ac-avatar">{name.trim().slice(0, 1) || "م"}</span><span className="ac-top-name">{name}</span><button className="ac-signout" disabled={signOut.isPending} onClick={()=>void exit()}>{signOut.isPending?"جارٍ الخروج…":"تسجيل الخروج"}</button></div>
@@ -178,7 +190,7 @@ export function AdminShell({ children, name, userRoles }: { children: ReactNode;
     {signOutError && <p className="ac-signout-error" role="alert">{signOutError}</p>}
     {drawerOpen && <button className="ac-drawer-scrim" aria-label="إغلاق القائمة" onClick={()=>setDrawerOpen(false)}/>}
     <div className="ac-shell">
-      <aside className={`ac-sidebar ${drawerOpen ? "drawer-open" : ""}`}>
+      <aside id="central-navigation" className={`ac-sidebar ${drawerOpen ? "drawer-open" : ""}`}>
         <div className="ac-sidebar-head"><span>مساحة العمل</span><button aria-label={collapsed?"توسيع القائمة":"طي القائمة"} onClick={()=>setCollapsed(!collapsed)}><PanelRightClose size={16}/></button><button className="ac-sidebar-close" aria-label="إغلاق القائمة" onClick={()=>setDrawerOpen(false)}><X size={18}/></button></div>
         {nav}
       </aside>

@@ -1460,3 +1460,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .co-branches-section .co-filterbar { display:flex; flex-direction:column; align-items:stretch; }
  .ow-record-tabs button { padding-inline:10px; font-size:13px; }
 }
+
+/* Closed mobile navigation must be invisible and unfocusable even during resize transitions. */
+@media(max-width:760px) {
+ .ac-sidebar:not(.drawer-open) { visibility:hidden; pointer-events:none; }
+ .ac-sidebar.drawer-open { visibility:visible; pointer-events:auto; }
+}
+@media(prefers-reduced-motion:reduce) { .ac-sidebar { transition:none; } }
