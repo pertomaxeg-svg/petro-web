@@ -1,0 +1,20 @@
+name: Frontend feedback
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "artifacts/pertomax-eg-web/src/planPublication*"
+      - "artifacts/pertomax-eg-web/src/AdminBilling*"
+      - ".github/workflows/frontend-feedback.yml"
+permissions:
+  contents: read
+jobs:
+  publication:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test artifacts/pertomax-eg-web/src/planPublication.test.mjs
