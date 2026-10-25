@@ -24,7 +24,7 @@ function fail(res: Response, status: number, message: string): void {
 
 function parseInteger(value: unknown, fallback: number, max: number): number | null {
   if (value === undefined) return fallback;
-  if (typeof value !== "string" || !/^\\d+$/.test(value)) return null;
+  if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= max ? parsed : null;
 }
