@@ -206,12 +206,11 @@ function OverviewData() {
   const pendingRequests = (requests.data?.items ?? []).filter(item => ["submitted", "pending", "pending_review"].includes(item.status));
   return <div className="ac-page-enter">
     <div className="ac-heading-row ac-overview-heading"><div><span className="ac-eyebrow">الإدارة المركزية <i/></span><h1>لوحة التشغيل</h1><p>راجع ما يحتاج إجراءً، ثم انتقل مباشرة إلى القسم المناسب.</p></div><div className="ac-overview-tools"><time dateTime={new Date().toISOString()}>{new Intl.DateTimeFormat("ar-EG",{dateStyle:"long",timeZone:"Africa/Cairo"}).format(new Date())}</time><button type="button" className="ac-button ac-button-quiet" disabled={orgs.isFetching||requests.isFetching||users.isFetching} onClick={()=>{void orgs.refetch();void requests.refetch();void users.refetch();}}><RefreshCw size={15}/> تحديث البيانات</button></div></div>
-    {(orgs.isError || requests.isError || users.isError) ? <LoadError title="تعذر تحميل ملخص الإدارة" error={orgs.error || requests.error || users.error} retry={()=>{void orgs.refetch();void requests.refetch();void users.refetch();}}/> :
-      <section className="ac-metrics" aria-label="ملخص السجلات">
-        <Metric title="الجهات المسجلة" value={orgs.data?.total} note="وفق سجل الجهات" icon={<Building2 size={18}/>} loading={orgs.isLoading}/>
-        <Metric title="طلبات تنتظر المراجعة" value={pendingRequests.length} note="طلبات مرسلة للمراجعة" icon={<Clock3 size={18}/>} loading={requests.isLoading}/>
-        <Metric title="حسابات المنصة" value={users.data?.total} note="دليل حسابات موحد" icon={<Users size={18}/>} loading={users.isLoading}/>
-      </section>}
+    <section className="ac-metrics" aria-label="ملخص السجلات">
+        <Metric title="الجهات المسجلة" value={orgs.data?.total} note="الشركات والمحطات ومقدمو الخدمات" icon={<Building2 size={18}/>} loading={orgs.isLoading} error={orgs.isError} retry={()=>void orgs.refetch()}/>
+        <Metric title="طلبات تنتظر المراجعة" value={requests.isError?undefined:pendingRequests.length} note="طلبات مرسلة للمراجعة" icon={<Clock3 size={18}/>} loading={requests.isLoading} error={requests.isError} retry={()=>void requests.refetch()}/>
+        <Metric title="حسابات المنصة" value={users.data?.total} note="حسابات المستخدمين المسجلة" icon={<Users size={18}/>} loading={users.isLoading} error={users.isError} retry={()=>void users.refetch()}/>
+      </section>
     <div className="ac-overview-grid">
       <section className="ac-panel ac-recent-panel"><div className="ac-panel-head"><div><span className="ac-eyebrow">الوارد الفعلي</span><h2>طلبات تحتاج مراجعة</h2></div><Link className="ac-inline-link" href="/admin/organization-requests">فتح صندوق المراجعة <ArrowLeft size={15}/></Link></div>
         {requests.isLoading ? <SkeletonRows/> : requests.isError ? <p className="ac-inline-message">تعذر قراءة سجل الطلبات.</p> : pendingRequests.length === 0 ? <div className="ac-empty"><span><Check size={18}/></span><b>لا توجد طلبات معلّقة</b><p>لا توجد طلبات مرسلة تنتظر إجراءً الآن.</p></div> :
@@ -232,8 +231,8 @@ function OverviewData() {
     </section>
   </div>;
 }
-function Metric({ title, value, note, icon, loading }: { title: string; value?: number; note: string; icon: ReactNode; loading: boolean }) {
-  return <article className="ac-metric"><div className="ac-metric-top"><span>{title}</span><i>{icon}</i></div>{loading ? <span className="ac-skeleton ac-metric-skeleton"/> : <strong>{value?.toLocaleString("ar-EG") ?? "—"}</strong>}<small>{note}</small></article>;
+function Metric({ title, value, note, icon, loading, error=false, retry }: { title: string; value?: number; note: string; icon: ReactNode; loading: boolean;error?:boolean;retry?:()=>void }) {
+  return <article className="ac-metric" data-testid="overview-metric"><div className="ac-metric-top"><span>{title}</span><i>{icon}</i></div>{loading ? <span className="ac-skeleton ac-metric-skeleton"/> : <strong>{value?.toLocaleString("ar-EG") ?? "—"}</strong>}{error?<small role="alert">تعذر تحديث هذا المؤشر. <button type="button" className="ac-inline-link" onClick={retry}>إعادة المحاولة</button></small>:<small>{note}</small>}</article>;
 }
 function SkeletonRows() { return <div className="ac-skeleton-list"><i/><i/><i/></div>; }
 
