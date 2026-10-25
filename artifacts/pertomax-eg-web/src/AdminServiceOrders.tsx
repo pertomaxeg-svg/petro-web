@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, ArrowLeft, CircleAlert, Clock3, ClipboardList, RefreshCw, Search } from "lucide-react";
+import { Activity, ArrowLeft, CircleAlert, ClipboardList, RefreshCw, Search } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 
 type JsonRecord = Record<string, unknown>;
