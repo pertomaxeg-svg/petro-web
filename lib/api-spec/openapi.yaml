@@ -16,6 +16,8 @@ tags:
     description: Company, branch and staff operations protected by Supabase RLS
   - name: fleet
     description: Central fleet, driver, policy, coverage, credential and maintenance operations
+  - name: catalog
+    description: Central item review, categories, fuel types and controlled pricing operations
 paths:
   /healthz:
     get:
@@ -1502,6 +1504,98 @@ paths:
         "400": { $ref: "#/components/responses/ApiError" }
         "403": { $ref: "#/components/responses/ApiError" }
         "503": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/categories:
+    get:
+      operationId: getAdminCatalogCategories
+      tags: [catalog]
+      summary: Read catalog categories and units of measure
+      responses:
+        "200":
+          description: Central category and unit definitions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCatalogCategories" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/organizations:
+    get:
+      operationId: getAdminCatalogOrganizations
+      tags: [catalog]
+      summary: List station and service-provider catalogs
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: kind, in: query, schema: { type: string, enum: [station, provider] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Central catalog organizations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCatalogPage" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/fuel-types:
+    get:
+      operationId: getAdminCatalogFuelTypes
+      tags: [catalog]
+      summary: Read centrally maintained fuel types and price history
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Central fuel type list and current, next and historical prices
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCatalogPage" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/items:
+    get:
+      operationId: getAdminCatalogItems
+      tags: [catalog]
+      summary: Review products and services registered by a station or provider
+      parameters:
+        - { name: organizationId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: categoryCode, in: query, schema: { type: string, maxLength: 40 } }
+        - { name: itemKind, in: query, schema: { type: string, enum: [product, service] } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, active, suspended] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 160 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Organization catalog items within the caller's authorized scope
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCatalogPage" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
+  /admin/catalog/commands:
+    post:
+      operationId: runAdminCatalogCommand
+      tags: [catalog]
+      summary: Apply an audited central catalog or pricing command
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminCatalogCommandRequest" }
+      responses:
+        "200":
+          description: Command result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCatalogCommandResult" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "409": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
   /admin/service-orders:
     get:
       operationId: getAdminServiceOrders
@@ -2224,6 +2318,47 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
   schemas:
+    AdminCatalogPage:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+        totalPages: { type: integer, minimum: 0 }
+        canManage: { type: boolean }
+      required: [items]
+    AdminCatalogCategories:
+      type: object
+      additionalProperties: true
+      properties:
+        categories:
+          type: array
+          items: { type: object, additionalProperties: true }
+        units:
+          type: array
+          items: { type: object, additionalProperties: true }
+        canManage: { type: boolean }
+      required: [categories, units]
+    AdminCatalogCommandRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [category.create, category.update, category.status, fuel.type.create, fuel.type.update, fuel.type.status, fuel.price.create_draft, fuel.price.publish, fuel.price.cancel, item.review]
+        payload:
+          type: object
+          additionalProperties: true
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        idempotencyKey: { type: string, format: uuid }
+      required: [action, payload, reason, idempotencyKey]
+    AdminCatalogCommandResult:
+      type: object
+      additionalProperties: true
     AdminFleetCatalog:
       type: object
       additionalProperties: true
