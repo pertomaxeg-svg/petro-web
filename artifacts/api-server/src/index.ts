@@ -2,18 +2,10 @@ import app from "./app";
 import { pool } from "@workspace/db";
 import { logger } from "./lib/logger";
 
-const rawPort = process.env["PORT"];
+const port = Number(process.env["PORT"] ?? 5001);
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+if (!Number.isInteger(port) || port <= 0) {
+  throw new Error(`Invalid PORT value: "${process.env["PORT"]}"`);
 }
 
 function getSafeDatabaseErrorCode(error: unknown): string | undefined {
