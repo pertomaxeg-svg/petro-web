@@ -9,6 +9,7 @@ const FUEL_QUERY_KEYS = new Set(["search", "page", "pageSize"]);
 const ITEM_QUERY_KEYS = new Set(["search", "organizationId", "categoryCode", "itemKind", "status", "page", "pageSize"]);
 const CENTRAL_COMMANDS = new Set([
   "category.create", "category.update", "category.status",
+  "unit.create", "unit.status",
   "fuel.type.create", "fuel.type.update", "fuel.type.status",
   "fuel.price.create_draft", "fuel.price.publish", "fuel.price.cancel",
   "item.review",
