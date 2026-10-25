@@ -74,7 +74,7 @@ function dateTime(value: string | undefined | null): string {
   const parsed = new Date(value);
   return Number.isNaN(parsed.valueOf())
     ? "—"
-    : parsed.toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" });
+    : parsed.toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" });
 }
 
 function errorMessage(error: unknown): string {
@@ -91,7 +91,31 @@ function errorMessage(error: unknown): string {
 }
 
 function orderTitle(order: ServiceOrder): string {
-  return recordValue(order.itemSnapshot, "name") || order.serviceGroup || "خدمة";
+  const itemName = recordValue(order.itemSnapshot, "name");
+  if (itemName) return itemName;
+  const serviceLabels: Record<string, string> = {
+    fuel: "وقود",
+    wash: "غسيل",
+    oil: "زيوت",
+    parts: "قطع غيار",
+    installation: "تركيب",
+  };
+  return serviceLabels[order.serviceGroup ?? ""] || "خدمة";
+}
+
+function eventTitle(kind: string): string {
+  const labels: Record<string, string> = {
+    reserved: "حجز الطلب",
+    started: "بدء التنفيذ",
+    delivered: "تسجيل التسليم",
+    cancelled: "إلغاء الطلب",
+    expired: "انتهاء مهلة الحجز",
+    review_required: "إحالة للمراجعة",
+    evidence_created: "رفع مستند",
+    evidence_accepted: "اعتماد مستند",
+    evidence_rejected: "رفض مستند",
+  };
+  return labels[kind] || "تحديث مسجل";
 }
 
 export default function AdminServiceOrders() {
@@ -191,14 +215,14 @@ export default function AdminServiceOrders() {
           <div className="aso-detail-heading"><div><span className="ac-eyebrow">سجل الطلب <i/></span><h2>{orderTitle(selectedOrder)}</h2></div><button type="button" className="ac-button ac-button-quiet" onClick={() => setSelectedId("")}>إغلاق</button></div>
           <div className="aso-facts">
             <div><small>الحالة</small><b>{statusLabel[selectedOrder.status] ?? selectedOrder.status}</b></div>
-            <div><small>المبلغ المحجوز</small><b>{currency(selectedOrder.amountMinor)}</b></div>
+            <div><small>قيمة الطلب</small><b>{currency(selectedOrder.amountMinor)}</b></div>
             <div><small>الكمية</small><b>{selectedOrder.quantity || "—"}</b></div>
             <div><small>الفرع</small><b>{recordValue(selectedOrder.merchantSnapshot, "branchName") || "—"}</b></div>
             <div><small>المركبة</small><b>{recordValue(selectedOrder.vehicleSnapshot, "plate") || "—"}</b></div>
             <div><small>تاريخ الإنشاء</small><b>{dateTime(selectedOrder.createdAt)}</b></div>
           </div>
           <div className="aso-timeline-heading"><Activity size={17}/><h3>التسلسل الزمني</h3></div>
-          {detail.data?.timeline?.length ? <ol className="aso-timeline">{detail.data.timeline.map(event => <li key={event.id}><span className="aso-timeline-dot"/><div><b>{event.kind.replaceAll("_", " ")}</b><small>{event.actorName || "مستخدم مخول"} · {dateTime(event.createdAt)}</small></div><span>نسخة {event.version.toLocaleString("ar-EG")}</span></li>)}</ol>
+          {detail.data?.timeline?.length ? <ol className="aso-timeline">{detail.data.timeline.map(event => <li key={event.id}><span className="aso-timeline-dot"/><div><b>{eventTitle(event.kind)}</b><small>{event.actorName || "مستخدم مخول"} · {dateTime(event.createdAt)}</small></div><span>نسخة {event.version.toLocaleString("ar-EG")}</span></li>)}</ol>
             : <p className="aso-no-timeline">لا توجد أحداث إضافية في السجل.</p>}
         </>}
     </section>}
