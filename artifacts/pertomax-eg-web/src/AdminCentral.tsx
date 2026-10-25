@@ -13,6 +13,7 @@ const AdminFinancePage = lazy(() => import("./admin-finance/AdminFinancePage").t
 const FleetAdminPage = lazy(() => import("./FleetAdmin").then(module => ({ default: module.FleetAdminPage })));
 const AdminServiceOrders = lazy(() => import("./AdminServiceOrders"));
 const AdminAuditLog = lazy(() => import("./AdminAuditLog"));
+const AdminCatalogPage = lazy(() => import("./AdminCatalog"));
 
 const roles: PlatformRole[] = ["owner", "operations", "finance", "support", "auditor"];
 const roleFallback: Record<PlatformRole, string> = { owner: "مالك المنصة", operations: "العمليات", finance: "المالية", support: "الدعم", auditor: "مراجع" };
@@ -71,6 +72,12 @@ export function AuditLogAdminFrame() {
   </AdminGate>;
 }
 
+export function CatalogAdminFrame() {
+  return <AdminGate allowedRoles={["owner", "operations", "finance", "auditor"]}>
+    {(_name, _userId, userRoles) => <Suspense fallback={<main className="ac-page" dir="rtl"><div className="ac-loading"><i/><i/><i/></div></main>}><AdminCatalogPage roles={userRoles}/></Suspense>}
+  </AdminGate>;
+}
+
 function AdminShell({ children, name, userRoles }: { children: ReactNode; name: string; userRoles: PlatformRole[] }) {
   const [route] = useRoute("/admin/platform-users/:userId");
   const [orgRoute] = useRoute("/admin/organizations/:id");
@@ -93,12 +100,14 @@ function AdminShell({ children, name, userRoles }: { children: ReactNode; name: 
   const isOwner = userRoles.includes("owner");
   const canSeeFinance = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
   const canSeeServiceOrders = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
+  const canSeeCatalog = userRoles.some((role) => ["owner", "finance", "auditor", "operations"].includes(role));
   const isFleet = path.startsWith("/admin/fleet");
   const isAudit = path.startsWith("/admin/audit-events");
-  const active = path === "/admin" ? "overview" : isAudit ? "audit" : isFleet ? "fleet" : path.startsWith("/admin/service-orders") ? "service-orders" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
+  const isCatalog = path.startsWith("/admin/catalog");
+  const active = path === "/admin" ? "overview" : isCatalog ? "catalog" : isAudit ? "audit" : isFleet ? "fleet" : path.startsWith("/admin/service-orders") ? "service-orders" : path.includes("/admin/finance") ? "finance" : path.includes("organization-requests") ? "requests" : path.includes("platform-users") ? "users" : path.includes("/admin/plans") ? "plans" : path.includes("/admin/subscriptions") ? "subscriptions" : "organizations";
   const fleetLabels: Record<string, string> = { "/admin/fleet": "الشركات والأسطول", "/admin/fleet/vehicles": "المركبات", "/admin/fleet/drivers": "السائقون", "/admin/fleet/policies": "سياسات الأسطول", "/admin/fleet/coverage": "تغطية المركبات", "/admin/fleet/credentials": "رموز تعريف المركبات", "/admin/fleet/documents": "مستندات المركبات", "/admin/fleet/odometer": "قراءات العداد", "/admin/fleet/maintenance": "سجلات الصيانة", "/admin/fleet/imports": "استيراد بيانات الأسطول" };
   const fleetTitle = isFleet ? path.match(/\/branches\/[^/]+$/) ? "مركبات الفرع" : path.match(/\/companies\/[^/]+$/) ? "الشركة والفروع" : path.startsWith("/admin/fleet/companies/") ? "الشركة والأسطول" : fleetLabels[path] ?? "إدارة الأسطول" : "";
-  const pageTitle = isFleet ? fleetTitle : active === "overview" ? "نظرة عامة" : active === "service-orders" ? "طلبات الخدمات" : active === "audit" ? "سجل التدقيق المركزي" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
+  const pageTitle = isFleet ? fleetTitle : active === "overview" ? "نظرة عامة" : active === "service-orders" ? "طلبات الخدمات" : active === "catalog" ? "الكتالوج المركزي" : active === "audit" ? "سجل التدقيق المركزي" : active === "finance" ? "المالية والتحصيل" : active === "requests" ? "مراجعة الطلبات" : active === "users" ? (route ? "ملف مستخدم المنصة" : "مستخدمو المنصة") : active === "plans" ? "الخطط والأسعار" : active === "subscriptions" ? "طلبات واشتراكات" : orgRoute ? "تفاصيل الجهة" : "الجهات والفروع";
   const roleTitle = userRoles.includes("owner") ? "مالك المنصة" : userRoles.includes("finance") ? "المالية" : userRoles.includes("operations") ? "العمليات" : "مراجع";
   const nav = <nav className="ac-nav" aria-label="التنقل المركزي">
     {isOwner && <>
@@ -115,9 +124,10 @@ function AdminShell({ children, name, userRoles }: { children: ReactNode; name: 
       <span className="ac-nav-group ac-nav-group-spaced">الحوكمة</span>
       <Link href="/admin/audit-events" onClick={()=>setDrawerOpen(false)} className={active === "audit" ? "selected" : ""}><span className="ac-nav-icon"><ShieldCheck size={17}/></span><span className="ac-nav-label">سجل التدقيق</span></Link>
     </>}
-    {canSeeServiceOrders && <>
+    {(canSeeServiceOrders || canSeeCatalog) && <>
       <span className="ac-nav-group ac-nav-group-spaced">التشغيل</span>
-      <Link href="/admin/service-orders" onClick={()=>setDrawerOpen(false)} className={active === "service-orders" ? "selected" : ""}><span className="ac-nav-icon"><ClipboardList size={17}/></span><span className="ac-nav-label">طلبات الخدمات</span></Link>
+      {canSeeServiceOrders && <Link href="/admin/service-orders" onClick={()=>setDrawerOpen(false)} className={active === "service-orders" ? "selected" : ""}><span className="ac-nav-icon"><ClipboardList size={17}/></span><span className="ac-nav-label">طلبات الخدمات</span></Link>}
+      {canSeeCatalog && <Link href="/admin/catalog" onClick={()=>setDrawerOpen(false)} className={active === "catalog" ? "selected" : ""}><span className="ac-nav-icon"><ClipboardList size={17}/></span><span className="ac-nav-label">الكتالوج والأسعار</span></Link>}
     </>}
     {canSeeFinance && <>
       <span className="ac-nav-group ac-nav-group-spaced">المالية والتحصيل</span>
