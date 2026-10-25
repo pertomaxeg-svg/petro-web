@@ -213,3 +213,72 @@
 @media (prefers-reduced-motion: reduce) {
   .af-page *, .af-page *::before, .af-page *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
 }
+
+
+/* Finance dashboard: readable hierarchy and comfortable controls */
+.af-page { border-radius:12px; font-size:14px; }
+.af-kicker { font-size:11px; }
+.af-heading p,.af-section-head p { font-size:14px; }
+.af-security { border-radius:9px; }
+.af-security b { font-size:13px; }
+.af-security small { font-size:11px; }
+.af-tabs { gap:7px; padding:7px; border-radius:10px; }
+.af-tabs button { min-height:46px; padding-inline:16px; border-radius:8px; font-size:12px; }
+.af-overview-intro p { font-size:13px; }
+.af-button,.af-icon-button { min-height:42px; border-radius:8px; font-size:12px; }
+.af-icon-button { min-width:42px; }
+.af-metrics { gap:15px; }
+.af-metric { min-height:154px; padding:20px 21px; border-radius:11px; box-shadow:0 5px 18px hsl(207 27% 20%/.04); }
+.af-metric > div { font-size:13px; }
+.af-metric > div i { width:36px; height:36px; }
+.af-metric strong { font-size:clamp(22px,2.2vw,31px); }
+.af-metric small,.af-count-strip span { font-size:11px; }
+.af-count-strip { border-radius:9px; }
+.af-count-strip b { font-size:13px; }
+.af-overview-grid { gap:16px; }
+.af-panel { border-radius:11px; box-shadow:0 5px 18px hsl(207 27% 20%/.035); }
+.af-ledger-note p,.af-panel-title h3 { font-size:14px; }
+.af-ledger-rule { font-size:12px; }
+.af-quick button { min-height:58px; }
+.af-quick button b { font-size:13px; }
+.af-quick button small,.af-footnote { font-size:11px; }
+.af-search,.af-filter { min-height:42px; border-radius:8px; font-size:12px; }
+.af-search input,.af-filter select,.af-field select { font-size:13px; }
+.af-page table { font-size:13px; }
+.af-page th { font-size:11px; }
+.af-page td { font-size:12px; }
+.af-page td b { font-size:12px; }
+.af-page td small { font-size:11px; }
+.af-money { font-size:13px!important; }
+.af-status { padding:6px 9px; border-radius:7px; font-size:11px; }
+.af-link-button,.af-row-actions button { min-height:36px; padding:6px; font-size:12px; }
+.af-pagination { font-size:12px; }
+.af-pagination button { min-height:38px; border-radius:7px; font-size:12px; }
+.af-state b { font-size:14px; }
+.af-state p { font-size:12px; }
+.af-record b { font-size:12px; }
+.af-record small,.af-record time { font-size:11px; }
+.af-hold-note b,.af-posted-note b { font-size:13px; }
+.af-hold-note small,.af-posted-note small { font-size:11px; }
+.af-page :is(a,button,input,select,textarea,[tabindex]):focus-visible { outline:3px solid hsl(166 39% 27%/.55); outline-offset:2px; }
+@media(max-width:767px) {
+  .af-page { padding:18px 14px 26px; border-radius:10px; }
+  .af-heading { gap:12px; }
+  .af-heading p,.af-section-head p { font-size:13px; }
+  .af-overview-intro,.af-section-head { gap:12px; }
+  .af-metrics { gap:10px; }
+  .af-metric { min-height:138px; padding:15px; }
+  .af-table-scroll { -webkit-overflow-scrolling:touch; }
+  .af-page table { min-width:700px; }
+  .af-pagination { flex-wrap:wrap; }
+}
+@media(max-width:420px) {
+  .af-page { padding-inline:11px; }
+  .af-metrics { grid-template-columns:1fr; }
+  .af-heading h1 { font-size:28px; }
+  .af-tabs { margin-inline:-11px; padding-inline:8px; }
+  .af-tabs button { min-height:42px; padding-inline:12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .af-page *, .af-page *::before, .af-page *::after { scroll-behavior:auto; transition:none; }
+}
