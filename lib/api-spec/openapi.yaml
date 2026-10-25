@@ -1482,6 +1482,26 @@ paths:
           $ref: "#/components/responses/ApiError"
         "404":
           $ref: "#/components/responses/ApiError"
+  /admin/audit-events:
+    get:
+      operationId: getAdminAuditEvents
+      tags: [management]
+      summary: Read the central audit log
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: action, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Paginated audit records with sensitive detail fields removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAuditEventPage" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
   /admin/service-orders:
     get:
       operationId: getAdminServiceOrders
@@ -3330,6 +3350,33 @@ components:
         byteSize: { type: integer, minimum: 1, maximum: 10485760 }
         expiresOn: { type: [string, "null"], format: date }
       required: [contextType, contextId, documentType, fileName, contentType, byteSize]
+    AdminAuditEvent:
+      type: object
+      properties:
+        id: { type: string }
+        actorId: { type: string, format: uuid }
+        organizationId: { type: [string, "null"], format: uuid }
+        action: { type: string }
+        targetId: { type: [string, "null"], format: uuid }
+        occurredAt: { type: string, format: date-time }
+        detail:
+          type: object
+          additionalProperties:
+            oneOf:
+              - { type: string }
+              - { type: number }
+              - { type: boolean }
+      required: [id, actorId, action, occurredAt, detail]
+    AdminAuditEventPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminAuditEvent" }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 50 }
+      required: [items, total, page, pageSize]
     ServiceOrderPage:
       type: object
       additionalProperties: true
