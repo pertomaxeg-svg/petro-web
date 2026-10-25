@@ -28,7 +28,6 @@
 minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
-  - stripe-replit-sync
 
 packages:
   - artifacts/*
