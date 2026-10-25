@@ -442,5 +442,6 @@ BEGIN
  IF(SELECT count(*) FROM public.petro_inventory_movements)<>movements_before THEN RAISE EXCEPTION 'Product payment issued/restocked physical stock twice';END IF;
 END $product_payment$;
 
+\ir service-refund-intake-0038-smoke-test.sql
 SET CONSTRAINTS ALL IMMEDIATE;
 ROLLBACK;
