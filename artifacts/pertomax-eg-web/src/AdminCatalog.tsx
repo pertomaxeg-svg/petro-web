@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useDeferredValue, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Banknote, Boxes, CircleAlert, Clock3, Fuel, Layers3, Plus, RefreshCw, Search, X } from "lucide-react";
 import type { PlatformRole } from "@workspace/api-client-react";
@@ -89,6 +89,7 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
   const canManage = roles.some(role => role === "owner" || role === "operations");
   const [tab, setTab] = useState<Tab>("items");
   const [search, setSearch] = useState("");
+  const delayedSearch = useDeferredValue(search);
   const [organizationId, setOrganizationId] = useState("");
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<"fuel" | "price" | "category" | "review" | "command" | null>(null);
@@ -103,15 +104,15 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
   });
   const organizations = orgQuery.data?.items ?? [];
   const effectiveOrgId = organizationId || String(organizations[0]?.["id"] ?? "");
-  const itemParams = new URLSearchParams({ organizationId: effectiveOrgId, search, page: String(page), pageSize: "20" });
+  const itemParams = new URLSearchParams({ organizationId: effectiveOrgId, search: delayedSearch, page: String(page), pageSize: "20" });
   const itemQuery = useQuery({
-    queryKey: ["admin-catalog", "items", effectiveOrgId, search, page],
+    queryKey: ["admin-catalog", "items", effectiveOrgId, delayedSearch, page],
     queryFn: () => api<PageResult>("/admin/catalog/items?" + itemParams.toString()),
     enabled: tab === "items" && !!effectiveOrgId,
   });
-  const fuelParams = new URLSearchParams({ search, page: String(page), pageSize: "20" });
+  const fuelParams = new URLSearchParams({ search: delayedSearch, page: String(page), pageSize: "20" });
   const fuelQuery = useQuery({
-    queryKey: ["admin-catalog", "fuel", search, page],
+    queryKey: ["admin-catalog", "fuel", delayedSearch, page],
     queryFn: () => api<PageResult>("/admin/catalog/fuel-types?" + fuelParams.toString()),
     enabled: tab === "fuel",
   });
@@ -224,7 +225,6 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
         {modal === "category" && <><label>رمز التصنيف<input name="code" required minLength={2} maxLength={40} pattern="[a-z][a-z0-9_-]{1,39}"/></label><label>الاسم بالعربية<input name="nameAr" required minLength={2} maxLength={100}/></label><label>مجموعة الخدمة<select name="serviceGroup"><option value="wash">غسيل</option><option value="oils">زيوت</option><option value="parts">قطع</option></select></label><fieldset><legend>أنواع الأصناف</legend><label className="cat-check"><input type="checkbox" name="allowedItemKinds" value="product" defaultChecked/> منتج</label><label className="cat-check"><input type="checkbox" name="allowedItemKinds" value="service"/> خدمة</label></fieldset></>}
         {modal === "review" && selected && <><div className="cat-selected-record"><b>{text(selected["name"])}</b><span>{text(get(selected,"categoryName","category_name"))} · {text(selected["organizationId"])}</span></div><label>قرار المراجعة<select name="reviewStatus" defaultValue="approved"><option value="approved">اعتماد</option><option value="rejected">رفض</option><option value="not_reviewed">إعادة للمراجعة</option></select></label></>}
         {modal === "command" && selected && <div className="cat-selected-record"><b>{text(get(selected,"nameAr","name_ar","name","code"))}</b><span>{selectedAction.startsWith("fuel.price.") ? priceText(get(selected,"pricePerUnit","price_per_unit")) : "الحالة الحالية: " + label(get(selected,"active") ? "active" : "suspended")}</span></div>}
-        {modal === "command" ? null : null}
         <label className="cat-reason">سبب القرار أو التغيير<textarea name="reason" minLength={3} maxLength={500} required placeholder="سجّل سببًا واضحًا يظهر في سجل التدقيق."/></label>
         <div className="cat-form-actions"><button className="cat-button" disabled={command.isPending}>{command.isPending ? "جارٍ الحفظ…" : "حفظ القرار"}</button><button type="button" className="cat-button cat-button-quiet" onClick={() => { setModal(null); setSelected(null); setSelectedAction(""); command.reset(); }}>إلغاء</button></div>
       </form>
