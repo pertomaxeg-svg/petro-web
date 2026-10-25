@@ -5,6 +5,8 @@ import { defineConfig } from 'vite';
 
 const port = Number(process.env.PORT ?? 5000);
 const basePath = process.env.BASE_PATH ?? '/';
+const proxyBasePath = basePath.replace(/\\/+$/, '');
+const apiProxyPath = `${proxyBasePath}/api`;
 
 if (!Number.isInteger(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${process.env.PORT}"`);
@@ -38,6 +40,14 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: {
+      [apiProxyPath]: {
+        target: process.env.API_SERVER_URL ?? 'http://127.0.0.1:5001',
+        changeOrigin: true,
+        rewrite: (requestPath) =>
+          proxyBasePath ? requestPath.slice(proxyBasePath.length) : requestPath,
+      },
+    },
     fs: {
       strict: true,
     },
