@@ -1482,6 +1482,42 @@ paths:
           $ref: "#/components/responses/ApiError"
         "404":
           $ref: "#/components/responses/ApiError"
+  /admin/service-orders:
+    get:
+      operationId: getAdminServiceOrders
+      tags: [management]
+      summary: Read centrally authorized service orders
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [reserved, in_progress, delivered, review_required, cancelled] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 160 } }
+      responses:
+        "200":
+          description: Paginated service orders in the authorized central scope
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderPage" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
+  /admin/service-orders/{orderId}:
+    get:
+      operationId: getAdminServiceOrder
+      tags: [management]
+      summary: Read an authorized service order and its audit timeline
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Service order details and timeline
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOrderDetail" }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
+        "503": { $ref: "#/components/responses/ApiError" }
   /admin/finance/summary:
     get:
       operationId: getAdminFinanceSummary
@@ -3294,6 +3330,36 @@ components:
         byteSize: { type: integer, minimum: 1, maximum: 10485760 }
         expiresOn: { type: [string, "null"], format: date }
       required: [contextType, contextId, documentType, fileName, contentType, byteSize]
+    ServiceOrderPage:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 50 }
+        canManage: { type: boolean }
+      required: [items, total, page, pageSize, canManage]
+    ServiceOrderDetail:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [reserved, in_progress, delivered, review_required, cancelled] }
+        paymentStatus: { type: string }
+        version: { type: integer, minimum: 1 }
+        serviceGroup: { type: string }
+        kind: { type: string }
+        amountMinor: { type: string }
+        itemSnapshot: { type: object, additionalProperties: true }
+        vehicleSnapshot: { type: object, additionalProperties: true }
+        merchantSnapshot: { type: object, additionalProperties: true }
+        timeline:
+          type: array
+          items: { type: object, additionalProperties: true }
+      required: [id, status, version, timeline]
     AdminFinanceSummary:
       type: object
       additionalProperties: true
