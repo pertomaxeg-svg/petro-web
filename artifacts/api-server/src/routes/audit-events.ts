@@ -38,11 +38,30 @@ function parseInteger(value: unknown, fallback: number, max: number): number | n
 function parseDateBoundary(value: unknown, endOfDay = false): string | null | undefined {
   if (value === undefined) return null;
   if (typeof value !== "string" || !DATE_RE.test(value)) return undefined;
-  const timestamp = new Date(value + (endOfDay ? "T23:59:59.999Z" : "T00:00:00.000Z"));
-  if (Number.isNaN(timestamp.valueOf()) || timestamp.toISOString().slice(0, 10) !== value) {
+  const [year, month, day] = value.split("-").map(Number);
+  const anchor = new Date(Date.UTC(year, month - 1, day, 12));
+  if (Number.isNaN(anchor.valueOf()) || anchor.toISOString().slice(0, 10) !== value) {
     return undefined;
   }
-  return timestamp.toISOString();
+  const offsetLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Cairo",
+    timeZoneName: "longOffset",
+    hour: "2-digit",
+  }).formatToParts(anchor).find((part) => part.type === "timeZoneName")?.value;
+  const offset = /^GMT([+-])(\\d{2}):(\\d{2})$/.exec(offsetLabel ?? "");
+  if (!offset) return undefined;
+  const sign = offset[1] === "+" ? 1 : -1;
+  const offsetMinutes = sign * (Number(offset[2]) * 60 + Number(offset[3]));
+  const localBoundary = Date.UTC(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  );
+  return new Date(localBoundary - offsetMinutes * 60_000).toISOString();
 }
 
 function safeDetail(action: string, detail: unknown): Record<string, string | number | boolean> {
