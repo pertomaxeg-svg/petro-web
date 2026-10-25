@@ -4,7 +4,9 @@ import { requireSession } from "./management";
 
 const router: IRouter = Router();
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const READ_QUERY_KEYS = new Set(["search", "kind", "page", "pageSize", "organizationId", "categoryCode", "itemKind", "status"]);
+const ORGANIZATION_QUERY_KEYS = new Set(["search", "kind", "page", "pageSize"]);
+const FUEL_QUERY_KEYS = new Set(["search", "page", "pageSize"]);
+const ITEM_QUERY_KEYS = new Set(["search", "organizationId", "categoryCode", "itemKind", "status", "page", "pageSize"]);
 const CENTRAL_COMMANDS = new Set([
   "category.create", "category.update", "category.status",
   "fuel.type.create", "fuel.type.update", "fuel.type.status",
@@ -110,7 +112,7 @@ router.get("/admin/catalog/categories", async (req, res): Promise<void> => {
 
 router.get("/admin/catalog/organizations", async (req, res): Promise<void> => {
   setNoStore(res);
-  if (rejectUnknownQuery(req, READ_QUERY_KEYS, res)) return;
+  if (rejectUnknownQuery(req, ORGANIZATION_QUERY_KEYS, res)) return;
   const search = queryString(req.query["search"], 120);
   const kind = queryString(req.query["kind"], 16);
   const page = integer(req.query["page"], 1, 100_000);
@@ -138,7 +140,7 @@ router.get("/admin/catalog/organizations", async (req, res): Promise<void> => {
 
 router.get("/admin/catalog/fuel-types", async (req, res): Promise<void> => {
   setNoStore(res);
-  if (rejectUnknownQuery(req, READ_QUERY_KEYS, res)) return;
+  if (rejectUnknownQuery(req, FUEL_QUERY_KEYS, res)) return;
   const search = queryString(req.query["search"], 120);
   const page = integer(req.query["page"], 1, 100_000);
   const pageSize = integer(req.query["pageSize"], 20, 100);
@@ -163,7 +165,7 @@ router.get("/admin/catalog/fuel-types", async (req, res): Promise<void> => {
 
 router.get("/admin/catalog/items", async (req, res): Promise<void> => {
   setNoStore(res);
-  if (rejectUnknownQuery(req, READ_QUERY_KEYS, res)) return;
+  if (rejectUnknownQuery(req, ITEM_QUERY_KEYS, res)) return;
   const organizationId = req.query["organizationId"];
   const categoryCode = queryString(req.query["categoryCode"], 40);
   const itemKind = queryString(req.query["itemKind"], 16);
