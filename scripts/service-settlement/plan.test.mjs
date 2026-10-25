@@ -5,29 +5,18 @@ import { planServiceSettlement } from './plan.mjs';
 const valid = {
   operationId: 'op-0001',
   companyAccountId: 'company-account',
-  stationAccountId: 'station-account',
-  platformAccountId: 'platform-account',
+  merchantAccountId: 'merchant-account',
   amountMinor: 10000,
-  stationShareMinor: 8500,
 };
 
-test('posts an exact balanced EGP settlement', () => {
+test('moves the full EGP service amount from company funding to merchant payable', () => {
   const result = planServiceSettlement(valid);
   assert.equal(result.currency, 'EGP');
   assert.equal(result.idempotencyKey, 'service:op-0001');
   assert.deepEqual(result.lines, [
     { accountId: 'company-account', side: 'debit', amountMinor: 10000 },
-    { accountId: 'station-account', side: 'credit', amountMinor: 8500 },
-    { accountId: 'platform-account', side: 'credit', amountMinor: 1500 },
+    { accountId: 'merchant-account', side: 'credit', amountMinor: 10000 },
   ]);
-});
-
-test('supports a 100% station share without zero-value lines', () => {
-  assert.deepEqual(planServiceSettlement({ ...valid, stationShareMinor: 10000 }).lines.map(x => x.amountMinor), [10000, 10000]);
-});
-
-test('supports a zero station share without zero-value lines', () => {
-  assert.deepEqual(planServiceSettlement({ ...valid, stationShareMinor: 0 }).lines.map(x => x.amountMinor), [10000, 10000]);
 });
 
 for (const amount of [0, -1, 12.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
@@ -36,14 +25,12 @@ for (const amount of [0, -1, 12.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) 
   });
 }
 
-for (const share of [-1, 10001, 12.5, NaN, Infinity]) {
-  test('rejects invalid station share ' + String(share), () => {
-    assert.throws(() => planServiceSettlement({ ...valid, stationShareMinor: share }));
-  });
-}
+test('rejects duplicate company and merchant account identities', () => {
+  assert.throws(() => planServiceSettlement({ ...valid, merchantAccountId: valid.companyAccountId }));
+});
 
-test('rejects duplicate account identities', () => {
-  assert.throws(() => planServiceSettlement({ ...valid, stationAccountId: valid.companyAccountId }));
+test('rejects missing company or merchant account identity', () => {
+  assert.throws(() => planServiceSettlement({ ...valid, merchantAccountId: '' }));
 });
 
 test('rejects missing operation ID', () => {
