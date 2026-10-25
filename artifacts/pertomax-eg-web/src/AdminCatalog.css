@@ -92,7 +92,7 @@
 .cat-definition-grid .cat-table-wrap { border-top: 1px solid var(--cat-line); }
 .cat-definition-grid .cat-table { min-width: 540px; }
 .cat-units { border-top: 1px solid var(--cat-line); display: grid; gap: 0; }
-.cat-units > div { align-items: center; border-bottom: 1px solid #edf0ed; display: flex; justify-content: space-between; padding: 12px 14px; }
+.cat-units > div { align-items: center; border-bottom: 1px solid #edf0ed; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; padding: 12px 14px; }
 .cat-units b { font-size: .78rem; }
 .cat-units span { color: var(--cat-muted); font-size: .7rem; }
 .cat-pagination { align-items: center; color: var(--cat-muted); display: flex; font-size: .73rem; justify-content: space-between; }
