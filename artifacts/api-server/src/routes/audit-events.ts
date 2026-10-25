@@ -48,7 +48,7 @@ function parseDateBoundary(value: unknown, endOfDay = false): string | null | un
     timeZoneName: "longOffset",
     hour: "2-digit",
   }).formatToParts(anchor).find((part) => part.type === "timeZoneName")?.value;
-  const offset = /^GMT([+-])(\\d{2}):(\\d{2})$/.exec(offsetLabel ?? "");
+  const offset = /^GMT([+-])(\d{2}):(\d{2})$/.exec(offsetLabel ?? "");
   if (!offset) return undefined;
   const sign = offset[1] === "+" ? 1 : -1;
   const offsetMinutes = sign * (Number(offset[2]) * 60 + Number(offset[3]));
