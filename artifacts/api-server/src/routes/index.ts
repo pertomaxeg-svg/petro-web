@@ -6,6 +6,7 @@ import fleetRouter from "./fleet";
 import healthRouter from "./health";
 import managementRouter from "./management";
 import organizationWorkflowsRouter from "./organization-workflows";
+import auditEventsRouter from "./audit-events";
 import serviceOrdersRouter from "./service-orders";
 import supabaseRouter from "./supabase";
 
@@ -20,5 +21,6 @@ router.use(financeRouter);
 router.use(fleetRouter);
 router.use(organizationWorkflowsRouter);
 router.use(serviceOrdersRouter);
+router.use(auditEventsRouter);
 
 export default router;
