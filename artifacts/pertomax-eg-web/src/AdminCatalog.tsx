@@ -93,7 +93,7 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
   const delayedSearch = useDeferredValue(search);
   const [organizationId, setOrganizationId] = useState("");
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState<"fuel" | "price" | "category" | "review" | "command" | null>(null);
+  const [modal, setModal] = useState<"fuel" | "price" | "category" | "unit" | "review" | "command" | null>(null);
   const [selected, setSelected] = useState<Row | null>(null);
   const [selectedAction, setSelectedAction] = useState("");
   const command = useCatalogCommand();
@@ -138,6 +138,12 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
           vehicleFuelFamily: String(data.get("vehicleFuelFamily")),
           unitCode: String(data.get("unitCode")),
         }, reason);
+      } else if (modal === "unit") {
+        await request("unit.create", {
+          code: String(data.get("code")).trim(),
+          nameAr: String(data.get("nameAr")).trim(),
+          quantityScale: Number(data.get("quantityScale")),
+        }, reason);
       } else if (modal === "price" && selected) {
         await request("fuel.price.create_draft", {
           fuelTypeId: String(selected["id"]),
@@ -164,7 +170,9 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
           ? { priceVersionId: String(selected["id"]) }
           : selectedAction === "fuel.type.status"
             ? { fuelTypeId: String(selected["id"]), status: selected["active"] ? "suspended" : "active", expectedVersion: number(selected["version"]) }
-            : { categoryId: String(selected["id"]), status: get(selected, "active") ? "suspended" : "active", expectedVersion: number(selected["version"]) };
+            : selectedAction === "unit.status"
+              ? { code: String(selected["code"]), status: selected["active"] ? "suspended" : "active" }
+              : { categoryId: String(selected["id"]), status: get(selected, "active") ? "suspended" : "active", expectedVersion: number(selected["version"]) };
         await request(selectedAction, payload, reason);
       }
       setModal(null);
@@ -195,7 +203,7 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
         <div className="cat-actions">
           {(tab === "items" || tab === "fuel") && <label className="cat-search"><Search size={16}/><span className="cat-visually-hidden">بحث</span><input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder={tab === "items" ? "ابحث باسم الصنف" : "ابحث بنوع الوقود"}/></label>}
           {canManage && tab === "fuel" && <button className="cat-button" onClick={() => { command.reset(); setSelected(null); setModal("fuel"); }}><Plus size={16}/> نوع وقود</button>}
-          {canManage && tab === "categories" && <button className="cat-button" onClick={() => { command.reset(); setModal("category"); }}><Plus size={16}/> تصنيف</button>}
+          {canManage && tab === "categories" && <><button className="cat-button cat-button-quiet" onClick={() => { command.reset(); setModal("unit"); }}>وحدة قياس</button><button className="cat-button" onClick={() => { command.reset(); setModal("category"); }}><Plus size={16}/> تصنيف</button></>}
         </div>
       </div>
       {tab === "items" && <>
@@ -213,15 +221,16 @@ export default function AdminCatalog({ roles }: { roles: PlatformRole[] }) {
         </article>)}</div>)}
       {tab === "categories" && (categoryQuery.isLoading ? <Loading/> : categoryQuery.isError ? <ErrorState error={categoryQuery.error} retry={() => void categoryQuery.refetch()}/> : <>
         <div className="cat-definition-grid"><section><h3>التصنيفات</h3><div className="cat-table-wrap"><table className="cat-table"><thead><tr><th>الاسم</th><th>المجموعة</th><th>الأنواع المسموحة</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>{rows(categoryQuery.data?.categories).map(category => <tr key={String(category["id"])}><td data-label="الاسم"><b>{text(get(category,"name_ar","nameAr"))}</b><small>{text(category["code"])}</small></td><td data-label="المجموعة">{label(get(category,"service_group","serviceGroup"))}</td><td data-label="الأنواع">{strings(get(category,"allowed_item_kinds","allowedItemKinds")).map(x => label(x)).join("، ") || "—"}</td><td data-label="الحالة"><Status value={get(category,"active") ? "active" : "suspended"}/></td><td data-label="إجراء">{canManage ? <button className="cat-text-action" disabled={command.isPending} onClick={()=>{command.reset();setSelected(category);setSelectedAction("category.status");setModal("command")}}>{get(category,"active")?"إيقاف":"تفعيل"}</button>:"عرض فقط"}</td></tr>)}</tbody></table></div></section>
-          <section><h3>وحدات القياس</h3><div className="cat-units">{rows(categoryQuery.data?.units).map(unit=><div key={String(unit["code"])}><b>{text(get(unit,"name_ar","nameAr"))}</b><span>{text(unit["code"])}</span></div>)}</div></section></div>
+          <section><h3>وحدات القياس</h3><div className="cat-units">{rows(categoryQuery.data?.units).map(unit=><div key={String(unit["code"])}><b>{text(get(unit,"name_ar","nameAr"))}</b><span>{text(unit["code"])} · {get(unit,"quantity_scale","quantityScale") ?? 0} منازل عشرية</span>{["litre","piece","service","pack"].includes(String(unit["code"])) ? <span className="cat-muted">أساسية</span> : canManage ? <button className="cat-text-action" disabled={command.isPending} onClick={()=>{command.reset();setSelected(unit);setSelectedAction("unit.status");setModal("command")}}>{unit["active"]?"إيقاف":"تفعيل"}</button> : <Status value={unit["active"]?"active":"suspended"}/>}</div>)}</div></section></div>
       </>)}
     </section>
     {(tab === "items" || tab === "fuel") && <div className="cat-pagination"><span>{total.toLocaleString("ar-EG")} سجل</span><div><button className="cat-button cat-button-quiet" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>السابق</button><span>صفحة {page} من {totalPages}</span><button className="cat-button cat-button-quiet" disabled={page >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))}>التالي</button></div></div>}
     {command.error && !modal && <CommandError error={command.error}/>}
-    {modal && <Modal title={modal === "fuel" ? "تعريف نوع وقود" : modal === "price" ? "إضافة نسخة سعر" : modal === "category" ? "تعريف تصنيف" : modal === "review" ? "مراجعة صنف جهة" : selectedAction === "fuel.price.publish" ? "نشر نسخة السعر" : selectedAction === "fuel.price.cancel" ? "إلغاء نسخة السعر" : selectedAction === "fuel.type.status" ? (selected?.["active"] ? "إيقاف نوع الوقود" : "إعادة تفعيل نوع الوقود") : (get(selected, "active") ? "إيقاف التصنيف" : "تفعيل التصنيف")} onClose={() => { setModal(null); setSelected(null); setSelectedAction(""); command.reset(); }}>
+    {modal && <Modal title={modal === "fuel" ? "تعريف نوع وقود" : modal === "price" ? "إضافة نسخة سعر" : modal === "category" ? "تعريف تصنيف" : modal === "unit" ? "تعريف وحدة قياس" : modal === "review" ? "مراجعة صنف جهة" : selectedAction === "fuel.price.publish" ? "نشر نسخة السعر" : selectedAction === "fuel.price.cancel" ? "إلغاء نسخة السعر" : selectedAction === "fuel.type.status" ? (selected?.["active"] ? "إيقاف نوع الوقود" : "إعادة تفعيل نوع الوقود") : selectedAction === "unit.status" ? (selected?.["active"] ? "إيقاف وحدة القياس" : "تفعيل وحدة القياس") : (get(selected, "active") ? "إيقاف التصنيف" : "تفعيل التصنيف")} onClose={() => { setModal(null); setSelected(null); setSelectedAction(""); command.reset(); }}>
       <CommandError error={command.error}/>
       <form className="cat-form" onSubmit={submit}>
         {modal === "fuel" && <><label>رمز الوقود<input name="code" required minLength={2} maxLength={40} pattern="[a-z][a-z0-9_]{1,39}" placeholder="gasoline_95"/></label><label>الاسم بالعربية<input name="nameAr" required minLength={2} maxLength={80}/></label><label>العائلة<select name="vehicleFuelFamily"><option value="gasoline">بنزين</option><option value="diesel">سولار</option><option value="natural_gas">غاز طبيعي</option><option value="other">أخرى</option></select></label><label>وحدة القياس<select name="unitCode">{rows(categoryQuery.data?.units).map(unit=><option key={String(unit["code"])} value={String(unit["code"])}>{text(get(unit,"name_ar","nameAr"))}</option>)}</select></label></>}
+        {modal === "unit" && <><label>رمز الوحدة<input name="code" required minLength={2} maxLength={40} pattern="[a-z][a-z0-9_]{1,39}" placeholder="box"/></label><label>الاسم بالعربية<input name="nameAr" required minLength={2} maxLength={80}/></label><label>المنازل العشرية<select name="quantityScale" defaultValue="0">{[0,1,2,3,4,5,6].map(scale=><option key={scale} value={scale}>{scale}</option>)}</select></label></>}
         {modal === "price" && selected && <><div className="cat-selected-record"><b>{text(selected["nameAr"])}</b><span>تاريخ السريان بتوقيت القاهرة</span></div><label>السعر لكل وحدة (ج.م)<input name="pricePerUnit" inputMode="decimal" required pattern="[0-9]+(\.[0-9]{1,6})?" placeholder="17.25"/></label><label>يبدأ في القاهرة<input name="validFromLocal" type="datetime-local" required/></label><label>ينتهي في القاهرة <small>اختياري</small><input name="validToLocal" type="datetime-local"/></label></>}
         {modal === "category" && <><label>رمز التصنيف<input name="code" required minLength={2} maxLength={40} pattern="[a-z][a-z0-9_-]{1,39}"/></label><label>الاسم بالعربية<input name="nameAr" required minLength={2} maxLength={100}/></label><label>مجموعة الخدمة<select name="serviceGroup"><option value="wash">غسيل</option><option value="oils">زيوت</option><option value="parts">قطع</option></select></label><fieldset><legend>أنواع الأصناف</legend><label className="cat-check"><input type="checkbox" name="allowedItemKinds" value="product" defaultChecked/> منتج</label><label className="cat-check"><input type="checkbox" name="allowedItemKinds" value="service"/> خدمة</label></fieldset></>}
         {modal === "review" && selected && <><div className="cat-selected-record"><b>{text(selected["name"])}</b><span>{text(get(selected,"categoryName","category_name"))} · {text(selected["organizationId"])}</span></div><label>قرار المراجعة<select name="reviewStatus" defaultValue="approved"><option value="approved">اعتماد</option><option value="rejected">رفض</option><option value="not_reviewed">إعادة للمراجعة</option></select></label></>}
