@@ -54,6 +54,9 @@ function mapBillingError(
   error: { code?: string; message?: string } | null,
 ): void {
   if (!error) return;
+  if(error.code==="55000"&&error.message==="plan rights and settings require explicit approval"){
+    res.status(409).json({code:"PLAN_PUBLICATION_NOT_READY",message:"راجع مسودة الباقة: يلزم تسجيل ميزة واحدة على الأقل واعتماد المميزات والإعدادات قبل النشر."});return;
+  }
   if (error.code === "42501" || error.code === "PGRST301") {
     fail(res, 403, "ليست لديك صلاحية لهذا الإجراء.");
   } else if (error.code === "PGRST202" || error.code === "42883") {

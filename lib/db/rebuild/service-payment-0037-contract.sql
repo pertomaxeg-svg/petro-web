@@ -11,9 +11,10 @@ SELECT
         AND NOT has_function_privilege('service_role',p.oid,'EXECUTE'))
         FROM pg_proc p WHERE p.oid IN(to_regprocedure('public.petro_service_order_payment(uuid)'),
         to_regprocedure('public.petro_service_order_payment_context(uuid)'),to_regprocedure('public.petro_confirm_service_order(uuid,bigint,text,text)')))
-       AND coalesce((SELECT NOT p.prosecdef AND p.proconfig=ARRAY['search_path=""']::text[]
+       AND (SELECT count(*)=2 AND bool_and(NOT p.prosecdef AND p.proconfig=ARRAY['search_path=""']::text[]
         AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE') AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
-        AND NOT has_function_privilege('service_role',p.oid,'EXECUTE') FROM pg_proc p WHERE p.oid=to_regprocedure('petro_private.guard_service_payment_history()')),false)
+        AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')) FROM pg_proc p WHERE p.oid IN(to_regprocedure('petro_private.guard_service_payment_history()'),to_regprocedure('petro_private.guard_service_payment_reversal()')))
+       AND EXISTS(SELECT 1 FROM pg_trigger WHERE NOT tgisinternal AND tgenabled='O' AND tgname='service_payment_reversal_guard' AND tgrelid=to_regclass('public.petro_finance_journal_entries'))
        AND(SELECT count(*)=5 FROM pg_trigger WHERE NOT tgisinternal AND tgenabled='O' AND tgname IN('merchant_settlement_policy_immutable','service_order_payment_immutable','service_order_receivable_immutable','service_order_receipt_immutable','service_confirmation_command_immutable'))
        AND coalesce((SELECT NOT has_sequence_privilege('anon',c.oid,'USAGE,SELECT,UPDATE')
         AND NOT has_sequence_privilege('authenticated',c.oid,'USAGE,SELECT,UPDATE') AND NOT has_sequence_privilege('service_role',c.oid,'USAGE,SELECT,UPDATE')

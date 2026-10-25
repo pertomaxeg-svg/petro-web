@@ -11,6 +11,8 @@ DROP FUNCTION public.petro_service_order_payment_context(uuid);
 DROP FUNCTION public.petro_service_order_payment(uuid);
 ALTER TABLE petro_private.service_order_events DROP CONSTRAINT service_order_events_kind_check;
 ALTER TABLE petro_private.service_order_events ADD CONSTRAINT service_order_events_kind_check CHECK(kind IN('reserved','cancelled','expiry_failed','started','delivered'));
+DROP TRIGGER service_payment_reversal_guard ON public.petro_finance_journal_entries;
+DROP FUNCTION petro_private.guard_service_payment_reversal();
 DROP TABLE petro_private.service_order_confirmation_commands;
 DROP TABLE petro_private.service_order_receipts;
 DROP TABLE petro_private.service_order_receivables;

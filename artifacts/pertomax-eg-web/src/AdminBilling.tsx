@@ -1,3 +1,4 @@
+import { planPublicationReadiness } from "./planPublication";
 import { Fragment, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,7 +57,8 @@ const pageSize = 20;
 const apiErrorMessage = (error: unknown) => {
   const item = error as { message?: string; data?: { message?: string } };
   const status = apiErrorStatus(error);
-  if (status === 409) return "تعارض مع سجل أحدث. أعد تحميل الكتالوج وراجع القيم الحالية قبل إعادة المحاولة.";
+  if (item?.data?.message) return item.data.message;
+  if (status === 409) return "تغيّرت حالة السجل. حدّث البيانات وراجع التفاصيل.";
   if (status === 403) return "لا تملك صلاحية تنفيذ هذا الإجراء.";
   return item?.data?.message || item?.message || "تعذر إتمام الطلب. حاول مرة أخرى.";
 };
@@ -568,18 +570,20 @@ export function AdminPlansPage() {
   async function submitPublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!publishSelection) return;
+    const readiness=planPublicationReadiness(publishSelection.version);
+    if(!readiness.ready){setFormError(readiness.issues.join(" "));return;}
     const data = new FormData(event.currentTarget);
     setFormError("");
     setBusy(true);
     try {
-      await publishVersion.mutateAsync({
+      const published = await publishVersion.mutateAsync({
         planId: publishSelection.plan.id,
         versionId: publishSelection.version.id,
         data: { reason: String(data.get("reason")).trim() },
       });
       await refresh();
       setPublishSelection(null);
-      setSuccess("حُفظ قرار النشر أو الجدولة.");
+      setSuccess(published.status==="scheduled"?"تمت جدولة الباقة حسب تاريخ السريان المحدد.":"تم نشر الباقة بنجاح.");
     } catch (error) {
       setFormError(apiErrorMessage(error));
     } finally {
@@ -786,10 +790,11 @@ export function AdminPlansPage() {
         <ReasonField/><FormFeedback error={formError}/>
         <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "حفظ موعد الإيقاف"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
-      {publishSelection && <form className="ab-form-grid" onSubmit={submitPublish}>
-        <p className="ab-form-note ab-wide">سيُرفض النشر إذا بقي أي استحقاق أو إعداد غير معتمد. الإصدار ذو تاريخ سريان مستقبلي سيُجدول.</p>
+      {publishSelection && <form className="ab-form-grid ab-publication" onSubmit={submitPublish} data-testid="plan-publication">
+        <div className="ab-publication-summary ab-wide"><div><span>الباقة</span><strong>{publishSelection.plan.name}</strong></div><div><span>السعر السنوي</span><strong>{money(publishSelection.version.annualPriceMinor)}</strong></div><div><span>تاريخ السريان</span><strong>{dateLabel(publishSelection.version.effectiveAt)}</strong></div></div>
+        {planPublicationReadiness(publishSelection.version).ready?<div className="ab-publication-ready ab-wide" role="status"><Check size={18}/><div><b>الباقة جاهزة للنشر</b><p>ستُجدول تلقائيًا إذا كان تاريخ السريان مستقبليًا. الاشتراكات السابقة تحتفظ بسعرها ومميزاتها.</p></div></div>:<div className="ab-publication-blocked ab-wide" role="status" data-testid="plan-publication-blocked"><b>أكمل هذه النقاط قبل النشر</b><ul>{planPublicationReadiness(publishSelection.version).issues.map(issue=><li key={issue}>{issue}</li>)}</ul><button type="button" className="ac-button" data-testid="plan-publication-edit" onClick={()=>{const selected=publishSelection;setPublishSelection(null);setEditSelection(selected);setFormError("");}}>استكمال المميزات والإعدادات</button></div>}
         <ReasonField/><FormFeedback error={formError}/>
-        <div className="ab-form-actions"><button className="ac-button" disabled={busy}>{busy ? "جارٍ الحفظ…" : "اعتماد النشر"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
+        <div className="ab-form-actions"><button className="ac-button" data-testid="plan-publication-submit" disabled={busy||!planPublicationReadiness(publishSelection.version).ready}>{busy ? "جارٍ النشر…" : "تأكيد النشر"} <Check size={14}/></button><button type="button" className="ac-button ac-button-quiet" onClick={closeForms}>إلغاء</button></div>
       </form>}
     </section>}
   </div>;

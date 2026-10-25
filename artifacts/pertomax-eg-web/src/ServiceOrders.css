@@ -9,9 +9,14 @@
 .so-receipt header b {display:inline-block;letter-spacing:.06em}
 .so-payment-form {max-width:480px}
 .so-payment-form input {letter-spacing:.25em}
+@media screen and (max-width:480px){.so-receipt .so-facts{grid-template-columns:1fr}}
 @media print {
- body:has(.so-receipt) * {visibility:hidden}
- body:has(.so-receipt) .so-receipt,body:has(.so-receipt) .so-receipt * {visibility:visible}
- .so-receipt {position:absolute;inset:0 auto auto 0;width:100%;border:0;margin:0;padding:20px;background:#fff;color:#111;direction:rtl;box-sizing:border-box}
- .so-no-print {display:none!important}
+ @page {size:A4;margin:14mm}
+ body:has(.so-receipt){background:#fff!important;margin:0!important;padding:0!important;min-height:0!important}
+ body:has(.so-receipt) *:not(.so-receipt):not(.so-receipt *):not(:has(.so-receipt)){display:none!important}
+ body:has(.so-receipt) :has(.so-receipt){display:contents!important}
+ .so-receipt{position:static!important;width:auto;border:0;border-radius:0;box-shadow:none;margin:0;padding:0;background:#fff;color:#111;direction:rtl;box-sizing:border-box}
+ .so-receipt .so-facts{display:grid;grid-template-columns:1fr 1fr}
+ .so-receipt .so-facts>div{break-inside:avoid}
+ .so-no-print{display:none!important}
 }

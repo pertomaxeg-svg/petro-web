@@ -66,6 +66,18 @@ CREATE TRIGGER service_order_receivable_immutable BEFORE UPDATE OR DELETE ON pet
 CREATE TRIGGER service_order_receipt_immutable BEFORE UPDATE OR DELETE ON petro_private.service_order_receipts FOR EACH ROW EXECUTE FUNCTION petro_private.guard_service_payment_history();
 CREATE TRIGGER service_confirmation_command_immutable BEFORE UPDATE OR DELETE ON petro_private.service_order_confirmation_commands FOR EACH ROW EXECUTE FUNCTION petro_private.guard_service_payment_history();
 
+CREATE FUNCTION petro_private.guard_service_payment_reversal() RETURNS trigger
+LANGUAGE plpgsql SET search_path='' AS $$
+BEGIN
+ IF NEW.reverses_entry_id IS NOT NULL AND EXISTS(
+ SELECT 1 FROM petro_private.service_order_payments WHERE journal_entry_id=NEW.reverses_entry_id) THEN
+ RAISE EXCEPTION 'USE_SERVICE_ORDER_REFUND_WORKFLOW' USING ERRCODE='55000';
+ END IF;
+ RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION petro_private.guard_service_payment_reversal() FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER service_payment_reversal_guard BEFORE INSERT ON public.petro_finance_journal_entries FOR EACH ROW EXECUTE FUNCTION petro_private.guard_service_payment_reversal();
+
 CREATE FUNCTION public.petro_service_order_payment(p_order_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE o public.petro_service_orders%ROWTYPE;delivery petro_private.service_order_deliveries%ROWTYPE;payment jsonb;
 BEGIN
