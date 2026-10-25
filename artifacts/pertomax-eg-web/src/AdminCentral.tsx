@@ -1,3 +1,4 @@
+import { reviewStatusLabel, reviewRequestTitle } from "./reviewPresentation";
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -226,7 +227,7 @@ function OverviewData() {
     <div className="ac-overview-grid">
       <section className="ac-panel ac-recent-panel"><div className="ac-panel-head"><div><span className="ac-eyebrow">الوارد الفعلي</span><h2>طلبات تحتاج مراجعة</h2></div><Link className="ac-inline-link" href="/admin/organization-requests">فتح صندوق المراجعة <ArrowLeft size={15}/></Link></div>
         {requests.isLoading ? <SkeletonRows/> : requests.isError ? <p className="ac-inline-message">تعذر قراءة سجل الطلبات.</p> : pendingRequests.length === 0 ? <div className="ac-empty"><span><Check size={18}/></span><b>لا توجد طلبات معلّقة</b><p>لا توجد طلبات مرسلة تنتظر إجراءً الآن.</p></div> :
-          <div className="ac-inbox-list">{pendingRequests.slice(0, 6).map(item=><Link key={`${item.requestType}-${item.id}`} href="/admin/organization-requests" className="ac-inbox-row"><span className="ac-record-mark"><FileSearch size={17}/></span><span className="ac-inbox-copy"><b>{item.title}</b><small>{requestLabel[item.requestType] || item.requestType} · {dateText(item.createdAt)}</small></span><span className="ac-status ac-status-pending">{item.status === "submitted" ? "مرسل" : item.status}</span><ChevronLeft size={16}/></Link>)}</div>}
+          <div className="ac-inbox-list">{pendingRequests.slice(0, 6).map(item=><Link key={`${item.requestType}-${item.id}`} href="/admin/organization-requests" className="ac-inbox-row"><span className="ac-record-mark"><FileSearch size={17}/></span><span className="ac-inbox-copy"><b>{reviewRequestTitle(item)}</b><small>{requestLabel[item.requestType] || "طلب مراجعة"} · {dateText(item.createdAt)}</small></span><span className="ac-status ac-status-pending">{reviewStatusLabel(item.status)}</span><ChevronLeft size={16}/></Link>)}</div>}
       </section>
       <section className="ac-panel ac-quick-panel" aria-label="اختصارات التشغيل"><div className="ac-panel-head"><div><span className="ac-eyebrow">ابدأ من هنا</span><h2>أقسامك الأساسية</h2></div></div><div className="ac-quick-grid">{[
  {href:"/admin/fleet/vehicles",label:"المركبات والسائقون",note:"بيانات الأسطول وضوابطه",icon:<Truck size={20}/>},
