@@ -28,7 +28,7 @@ WITH findings AS (
 )
 SELECT issue, affected FROM findings ORDER BY issue;
 
--- Check allowed kinds separately before introducing a new revenue account.
+-- Approved service settlement has no platform commission: the full service amount is credited to merchant payable.\n-- Inspect existing account kinds as a diagnostic; do not add platform_revenue for service charges.
 SELECT pg_get_constraintdef(c.oid) AS allowed_account_kinds
 FROM pg_constraint c
 WHERE c.conrelid='public.petro_finance_accounts'::regclass

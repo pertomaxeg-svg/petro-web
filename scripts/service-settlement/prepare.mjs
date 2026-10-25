@@ -17,7 +17,8 @@ export function prepareServiceSettlement({ operationId, proof, operation, accoun
   if (!['fuel', 'wash', 'service', 'parts'].includes(operation.serviceGroup))
     throw new Error('UNSUPPORTED_SERVICE_GROUP');
   if (typeof operation.branchId !== 'string' || !operation.branchId.trim() ||
-      typeof operation.vehicleId !== 'string' || !operation.vehicleId.trim())
+      typeof operation.vehicleId !== 'string' || !operation.vehicleId.trim() ||
+      typeof operation.companyOrganizationId !== 'string' || !operation.companyOrganizationId.trim())
     throw new Error('OPERATION_SCOPE_REQUIRED');
   if (proof.branchId && proof.branchId !== operation.branchId) throw new Error('BRANCH_MISMATCH');
   if (proof.serviceGroup && proof.serviceGroup !== operation.serviceGroup) throw new Error('SERVICE_GROUP_MISMATCH');
@@ -27,16 +28,15 @@ export function prepareServiceSettlement({ operationId, proof, operation, accoun
       accounts.merchantBranchId !== operation.branchId)
     throw new Error('ACCOUNT_SCOPE_MISMATCH');
   if (!['company_funding','branch_funding'].includes(accounts.companyAccountKind) ||
-      accounts.stationAccountKind !== 'merchant_payable' ||
-      accounts.platformAccountKind !== 'platform_revenue')
+      accounts.merchantAccountKind !== 'merchant_payable')
     throw new Error('ACCOUNT_TYPE_MISMATCH');
+  if (operation.stationShareMinor !== undefined && operation.stationShareMinor !== operation.amountMinor)
+    throw new Error('SERVICE_COMMISSION_NOT_ALLOWED');
   const plan = planServiceSettlement({
     operationId,
     companyAccountId: accounts.companyAccountId,
-    stationAccountId: accounts.stationAccountId,
-    platformAccountId: accounts.platformAccountId,
+    merchantAccountId: accounts.merchantAccountId,
     amountMinor: operation.amountMinor,
-    stationShareMinor: operation.stationShareMinor,
   });
   return {
     ...plan,

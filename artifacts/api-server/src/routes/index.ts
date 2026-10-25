@@ -6,6 +6,9 @@ import fleetRouter from "./fleet";
 import healthRouter from "./health";
 import managementRouter from "./management";
 import organizationWorkflowsRouter from "./organization-workflows";
+import auditEventsRouter from "./audit-events";
+import serviceOrdersRouter from "./service-orders";
+import catalogAdminRouter from "./catalog-admin";
 import supabaseRouter from "./supabase";
 
 const router: IRouter = Router();
@@ -18,5 +21,8 @@ router.use(billingRouter);
 router.use(financeRouter);
 router.use(fleetRouter);
 router.use(organizationWorkflowsRouter);
+router.use(serviceOrdersRouter);
+router.use(catalogAdminRouter);
+router.use(auditEventsRouter);
 
 export default router;

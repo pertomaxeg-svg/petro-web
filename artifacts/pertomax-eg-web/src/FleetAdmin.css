@@ -255,3 +255,79 @@
   .fleet-create-link-fields{grid-template-columns:1fr}
   .fleet-create-link-fields>p{grid-column:auto}
 }
+
+
+/* Fleet dashboard: larger type, clear states and touch-sized controls */
+.fleet-page { font-size:14px; }
+.fleet-heading { gap:24px; }
+.fleet-eyebrow { font-size:11px; }
+.fleet-heading p { font-size:14px; line-height:1.8; }
+.fleet-heading-mark { font-size:10px; }
+.fleet-heading-mark small { font-size:10px; }
+.fleet-layout { gap:24px; }
+.fleet-rail { border-radius:12px; box-shadow:0 5px 18px #243b4208; }
+.fleet-rail-title { font-size:12px; }
+.fleet-rail-title span { font-size:10px; }
+.fleet-rail-link { min-height:43px; padding-inline:11px; border-radius:8px; font-size:13px; }
+.fleet-rail-note { font-size:11px; }
+.fleet-breadcrumb { font-size:12px; }
+.fleet-filterbar { gap:11px; padding:14px; border-radius:10px; }
+.fleet-filterbar label { font-size:11px; }
+.fleet-filterbar input,.fleet-filterbar select { min-height:40px; border-radius:7px; font-size:12px; }
+.fleet-button { min-height:42px; padding-inline:15px; border-radius:8px; font-size:12px; }
+.fleet-search { min-height:40px; height:auto; border-radius:8px; }
+.fleet-search input,.fleet-action-select { font-size:12px; }
+.fleet-intro { padding:28px; border-radius:14px; }
+.fleet-intro-copy p { font-size:13px; line-height:1.9; }
+.fleet-overview-metrics { gap:12px; }
+.fleet-overview-metrics article { min-height:94px; padding:15px; border-radius:10px; }
+.fleet-overview-metrics small { font-size:11px; }
+.fleet-overview-metrics bdi { font-size:23px; }
+.fleet-quick-links { gap:0 20px; }
+.fleet-quick-links a { min-height:52px; font-size:13px; }
+.fleet-index { font-size:10px; }
+.fleet-table-card,.fleet-panel { overflow:hidden; margin-bottom:17px; border-radius:11px; box-shadow:0 5px 18px #243b4208; }
+.fleet-table-head,.fleet-panel-head { padding:19px 20px; }
+.fleet-table-head h2,.fleet-panel-head h2,.fleet-verify h2 { font-size:19px; }
+.fleet-panel-head p,.fleet-verify p { font-size:12px; }
+.fleet-count { border-radius:8px; }
+.fleet-table-scroll { max-width:100%; -webkit-overflow-scrolling:touch; }
+.fleet-table-scroll table { min-width:720px; font-size:12px; }
+.fleet-table-scroll th { font-size:11px; }
+.fleet-table-scroll td { font-size:12px; }
+.fleet-table-scroll td bdi { font-size:12px; }
+.fleet-status { padding:6px 9px; border-radius:7px; font-size:11px; }
+.fleet-row-action,.fleet-row-action-text { font-size:11px; }
+.fleet-row-actions { flex-wrap:wrap; gap:8px; }
+.fleet-pagination { gap:10px; flex-wrap:wrap; font-size:11px; }
+.fleet-pagination button { min-height:38px; border-radius:7px; font-size:12px; }
+.fleet-state b { font-size:14px; }
+.fleet-state p { font-size:12px; }
+.fleet-field { font-size:12px; }
+.fleet-field small,.fleet-muted { font-size:11px; }
+.fleet-page :is(a,button,input,select,textarea,[tabindex]):focus-visible { outline:3px solid #bd795caa; outline-offset:2px; }
+@media(max-width:767px) {
+  .fleet-heading { gap:12px; }
+  .fleet-heading p { font-size:13px; }
+  .fleet-layout { gap:14px; }
+  .fleet-main { padding-inline:0; }
+  .fleet-toolbar { align-items:stretch; flex-direction:column; gap:10px; }
+  .fleet-tools { flex-wrap:wrap; }
+  .fleet-search { width:100%; }
+  .fleet-intro { padding:21px 17px; }
+  .fleet-overview-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .fleet-quick-links { grid-template-columns:1fr; }
+  .fleet-filterbar { align-items:stretch; }
+  .fleet-filterbar label { min-width:0; flex:1 1 calc(50% - 8px); }
+  .fleet-filterbar input,.fleet-filterbar select { width:100%; max-width:none; }
+  .fleet-table-head,.fleet-panel-head { align-items:flex-start; flex-direction:column; gap:10px; }
+}
+@media(max-width:420px) {
+  .fleet-overview-metrics { grid-template-columns:1fr; }
+  .fleet-heading h1 { font-size:27px; }
+  .fleet-form,.fleet-form-grid { grid-template-columns:1fr; }
+  .fleet-form > .fleet-wide { grid-column:auto; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .fleet-page *, .fleet-page *::before, .fleet-page *::after { transition:none; }
+}
