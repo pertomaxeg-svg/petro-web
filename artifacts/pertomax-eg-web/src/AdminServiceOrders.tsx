@@ -62,7 +62,7 @@ function recordValue(record: JsonRecord | undefined, key: string): string {
 }
 
 function currency(minor: string | undefined): string {
-  if (!minor || !/^\\d+$/.test(minor)) return "—";
+  if (!minor || !/^\d+$/.test(minor)) return "—";
   const value = BigInt(minor);
   const pounds = (value / 100n).toLocaleString("ar-EG");
   const piasters = String(value % 100n).padStart(2, "0");
