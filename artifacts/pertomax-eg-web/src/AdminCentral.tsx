@@ -205,7 +205,7 @@ function OverviewData() {
   const users = useListPlatformUsers({ page: 1, pageSize: 1 }, { query: { queryKey: getListPlatformUsersQueryKey({ page: 1, pageSize: 1 }), retry: false } });
   const pendingRequests = (requests.data?.items ?? []).filter(item => ["submitted", "pending", "pending_review"].includes(item.status));
   return <div className="ac-page-enter">
-    <div className="ac-heading-row"><div><span className="ac-eyebrow">مركز القرار <i/></span><h1>صورة المنصة</h1><p>ملخص مباشر من سجلات الجهات والطلبات وحسابات المنصة.</p></div><span className="ac-date-stamp">PERTOMAX / CENTRAL</span></div>
+    <div className="ac-heading-row ac-overview-heading"><div><span className="ac-eyebrow">الإدارة المركزية <i/></span><h1>لوحة التشغيل</h1><p>راجع ما يحتاج إجراءً، ثم انتقل مباشرة إلى القسم المناسب.</p></div><div className="ac-overview-tools"><time dateTime={new Date().toISOString()}>{new Intl.DateTimeFormat("ar-EG",{dateStyle:"long",timeZone:"Africa/Cairo"}).format(new Date())}</time><button type="button" className="ac-button ac-button-quiet" disabled={orgs.isFetching||requests.isFetching||users.isFetching} onClick={()=>{void orgs.refetch();void requests.refetch();void users.refetch();}}><RefreshCw size={15}/> تحديث البيانات</button></div></div>
     {(orgs.isError || requests.isError || users.isError) ? <LoadError title="تعذر تحميل ملخص الإدارة" error={orgs.error || requests.error || users.error} retry={()=>{void orgs.refetch();void requests.refetch();void users.refetch();}}/> :
       <section className="ac-metrics" aria-label="ملخص السجلات">
         <Metric title="الجهات المسجلة" value={orgs.data?.total} note="وفق سجل الجهات" icon={<Building2 size={18}/>} loading={orgs.isLoading}/>
@@ -217,7 +217,14 @@ function OverviewData() {
         {requests.isLoading ? <SkeletonRows/> : requests.isError ? <p className="ac-inline-message">تعذر قراءة سجل الطلبات.</p> : pendingRequests.length === 0 ? <div className="ac-empty"><span><Check size={18}/></span><b>لا توجد طلبات معلّقة</b><p>لا توجد طلبات مرسلة تنتظر إجراءً الآن.</p></div> :
           <div className="ac-inbox-list">{pendingRequests.slice(0, 6).map(item=><Link key={`${item.requestType}-${item.id}`} href="/admin/organization-requests" className="ac-inbox-row"><span className="ac-record-mark"><FileSearch size={17}/></span><span className="ac-inbox-copy"><b>{item.title}</b><small>{requestLabel[item.requestType] || item.requestType} · {dateText(item.createdAt)}</small></span><span className="ac-status ac-status-pending">{item.status === "submitted" ? "مرسل" : item.status}</span><ChevronLeft size={16}/></Link>)}</div>}
       </section>
-      <section className="ac-panel ac-principle-panel"><span className="ac-eyebrow">فصل النطاقات</span><div className="ac-principle-mark"><ShieldCheck size={22}/></div><h2>صلاحية المنصة<br/>ليست عضوية جهة.</h2><p>أدوار المنصة تُدار على مستوى Pertomax EG. تبقى عضويات الجهات ونطاقات الفروع ضمن سجلاتها المنفصلة.</p><Link href="/admin/platform-users" className="ac-button ac-button-quiet">إدارة مستخدمي المنصة <ArrowLeft size={15}/></Link></section>
+      <section className="ac-panel ac-quick-panel" aria-label="اختصارات التشغيل"><div className="ac-panel-head"><div><span className="ac-eyebrow">ابدأ من هنا</span><h2>أقسامك الأساسية</h2></div></div><div className="ac-quick-grid">{[
+ {href:"/admin/fleet/vehicles",label:"المركبات والسائقون",note:"بيانات الأسطول وضوابطه",icon:<Truck size={20}/>},
+ {href:"/admin/plans",label:"الباقات والاشتراكات",note:"الأسعار والمميزات والنشر",icon:<Package size={20}/>},
+ {href:"/admin/cards",label:"إدارة البطاقات",note:"الطلبات والإصدار والتسليم",icon:<CreditCard size={20}/>},
+ {href:"/admin/service-orders",label:"طلبات الخدمة",note:"التنفيذ والتوثيق والدفع",icon:<FileSearch size={20}/>},
+ {href:"/admin/fuel-prices",label:"أسعار الوقود",note:"الأنواع والتعريفة المعتمدة",icon:<Fuel size={20}/>},
+ {href:"/admin/inventory",label:"المخزون",note:"الأرصدة والحركات والجرد",icon:<Building2 size={20}/>}
+ ].map(item=><Link key={item.href} href={item.href} className="ac-quick-link"><span>{item.icon}</span><div><b>{item.label}</b><small>{item.note}</small></div><ChevronLeft size={15}/></Link>)}</div></section>
     </div>
     <section className="ac-org-preview"><div className="ac-panel-head"><div><span className="ac-eyebrow">البنية المسجلة</span><h2>أحدث الجهات</h2></div><Link className="ac-inline-link" href="/admin/organizations">سجل الجهات والفروع <ArrowLeft size={15}/></Link></div>
       {orgs.isLoading ? <SkeletonRows/> : orgs.isError ? <p className="ac-inline-message">تعذر قراءة سجل الجهات.</p> : !orgs.data?.items.length ? <div className="ac-empty"><span><Building2 size={18}/></span><b>لا توجد جهات مسجلة</b><p>ستظهر هنا الجهات المسجلة فعليًا.</p></div> :
