@@ -17,4 +17,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: node --test artifacts/pertomax-eg-web/src/planPublication.test.mjs
+      - run: node --test artifacts/pertomax-eg-web/src/planPublication.test.mjs artifacts/pertomax-eg-web/src/reviewPresentation.test.mjs
