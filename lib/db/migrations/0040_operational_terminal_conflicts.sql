@@ -66,7 +66,7 @@ BEGIN
  VALUES(v_order.id,v_order.version+1,'cancelled',p_actor_id,p_system_actor,jsonb_build_object('previousStatus',v_order.status,'amountMinor',v_order.amount_minor::text,'reasonCode',CASE WHEN p_system_actor IS NOT NULL THEN 'reservation_expired' ELSE 'operator_cancelled' END));
  IF p_system_actor IS NOT NULL THEN RETURN jsonb_build_object('id',v_order.id,'status','cancelled','version',v_order.version+1); END IF;
  RETURN petro_private.service_order_view(v_order.id);
-END $function$
+END $function$;
 
 CREATE OR REPLACE FUNCTION public.petro_confirm_service_order(p_order_id uuid, p_expected_version bigint, p_pin_hmac text, p_request_key text)
  RETURNS jsonb
@@ -177,7 +177,7 @@ BEGIN
  result:=public.petro_service_order_payment(o.id)||jsonb_build_object('valid',true,'locked',false);
  INSERT INTO petro_private.service_order_confirmation_commands(actor_id,request_key,order_id,payload_fingerprint,result) VALUES(actor,p_request_key,o.id,fingerprint,result);
  RETURN result;
-END $function$
+END $function$;
 
 CREATE OR REPLACE FUNCTION public.petro_deliver_service_order(p_order_id uuid, p_expected_version bigint, p_input jsonb, p_request_key text)
  RETURNS jsonb
@@ -234,7 +234,7 @@ BEGIN
  VALUES(o.id,o.version+1,'delivered',auth.uid(),jsonb_build_object('actualQuantity',trim_scale(q)::text,'actualAmountMinor',amount::text,'bookedQuantity',trim_scale(o.quantity)::text,'bookedAmountMinor',o.amount_minor::text,'identityCurrent',identity_ok,'odometerStatus',CASE WHEN reading IS NOT NULL THEN odo_status END,'physicalStockIssued',o.kind='product'));
  INSERT INTO petro_private.service_order_commands(actor_id,request_key,action,payload_fingerprint,order_id) VALUES(auth.uid(),p_request_key,'deliver',fingerprint,o.id);
  RETURN public.petro_service_order_execution(o.id);
-END $function$
+END $function$;
 
 CREATE OR REPLACE FUNCTION public.petro_start_service_order(p_order_id uuid, p_expected_version bigint, p_request_key text)
  RETURNS jsonb
@@ -274,7 +274,7 @@ BEGIN
  INSERT INTO petro_private.service_order_events(order_id,order_version,kind,actor_id,detail) VALUES(o.id,o.version+1,'started',auth.uid(),jsonb_build_object('documentationRule',r));
  INSERT INTO petro_private.service_order_commands(actor_id,request_key,action,payload_fingerprint,order_id) VALUES(auth.uid(),p_request_key,'start',fingerprint,o.id);
  RETURN public.petro_service_order_execution(o.id);
-END $function$
+END $function$;
 
 CREATE OR REPLACE FUNCTION public.petro_worker_reserve_service_order(p_proof_id uuid, p_reference_id uuid, p_price_version_id uuid, p_input jsonb, p_location_id uuid, p_request_key text)
  RETURNS jsonb
@@ -334,6 +334,6 @@ BEGIN
  INSERT INTO petro_private.service_order_events(order_id,order_version,kind,actor_id,detail) VALUES(v_order_id,1,'reserved',v_actor,jsonb_build_object('amountMinor',v_amount::text,'quantity',trim_scale(v_quantity)::text,'vehiclePolicyVersionId',v_usage_row.vehicle_policy_version_id,'branchPolicyVersionId',v_usage_row.branch_policy_version_id));
  INSERT INTO petro_private.service_order_commands(actor_id,request_key,action,payload_fingerprint,order_id) VALUES(v_actor,p_request_key,'reserve',v_fingerprint,v_order_id);
  RETURN petro_private.service_order_view(v_order_id);
-END $function$
+END $function$;
 
 COMMIT;
