@@ -77,3 +77,5 @@ BEGIN
  IF EXISTS(SELECT 1 FROM public.petro_finance_journal_lines l JOIN public.petro_finance_journal_entries j ON j.id=l.entry_id WHERE j.entry_type='service_refund' GROUP BY j.id HAVING sum(l.amount_minor)FILTER(WHERE side='debit')<>sum(l.amount_minor)FILTER(WHERE side='credit')) THEN RAISE EXCEPTION 'Refund journal imbalance';END IF;
  BEGIN UPDATE petro_private.service_refund_decisions SET amount_minor=1 WHERE payment_id=p.id;RAISE EXCEPTION 'Refund decisions edited';EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;END;
 END $actual_refund$;
+
+\ir service-product-returns-0041-smoke-test.sql
