@@ -1,6 +1,6 @@
-# Remaining dependent milestones — current26October2026
+# Remaining dependent milestones — 26 October 2026
 
-0037 is accepted and live20261025190757.0038A request/read/withdraw intake is accepted in SQL/API/browser/real JWT and live20261026035918; actual refund posting/decisions/credit documents below remain0038B. No full0038 completion or runtime release claimed. New refund manual visual acceptance is open because the execution environment is unavailable.
+0037 final payment,0038A refund intake and0038B actual Finance refund decisions are accepted in isolated SQL/API/browser/real Auth/Storage. Monetary migration0039 is live20261026163457 (source6fec6d18b95615547daa6aa045570b79c1155ce174f8abf9b54dabb5c4a2d3f4). Full run40359778331 GREEN; original-worker read-only refund history/credit UI also passed full run40361558533. Manual central refund/mobile credit and A4 print inspection passed; worker screenshot bounds/capture QA is being finalized. This does not close all0038 dashboard/dispute UI scope or constitute runtime release.
 
 Use current GitHub/Supabase baseline and docs/PERTOMAX-EG-ENGINEERING-REFERENCE-v3.md only. No repeated full repository/database discovery. All IDs are engineering tasks, not claims of deployed routes.
 
