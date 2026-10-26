@@ -16,6 +16,12 @@ function reply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
  const code=result.error.code??"";
  const status=code==="42501"?403:code==="P0002"?404:code==="22023"?400:["40001","23505","23514","55000"].includes(code)?409:["PGRST202","42883"].includes(code)?503:500;
  const messages:Record<string,string>={
+ FORBIDDEN_REFUND:"لا تملك صلاحية طلب الاسترداد أو مراجعته لهذا الطلب.",
+ REFUND_REQUIRES_PAID_ORDER:"يمكن طلب رد قيمة خدمة مدفوعة فقط.",
+ REFUND_EXCEEDS_REMAINING_PAYMENT:"المبلغ يتجاوز الجزء المتاح من الدفعة بعد الطلبات القائمة.",
+ REFUND_OPEN_REQUEST_LIMIT:"وصل الطلب إلى حد طلبات الاسترداد المفتوحة. راجع الطلبات السابقة.",
+ REFUND_VERSION_CONFLICT:"تغير طلب الاسترداد؛ حدّث السجل قبل المتابعة.",
+ INVALID_REFUND_REQUEST:"راجع مبلغ الاسترداد ونوع المشكلة ومرجع المحاولة.",
  ORDER_NOT_CONFIRMABLE:"حالة الطلب لا تسمح بتأكيد الدفع الآن.",
  DELIVERY_REQUIRES_REVIEW:"التنفيذ يحتاج مراجعة العمليات قبل الدفع.",
  ODOMETER_REQUIRES_REVIEW:"قراءة العداد تحتاج اعتمادًا قبل الدفع.",
@@ -197,6 +203,44 @@ router.post("/operations/service-orders/:id/confirm",async(req:Request,res:Respo
  if(!isRecord(context.data)||typeof context.data.vehicleId!=="string"||!uuid.test(context.data.vehicleId)){res.status(502).json({message:"تعذر التحقق من مرجع المركبة."});return;}
  const digest=pairPinDigest(context.data.vehicleId,b.pinCode);
  reply(res,await rpc(session,"petro_confirm_service_order",{p_order_id:req.params.id,p_expected_version:b.expectedVersion,p_pin_hmac:digest,p_request_key:b.idempotencyKey}));
+});
+
+
+for(const central of [false,true]){
+ const path=(central?"/admin":"")+"/service-orders/:id/refunds";
+ async function authorizeRefund(req:Request,res:Response):Promise<Session|null>{
+  setNoStore(res);const session=await requireSession(req,res);if(!session)return null;
+  if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).length){res.status(400).json({message:"مرجع الطلب غير صالح."});return null;}
+  if(central){const permission=await rpc(session,"petro_service_orders_query",{p_filters:{view:"central",orderId:req.params.id}});if(permission.error){reply(res,permission);return null;}}
+  return session;
+ }
+ router.get(path,async(req:Request,res:Response)=>{
+  const session=await authorizeRefund(req,res);if(!session)return;
+  reply(res,await rpc(session,"petro_service_order_refund_requests",{p_order_id:req.params.id}));
+ });
+ router.post(path,async(req:Request,res:Response)=>{
+  const session=await authorizeRefund(req,res);if(!session)return;
+  const b=req.body;
+  if(!isRecord(b)||Object.keys(b).some(k=>!["amountMinor","category","note","idempotencyKey"].includes(k))
+   ||typeof b.amountMinor!=="string"||!/^[1-9][0-9]{0,17}$/.test(b.amountMinor)
+   ||typeof b.category!=="string"||!["not_received","quality","quantity","billing"].includes(b.category)
+   ||(b.note!==undefined&&b.note!==null&&(typeof b.note!=="string"||b.note.length>1000))
+   ||typeof b.idempotencyKey!=="string"||!requestKey.test(b.idempotencyKey)){
+   res.status(400).json({message:"أدخل مبلغًا صحيحًا ونوع المشكلة، واجعل الملاحظة اختيارية وبحد أقصى ألف حرف."});return;
+  }
+  reply(res,await rpc(session,"petro_request_service_refund",{p_order_id:req.params.id,p_amount_minor:b.amountMinor,p_category:b.category,p_note:b.note??null,p_request_key:b.idempotencyKey}));
+ });
+}
+router.post("/service-refund-requests/:id/withdraw",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const b=req.body;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).length
+ ||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","idempotencyKey"].includes(k))
+ ||!Number.isSafeInteger(b.expectedVersion)||Number(b.expectedVersion)<1
+ ||typeof b.idempotencyKey!=="string"||!requestKey.test(b.idempotencyKey)){
+ res.status(400).json({message:"مرجع طلب الاسترداد أو نسخته غير صالح."});return;
+ }
+ reply(res,await rpc(session,"petro_withdraw_service_refund",{p_request_id:req.params.id,p_expected_version:b.expectedVersion,p_request_key:b.idempotencyKey}));
 });
 
 export default router;

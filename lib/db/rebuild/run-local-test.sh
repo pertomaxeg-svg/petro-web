@@ -473,8 +473,30 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0037
 test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-contract.sql")" = "t"
 default_acl_snapshot >"$tmp_dir/default-acl-after-0037.txt"
 cmp "$tmp_dir/default-acl-before-0037.txt" "$tmp_dir/default-acl-after-0037.txt"
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0038.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0038.txt"
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-refund-intake-0038-contract.sql")" = "f"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0038_service_refund_intake.sql" >/dev/null
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-refund-intake-0038-contract.sql")" = "t"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0038.txt"
+cmp "$tmp_dir/default-acl-before-0038.txt" "$tmp_dir/default-acl-after-0038.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM petro_private.service_refund_requests")" != "0" ]; then
+ if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0038_service_refund_intake.sql" >"$tmp_dir/0038-rollback-refusal.log" 2>&1; then
+  echo "0038 rollback erased refund request history" >&2
+  exit 1
+ fi
+ rg -q '0038 rollback refuses to remove refund request history' "$tmp_dir/0038-rollback-refusal.log"
+ # Disposable runner only; never truncate hosted financial/request history.
+ psql --no-psqlrc --set ON_ERROR_STOP=1 -c "TRUNCATE petro_private.service_refund_commands,petro_private.service_refund_withdrawals,petro_private.service_refund_requests;" >/dev/null
+fi
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0038_service_refund_intake.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0038-rollback.sql"
+cmp "$tmp_dir/schema-before-0038.sql" "$tmp_dir/schema-after-0038-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0038-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0038.txt" "$tmp_dir/default-acl-after-0038-rollback.txt"
+echo "PASS: refund request intake RLS, amount capacity, history and preserving schema/ACL rollback"
 if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM petro_private.service_order_confirmation_commands")" != "0" ]; then
  if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0037_final_service_payment.sql" >"$tmp_dir/0037-rollback-refusal.log" 2>&1; then
   echo "0037 rollback erased financial confirmation history" >&2

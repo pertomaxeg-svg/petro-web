@@ -20,3 +20,6 @@
  .so-receipt .so-facts>div{break-inside:avoid}
  .so-no-print{display:none!important}
 }
+
+.so-refund-panel{margin-top:28px;padding-top:24px;border-top:1px solid #d8e1db}.so-refund-panel>header{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.so-refund-panel h3{font-size:21px;margin:7px 0 16px}.so-refund-form{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0}.so-refund-note{grid-column:1/-1}.so-refund-note textarea{min-height:90px;max-width:100%;resize:vertical;border:1px solid #c5d3cc;border-radius:8px;padding:12px;font:inherit}.so-refund-list{list-style:none;margin:20px 0;padding:0;display:grid;gap:12px}.so-refund-list li{padding:16px;border:1px solid #dbe4dd;border-radius:10px;background:#fbfcfa;min-width:0;overflow-wrap:anywhere}.so-refund-list li>div{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.so-refund-list li>div span{font-size:12px;color:#527568}.so-refund-list p{font-size:13px;line-height:1.8;color:#52675e;white-space:pre-wrap}.so-refund-panel button{min-height:44px}
+@media(max-width:700px){.so-refund-form{grid-template-columns:minmax(0,1fr)}.so-refund-form>button{width:100%}.so-refund-panel>header{align-items:flex-start;flex-direction:column}.so-refund-list li{padding:13px}}
