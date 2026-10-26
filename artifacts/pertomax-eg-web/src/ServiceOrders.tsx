@@ -82,7 +82,7 @@ export function ServiceOrdersPage({central=false,canManage=true}:{central?:boole
  {order.status==="reserved"&&<p className="so-notice">تم حجز المبلغ{order.kind==="product"?" والكمية في المخزن":""}. لم يُسجّل دفع أو تسليم بعد. إذا انتهت المهلة قبل البدء، يُحرّر الحجز تلقائيًا؛ تعرض الصفحة النتيجة بعد تسجيلها.</p>}
  {userId&&<ServiceOrderExecution key={order.id} orderId={order.id} userId={userId} central={central}/>}
  {userId&&<ServiceOrderPayment key={"payment-"+order.id} orderId={order.id} userId={userId} central={central}/>}
- {central&&userId&&<ServiceRefundRequests key={"refund-"+order.id} orderId={order.id} userId={userId}/>}
+ {userId&&<ServiceRefundRequests key={"refund-"+order.id+"-"+order.paymentStatus} orderId={order.id} userId={userId} central={central}/>}
  {order.cancelledAt&&<p className="so-notice" data-testid="order-cancelled">أُلغي الحجز {date(order.cancelledAt)} {order.cancelCode==="reservation_expired"?"بسبب انتهاء المهلة، بواسطة النظام.":"بواسطة مستخدم مخول."} المبلغ غير مدفوع، وقد حُرّر الرصيد{order.kind==="product"?" والمخزون المحجوز":""}.</p>}
  {order.requiresReview&&<p role="alert" className="fleet-feedback is-error">توقف التحرير التلقائي بعد تعذّر إتمامه. ما زال المبلغ محجوزًا لحين المراجعة. محاولات التحرير: {order.expiryAttempts}.</p>}
  <div className="so-actions"><button className="fleet-button fleet-quiet" disabled={busy} onClick={()=>void query.refetch()}>تحديث الحالة</button>

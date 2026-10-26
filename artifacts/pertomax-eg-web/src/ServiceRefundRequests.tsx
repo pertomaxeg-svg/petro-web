@@ -43,9 +43,9 @@ function CreditDialog({document:d,onClose}:{document:CreditDocument;onClose:()=>
  <p className="so-reference">مرجع الخدمة <b dir="ltr">{s.orderId}</b></p><small>بيانات الضريبة غير مُعدّة لهذا المستند.</small>
  </article></div>;
 }
-export function ServiceRefundRequests({orderId,userId}:{orderId:string;userId:string}){
- const api="/api/admin/service-orders/"+encodeURIComponent(orderId)+"/refunds";
- const query=useQuery({queryKey:["service-refund-requests",userId,orderId],queryFn:()=>request<View>(api),retry:false,gcTime:0});
+export function ServiceRefundRequests({orderId,userId,central=true}:{orderId:string;userId:string;central?:boolean}){
+ const api=(central?"/api/admin":"/api")+"/service-orders/"+encodeURIComponent(orderId)+"/refunds";
+ const query=useQuery({queryKey:["service-refund-requests",central,userId,orderId],queryFn:()=>request<View>(api),retry:false,gcTime:0});
  const [amount,setAmount]=useState(""),[category,setCategory]=useState("quality"),[note,setNote]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[success,setSuccess]=useState(""),[credit,setCredit]=useState<CreditDocument|null>(null);
  const closeCredit=useCallback(()=>setCredit(null),[]);
  const pending=useRef<Pending|null>(null);
