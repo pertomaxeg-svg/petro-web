@@ -28,7 +28,7 @@ BEGIN
  decision:=public.petro_decide_service_refund(target_request,1,'reject',NULL,NULL,'actual-refund-reject-0001');
  IF decision->>'status'<>'rejected' OR decision->>'moneyRefunded'<>'false' OR(SELECT count(*) FROM public.petro_finance_journal_entries)<>journal_before THEN RAISE EXCEPTION 'Rejected claim moved money';END IF;
  IF public.petro_decide_service_refund(target_request,1,'reject',NULL,NULL,'actual-refund-reject-0001') IS DISTINCT FROM decision THEN RAISE EXCEPTION 'Decision rejection replay changed';END IF;
- BEGIN PERFORM public.petro_withdraw_service_refund(target_request,1,'actual-refund-closed-withdraw');RAISE EXCEPTION 'Decided request withdrawn';EXCEPTION WHEN serialization_failure THEN NULL;END;
+ BEGIN PERFORM public.petro_withdraw_service_refund(target_request,1,'actual-refund-closed-withdraw');RAISE EXCEPTION 'Decided request withdrawn';EXCEPTION WHEN SQLSTATE 'PT409' THEN IF SQLERRM<>'REFUND_VERSION_CONFLICT' THEN RAISE;END IF;END;
  SELECT snapshot INTO original_receipt FROM petro_private.service_order_receipts WHERE payment_id=p.id;
  SELECT ledger_balance_minor INTO amount_before FROM public.petro_finance_account_balances WHERE account_id=(SELECT account_id FROM public.petro_finance_reservations WHERE id=p.financial_reservation_id);
  SELECT ledger_balance_minor INTO control_before FROM public.petro_finance_account_balances WHERE account_id=v.control_account_id;
@@ -36,7 +36,7 @@ BEGIN
  request:=public.petro_request_service_refund(p.order_id,'5000','billing',NULL,'actual-refund-partial-request');
  target_request:=(request->>'id')::uuid;
  BEGIN PERFORM public.petro_decide_service_refund(target_request,1,'refund','5001',NULL,'actual-refund-excess-request');RAISE EXCEPTION 'Refund exceeded requested amount';EXCEPTION WHEN check_violation THEN NULL;END;
- BEGIN PERFORM public.petro_decide_service_refund(target_request,2,'refund','4000',NULL,'actual-refund-stale-decision');RAISE EXCEPTION 'Stale refund decision accepted';EXCEPTION WHEN serialization_failure THEN NULL;END;
+ BEGIN PERFORM public.petro_decide_service_refund(target_request,2,'refund','4000',NULL,'actual-refund-stale-decision');RAISE EXCEPTION 'Stale refund decision accepted';EXCEPTION WHEN SQLSTATE 'PT409' THEN IF SQLERRM<>'REFUND_VERSION_CONFLICT' THEN RAISE;END IF;END;
  decision:=public.petro_decide_service_refund(target_request,1,'refund','4000',NULL,'actual-refund-partial-0001');
  IF decision->>'status'<>'refunded' OR decision->>'moneyRefunded'<>'true' OR decision->>'refundedAmountMinor'<>'4000' THEN RAISE EXCEPTION 'Actual partial refund state missing: %',decision;END IF;
  refunded_entry:=(decision->>'journalEntryId')::uuid;

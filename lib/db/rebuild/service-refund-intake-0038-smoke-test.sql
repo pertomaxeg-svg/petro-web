@@ -52,11 +52,11 @@ BEGIN
  IF s->>'requestedAmountMinor'<>'2500' OR s->>'remainingRequestableMinor'<>'6250' OR s->>'financialRefundEnabled'<>'true' THEN RAISE EXCEPTION 'Refund capacity incorrect: %',s;END IF;
  second:=public.petro_request_service_refund(o,'6250','quantity','تفاصيل اختيارية','refund-second-request-01');
  BEGIN PERFORM public.petro_request_service_refund(o,'1','billing',NULL,'refund-overflow-request-01');RAISE EXCEPTION 'Refund requests exceeded charged amount';EXCEPTION WHEN check_violation THEN IF SQLERRM<>'REFUND_EXCEEDS_REMAINING_PAYMENT' THEN RAISE;END IF;END;
- BEGIN PERFORM public.petro_withdraw_service_refund(first_id,2,'refund-stale-withdraw-01');RAISE EXCEPTION 'Stale refund withdrawal succeeded';EXCEPTION WHEN serialization_failure THEN NULL;END;
+ BEGIN PERFORM public.petro_withdraw_service_refund(first_id,2,'refund-stale-withdraw-01');RAISE EXCEPTION 'Stale refund withdrawal succeeded';EXCEPTION WHEN SQLSTATE '40001' OR SQLSTATE 'PT409' THEN IF SQLERRM<>'REFUND_VERSION_CONFLICT' THEN RAISE;END IF;END;
  r:=public.petro_withdraw_service_refund(first_id,1,'refund-first-withdraw-01');
  IF r->>'status'<>'withdrawn' OR r->>'version'<>'2' OR r->>'moneyRefunded'<>'false' THEN RAISE EXCEPTION 'Withdrawal changed money';END IF;
  IF public.petro_withdraw_service_refund(first_id,1,'refund-first-withdraw-01') IS DISTINCT FROM r THEN RAISE EXCEPTION 'Withdrawal retry changed result';END IF;
- BEGIN PERFORM public.petro_withdraw_service_refund(first_id,1,'refund-second-withdraw-01');RAISE EXCEPTION 'Withdrawal duplicated history';EXCEPTION WHEN serialization_failure THEN NULL;END;
+ BEGIN PERFORM public.petro_withdraw_service_refund(first_id,1,'refund-second-withdraw-01');RAISE EXCEPTION 'Withdrawal duplicated history';EXCEPTION WHEN SQLSTATE '40001' OR SQLSTATE 'PT409' THEN IF SQLERRM<>'REFUND_VERSION_CONFLICT' THEN RAISE;END IF;END;
  s:=public.petro_service_order_refund_requests(o);
  IF s->>'requestedAmountMinor'<>'6250' OR s->>'remainingRequestableMinor'<>'2500' THEN RAISE EXCEPTION 'Withdrawal did not release request capacity';END IF;
  PERFORM public.petro_request_service_refund(o,'2500','billing',NULL,'refund-released-capacity-01');
