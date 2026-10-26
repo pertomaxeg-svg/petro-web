@@ -82,3 +82,5 @@ BEGIN
  OR(SELECT payment_status FROM public.petro_service_orders WHERE id=o)<>'paid' THEN RAISE EXCEPTION 'Request intake moved money, stock or original payment';END IF;
  IF EXISTS(SELECT 1 FROM pg_class c CROSS JOIN(VALUES('anon'),('authenticated'),('service_role'))r(name) WHERE c.oid IN('petro_private.service_refund_requests'::regclass,'petro_private.service_refund_withdrawals'::regclass,'petro_private.service_refund_commands'::regclass) AND(NOT c.relrowsecurity OR has_table_privilege(r.name,c.oid,'SELECT,INSERT,UPDATE,DELETE'))) THEN RAISE EXCEPTION 'Refund tables exposed';END IF;
 END $refund_intake$;
+
+\ir service-refund-decisions-0039-smoke-test.sql
