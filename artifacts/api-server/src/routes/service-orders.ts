@@ -16,6 +16,12 @@ function reply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
  const code=result.error.code??"";
  const status=code==="42501"?403:code==="P0002"?404:code==="22023"?400:["40001","23505","23514","55000"].includes(code)?409:["PGRST202","42883"].includes(code)?503:500;
  const messages:Record<string,string>={
+ FORBIDDEN_REFUND_DECISION:"اعتماد رد الرصيد متاح لمالك المنصة والمالية فقط.",
+ REFUND_REQUEST_NOT_FOUND:"طلب الاسترداد غير موجود.",
+ INVALID_REFUND_DECISION:"راجع القرار والمبلغ المعتمد ونسخة الطلب.",
+ REFUND_EXCEEDS_REQUEST:"المبلغ المعتمد يتجاوز المبلغ المطلوب.",
+ REFUND_ORIGINAL_FUNDING_MISMATCH:"مرجع التمويل الأصلي يحتاج مراجعة المالية قبل الرد.",
+ REFUND_CONTROL_REQUIRES_REVIEW:"حساب مستحقات التاجر يحتاج مراجعة المالية قبل الرد.",
  FORBIDDEN_REFUND:"لا تملك صلاحية طلب الاسترداد أو مراجعته لهذا الطلب.",
  REFUND_REQUIRES_PAID_ORDER:"يمكن طلب رد قيمة خدمة مدفوعة فقط.",
  REFUND_EXCEEDS_REMAINING_PAYMENT:"المبلغ يتجاوز الجزء المتاح من الدفعة بعد الطلبات القائمة.",
@@ -241,6 +247,23 @@ router.post("/service-refund-requests/:id/withdraw",async(req:Request,res:Respon
  res.status(400).json({message:"مرجع طلب الاسترداد أو نسخته غير صالح."});return;
  }
  reply(res,await rpc(session,"petro_withdraw_service_refund",{p_request_id:req.params.id,p_expected_version:b.expectedVersion,p_request_key:b.idempotencyKey}));
+});
+
+
+router.post("/service-refund-requests/:id/decide",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const b=req.body;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).length||!isRecord(b)
+ ||Object.keys(b).some(k=>!["expectedVersion","idempotencyKey","action","amountMinor","note"].includes(k))
+ ||!Number.isSafeInteger(b.expectedVersion)||Number(b.expectedVersion)<1
+ ||!["refund","reject"].includes(String(b.action))
+ ||(b.action==="refund"&&(typeof b.amountMinor!=="string"||!/^[1-9][0-9]{0,12}$/.test(b.amountMinor)))
+ ||(b.action==="reject"&&b.amountMinor!==null)
+ ||(b.note!==undefined&&b.note!==null&&(typeof b.note!=="string"||b.note.length>1000))
+ ||typeof b.idempotencyKey!=="string"||!requestKey.test(b.idempotencyKey)){
+ res.status(400).json({message:"أدخل قرارًا صالحًا ومبلغًا معتمدًا صحيحًا ومرجع المحاولة. الملاحظة اختيارية."});return;
+ }
+ reply(res,await rpc(session,"petro_decide_service_refund",{p_request_id:req.params.id,p_expected_version:b.expectedVersion,p_action:b.action,p_amount_minor:b.amountMinor,p_note:b.note??null,p_request_key:b.idempotencyKey}));
 });
 
 export default router;

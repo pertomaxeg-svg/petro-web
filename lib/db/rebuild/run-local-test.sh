@@ -15,7 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for command_name in initdb pg_ctl psql pg_dump; do
+for command_name in initdb pg_ctl psql pg_dump pg_restore; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "Missing PostgreSQL 17 tool: $command_name" >&2
     exit 2
@@ -480,8 +480,36 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0038
 test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-refund-intake-0038-contract.sql")" = "t"
 default_acl_snapshot >"$tmp_dir/default-acl-after-0038.txt"
 cmp "$tmp_dir/default-acl-before-0038.txt" "$tmp_dir/default-acl-after-0038.txt"
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0039.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0039.txt"
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-refund-decisions-0039-contract.sql")" = "f"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0039_service_refund_decisions.sql" >/dev/null
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-refund-decisions-0039-contract.sql")" = "t"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0039.txt"
+cmp "$tmp_dir/default-acl-before-0039.txt" "$tmp_dir/default-acl-after-0039.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
+export PERTOMAX_BEFORE_REFUND_ARCHIVE="$tmp_dir/before-financial-browser.dump"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
+if [ ! -s "$PERTOMAX_BEFORE_REFUND_ARCHIVE" ] || [ "$PGHOST" != "$tmp_dir/socket" ] || [ "$PGDATABASE" != "postgres" ]; then
+ echo "Missing isolated pre-refund fixture snapshot; do not attempt any reset." >&2
+ exit 1
+fi
+if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0039_service_refund_decisions.sql" >"$tmp_dir/0039-rollback-refusal.log" 2>&1; then
+ echo "0039 rollback erased posted monetary refund history" >&2
+ exit 1
+fi
+rg -q '0039 rollback refuses to remove refund or settlement financial history' "$tmp_dir/0039-rollback-refusal.log"
+# Financial rollback is REFUSED with history. Discard the complete disposable application
+# fixture and restore its pre-monetary-test archive to verify a separate CLEAN rollback.
+# This is not a production recovery procedure and never selectively deletes journal history.
+pg_restore --clean --if-exists --exit-on-error --dbname="$PGDATABASE" "$PERTOMAX_BEFORE_REFUND_ARCHIVE" >/dev/null
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0039_service_refund_decisions.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0039-rollback.sql"
+cmp "$tmp_dir/schema-before-0039.sql" "$tmp_dir/schema-after-0039-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0039-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0039.txt" "$tmp_dir/default-acl-after-0039-rollback.txt"
+echo "PASS: actual monetary refund history refuses rollback; independent clean fixture restores exact schema/defaultACL"
+
 if [ "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT count(*) FROM petro_private.service_refund_requests")" != "0" ]; then
  if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0038_service_refund_intake.sql" >"$tmp_dir/0038-rollback-refusal.log" 2>&1; then
   echo "0038 rollback erased refund request history" >&2

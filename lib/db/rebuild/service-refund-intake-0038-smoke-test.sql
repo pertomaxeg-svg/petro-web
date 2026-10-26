@@ -49,7 +49,7 @@ BEGIN
  IF replay IS DISTINCT FROM r THEN RAISE EXCEPTION 'Refund retry duplicated request';END IF;
  BEGIN PERFORM public.petro_request_service_refund(o,'2600','quality',NULL,'refund-first-request-01');RAISE EXCEPTION 'Refund changed payload reused key';EXCEPTION WHEN unique_violation THEN NULL;END;
  s:=public.petro_service_order_refund_requests(o);
- IF s->>'requestedAmountMinor'<>'2500' OR s->>'remainingRequestableMinor'<>'6250' OR s->>'financialRefundEnabled'<>'false' THEN RAISE EXCEPTION 'Refund capacity incorrect: %',s;END IF;
+ IF s->>'requestedAmountMinor'<>'2500' OR s->>'remainingRequestableMinor'<>'6250' OR s->>'financialRefundEnabled'<>'true' THEN RAISE EXCEPTION 'Refund capacity incorrect: %',s;END IF;
  second:=public.petro_request_service_refund(o,'6250','quantity','تفاصيل اختيارية','refund-second-request-01');
  BEGIN PERFORM public.petro_request_service_refund(o,'1','billing',NULL,'refund-overflow-request-01');RAISE EXCEPTION 'Refund requests exceeded charged amount';EXCEPTION WHEN check_violation THEN IF SQLERRM<>'REFUND_EXCEEDS_REMAINING_PAYMENT' THEN RAISE;END IF;END;
  BEGIN PERFORM public.petro_withdraw_service_refund(first_id,2,'refund-stale-withdraw-01');RAISE EXCEPTION 'Stale refund withdrawal succeeded';EXCEPTION WHEN serialization_failure THEN NULL;END;
