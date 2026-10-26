@@ -15,7 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for command_name in initdb pg_ctl psql pg_dump pg_restore; do
+for command_name in initdb pg_ctl psql pg_dump pg_basebackup; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "Missing PostgreSQL 17 tool: $command_name" >&2
     exit 2
@@ -488,9 +488,9 @@ test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-r
 default_acl_snapshot >"$tmp_dir/default-acl-after-0039.txt"
 cmp "$tmp_dir/default-acl-before-0039.txt" "$tmp_dir/default-acl-after-0039.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
-export PERTOMAX_BEFORE_REFUND_ARCHIVE="$tmp_dir/before-financial-browser.dump"
+export PERTOMAX_BEFORE_REFUND_SNAPSHOT="$tmp_dir/before-financial-browser"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
-if [ ! -s "$PERTOMAX_BEFORE_REFUND_ARCHIVE" ] || [ "$PGHOST" != "$tmp_dir/socket" ] || [ "$PGDATABASE" != "postgres" ]; then
+if [ ! -s "$PERTOMAX_BEFORE_REFUND_SNAPSHOT/PG_VERSION" ] || [ ! -d "$PERTOMAX_BEFORE_REFUND_SNAPSHOT/base" ] || [ "$PGHOST" != "$tmp_dir/socket" ] || [ "$PGDATABASE" != "postgres" ]; then
  echo "Missing isolated pre-refund fixture snapshot; do not attempt any reset." >&2
  exit 1
 fi
@@ -499,10 +499,19 @@ if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/003
  exit 1
 fi
 rg -q '0039 rollback refuses to remove refund or settlement financial history' "$tmp_dir/0039-rollback-refusal.log"
-# Financial rollback is REFUSED with history. Discard the complete disposable application
-# fixture and restore its pre-monetary-test archive to verify a separate CLEAN rollback.
-# This is not a production recovery procedure and never selectively deletes journal history.
-pg_restore --clean --if-exists --exit-on-error --dbname="$PGDATABASE" "$PERTOMAX_BEFORE_REFUND_ARCHIVE" >/dev/null
+# Financial rollback is REFUSED with history. Reset the COMPLETE disposable cluster to
+# its consistent physical backup for a separate CLEAN rollback test. Logical dump/restore
+# reparses legacy CHECK trees and changes schema initial-ACL bookkeeping, obscuring exact
+# rollback comparison. A physical backup preserves both; no schema normalization bypass.
+# This is solely test-fixture reset, never production rollback or selective ledger deletion.
+pg_ctl -D "$tmp_dir/data" -m fast stop >/dev/null
+pg_started=0
+mv "$tmp_dir/data" "$tmp_dir/after-monetary-fixture"
+mv "$PERTOMAX_BEFORE_REFUND_SNAPSHOT" "$tmp_dir/data"
+pg_ctl -D "$tmp_dir/data" \
+  -o "-c listen_addresses='' -c unix_socket_directories='$tmp_dir/socket' -c port=55444 -c shared_preload_libraries=pg_cron -c cron.database_name=postgres -c cron.use_background_workers=on -c max_worker_processes=16" \
+  -l "$tmp_dir/postgres.log" start >/dev/null
+pg_started=1
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0039_service_refund_decisions.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0039-rollback.sql"
 if ! cmp -s "$tmp_dir/schema-before-0039.sql" "$tmp_dir/schema-after-0039-rollback.sql"; then
