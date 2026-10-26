@@ -8,7 +8,7 @@ DO $refund_gate$ BEGIN
 END $refund_gate$;
 
 DO $refund_intake$
-DECLARE o uuid;co uuid;cb uuid;mo uuid;mb uuid;other_branch uuid;r jsonb;replay jsonb;s jsonb;second jsonb;first_id uuid;total_journal bigint;stock bigint;membership uuid;actor uuid;
+DECLARE o uuid;co uuid;cb uuid;mo uuid;mb uuid;other_branch uuid;r jsonb;replay jsonb;s jsonb;second jsonb;first_id uuid;total_journal bigint;stock bigint;membership uuid;actor uuid;history_id uuid;history_item jsonb;history_index integer;
 BEGIN
  SELECT p.order_id,so.company_organization_id,so.company_branch_id,so.merchant_organization_id,so.merchant_branch_id
  INTO STRICT o,co,cb,mo,mb FROM petro_private.service_order_payments p JOIN public.petro_service_orders so ON so.id=p.order_id
@@ -60,6 +60,19 @@ BEGIN
  s:=public.petro_service_order_refund_requests(o);
  IF s->>'requestedAmountMinor'<>'6250' OR s->>'remainingRequestableMinor'<>'2500' THEN RAISE EXCEPTION 'Withdrawal did not release request capacity';END IF;
  PERFORM public.petro_request_service_refund(o,'2500','billing',NULL,'refund-released-capacity-01');
+
+ FOR history_id IN SELECT q.id FROM petro_private.service_refund_requests q WHERE q.order_id=o AND NOT EXISTS(SELECT 1 FROM petro_private.service_refund_withdrawals w WHERE w.request_id=q.id) LOOP
+  PERFORM public.petro_withdraw_service_refund(history_id,1,'refund-history-free-'||history_id::text);
+ END LOOP;
+ history_item:=public.petro_request_service_refund(o,'1','quality',NULL,'refund-history-open-0001');
+ history_id:=(history_item->>'id')::uuid;
+ FOR history_index IN 1..55 LOOP
+  history_item:=public.petro_request_service_refund(o,'1','quality',NULL,'refund-history-request-'||history_index::text);
+  PERFORM public.petro_withdraw_service_refund((history_item->>'id')::uuid,1,'refund-history-withdraw-'||history_index::text);
+ END LOOP;
+ s:=public.petro_service_order_refund_requests(o);
+ IF jsonb_array_length(s->'items')<>50 OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(s->'items') item WHERE item->>'id'=history_id::text AND(item->>'canWithdraw')::boolean) THEN
+ RAISE EXCEPTION 'Older open refund request hidden by withdrawn history';END IF;
  UPDATE public.petro_profiles SET password_change_required=true WHERE user_id='00000000-0000-4000-8000-000000003801';
  BEGIN PERFORM public.petro_service_order_refund_requests(o);RAISE EXCEPTION 'Password-gated user read refund data';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  UPDATE public.petro_profiles SET password_change_required=false WHERE user_id='00000000-0000-4000-8000-000000003801';

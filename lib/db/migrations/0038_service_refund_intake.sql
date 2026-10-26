@@ -59,14 +59,14 @@ BEGIN
  can_write:=coalesce(petro_private.service_refund_order_access(p_order_id,true),false);
  SELECT coalesce(sum(r.amount_minor),0) INTO pending_amount FROM petro_private.service_refund_requests r
  WHERE r.order_id=p_order_id AND NOT EXISTS(SELECT 1 FROM petro_private.service_refund_withdrawals w WHERE w.request_id=r.id);
- SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x."createdAt" DESC,x.id),'[]'::jsonb) INTO items FROM(
+ SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY (x.status='requested') DESC,x."createdAt" DESC,x.id),'[]'::jsonb) INTO items FROM(
  SELECT r.id,r.order_id AS "orderId",r.amount_minor::text AS "amountMinor",r.category,r.note,r.created_at AS "createdAt",
  pr.display_name AS "requestedByName",CASE WHEN w.request_id IS NULL THEN 'requested' ELSE 'withdrawn' END AS status,
  CASE WHEN w.request_id IS NULL THEN 1 ELSE 2 END AS version,w.created_at AS "withdrawnAt",
  (can_write AND w.request_id IS NULL) AS "canWithdraw"
  FROM petro_private.service_refund_requests r JOIN public.petro_profiles pr ON pr.user_id=r.requested_by
  LEFT JOIN petro_private.service_refund_withdrawals w ON w.request_id=r.id
- WHERE r.order_id=p_order_id ORDER BY r.created_at DESC,r.id LIMIT 50
+ WHERE r.order_id=p_order_id ORDER BY (w.request_id IS NULL) DESC,r.created_at DESC,r.id LIMIT 50
  )x;
  RETURN jsonb_build_object('orderId',p_order_id,'paid',p.id IS NOT NULL,'chargedAmountMinor',coalesce(p.charged_amount_minor,0)::text,
  'requestedAmountMinor',pending_amount::text,'remainingRequestableMinor',(coalesce(p.charged_amount_minor,0)-pending_amount)::text,
