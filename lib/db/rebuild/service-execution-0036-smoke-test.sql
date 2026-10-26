@@ -351,7 +351,7 @@ BEGIN
  SELECT merchant_branch_id INTO v_branch FROM petro_private.worker_pin_proofs WHERE id=(ids->>'fuelProof')::uuid;
  o:=public.petro_worker_reserve_service_order((ids->>'fuelProof')::uuid,(ids->>'fuel')::uuid,(ids->>'price')::uuid,'{"amountMinor":"10000"}',NULL,'exec-fuel-reserve-0001');
  v_order_id:=(o->>'id')::uuid;
- BEGIN PERFORM public.petro_start_service_order(v_order_id,99,'exec-fuel-stale-0001');RAISE EXCEPTION 'Stale start allowed';EXCEPTION WHEN SQLSTATE 'PT409' THEN IF SQLERRM<>'ORDER_VERSION_CONFLICT' THEN RAISE;END IF;END;
+ BEGIN PERFORM public.petro_start_service_order(v_order_id,99,'exec-fuel-stale-0001');RAISE EXCEPTION 'Stale start allowed';EXCEPTION WHEN serialization_failure OR SQLSTATE 'PT409' THEN IF SQLSTATE='PT409' AND SQLERRM<>'ORDER_VERSION_CONFLICT' THEN RAISE;END IF;END;
  r:=public.petro_start_service_order(v_order_id,1,'exec-fuel-start-0001');
  IF r->>'status'<>'in_progress' OR r->>'paymentStatus'<>'held' OR(r->>'version')::integer<>2 OR(r->'documentationRule'->>'odometerRequired')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'Execution start did not preserve actual hold or rules';END IF;
  IF public.petro_start_service_order(v_order_id,1,'exec-fuel-start-0001')->>'version'<>'2' THEN RAISE EXCEPTION 'Start retry changed version';END IF;

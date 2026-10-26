@@ -487,6 +487,13 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0039
 test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/service-refund-decisions-0039-contract.sql")" = "t"
 default_acl_snapshot >"$tmp_dir/default-acl-after-0039.txt"
 cmp "$tmp_dir/default-acl-before-0039.txt" "$tmp_dir/default-acl-after-0039.txt"
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0040.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0040.txt"
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/operational-terminal-conflicts-0040-contract.sql")" = "f"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0040_operational_terminal_conflicts.sql" >/dev/null
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/operational-terminal-conflicts-0040-contract.sql")" = "t"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0040.txt"
+cmp "$tmp_dir/default-acl-before-0040.txt" "$tmp_dir/default-acl-after-0040.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
 export PERTOMAX_BEFORE_REFUND_SNAPSHOT="$tmp_dir/before-financial-browser"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
@@ -512,6 +519,15 @@ pg_ctl -D "$tmp_dir/data" \
   -o "-c listen_addresses='' -c unix_socket_directories='$tmp_dir/socket' -c port=55444 -c shared_preload_libraries=pg_cron -c cron.database_name=postgres -c cron.use_background_workers=on -c max_worker_processes=16" \
   -l "$tmp_dir/postgres.log" start >/dev/null
 pg_started=1
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0040_operational_terminal_conflicts.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0040-rollback.sql"
+if ! cmp -s "$tmp_dir/schema-before-0040.sql" "$tmp_dir/schema-after-0040-rollback.sql"; then
+ diff -u "$tmp_dir/schema-before-0040.sql" "$tmp_dir/schema-after-0040-rollback.sql" | head -100 >&2 || true
+ exit 1
+fi
+default_acl_snapshot >"$tmp_dir/default-acl-after-0040-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0040.txt" "$tmp_dir/default-acl-after-0040-rollback.txt"
+echo "PASS: 0040 terminal operational conflicts preserve exact function/schema/defaultACL rollback"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0039_service_refund_decisions.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0039-rollback.sql"
 if ! cmp -s "$tmp_dir/schema-before-0039.sql" "$tmp_dir/schema-after-0039-rollback.sql"; then

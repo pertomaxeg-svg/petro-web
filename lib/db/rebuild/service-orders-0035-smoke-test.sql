@@ -355,7 +355,7 @@ BEGIN
  BEGIN
   PERFORM public.petro_worker_reserve_service_order((ids->>'fuelProof')::uuid,(ids->>'fuel')::uuid,(ids->>'price')::uuid,'{"amountMinor":"10001"}',NULL,'order-fuel-reservation-001');
   RAISE EXCEPTION 'Changed reservation payload reused key';
- EXCEPTION WHEN unique_violation OR serialization_failure THEN NULL; END;
+ EXCEPTION WHEN unique_violation OR serialization_failure OR SQLSTATE 'PT409' THEN IF SQLSTATE='PT409' AND SQLERRM NOT IN('OPERATIONAL_PROOF_ALREADY_USED','ORDER_VERSION_CONFLICT') THEN RAISE;END IF; END;
  BEGIN
   PERFORM public.petro_worker_reserve_service_order((ids->>'fuelProof')::uuid,(ids->>'fuel')::uuid,(ids->>'price')::uuid,'{"amountMinor":"10000"}',NULL,'order-fuel-proof-reused-001');
   RAISE EXCEPTION 'Consumed first proof booked another order';
@@ -365,7 +365,7 @@ BEGIN
  BEGIN
   PERFORM public.petro_cancel_service_order((v_order->>'id')::uuid,99,'order-cancel-stale-0001');
   RAISE EXCEPTION 'Stale cancel version accepted';
- EXCEPTION WHEN serialization_failure THEN NULL; END;
+ EXCEPTION WHEN serialization_failure OR SQLSTATE 'PT409' THEN IF SQLSTATE='PT409' AND SQLERRM<>'ORDER_VERSION_CONFLICT' THEN RAISE;END IF; END;
  v_cancel:=public.petro_cancel_service_order((v_order->>'id')::uuid,(v_order->>'version')::bigint,'order-fuel-cancel-0001');
  IF v_cancel->>'status' IS DISTINCT FROM 'cancelled' OR v_cancel->>'paymentStatus' IS DISTINCT FROM 'unpaid' THEN RAISE EXCEPTION 'Unstarted cancellation did not release order'; END IF;
  v_replay:=public.petro_cancel_service_order((v_order->>'id')::uuid,(v_order->>'version')::bigint,'order-fuel-cancel-0001');
