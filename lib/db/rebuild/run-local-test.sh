@@ -505,7 +505,10 @@ rg -q '0039 rollback refuses to remove refund or settlement financial history' "
 pg_restore --clean --if-exists --exit-on-error --dbname="$PGDATABASE" "$PERTOMAX_BEFORE_REFUND_ARCHIVE" >/dev/null
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0039_service_refund_decisions.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0039-rollback.sql"
-cmp "$tmp_dir/schema-before-0039.sql" "$tmp_dir/schema-after-0039-rollback.sql"
+if ! cmp -s "$tmp_dir/schema-before-0039.sql" "$tmp_dir/schema-after-0039-rollback.sql"; then
+ diff -u "$tmp_dir/schema-before-0039.sql" "$tmp_dir/schema-after-0039-rollback.sql" | head -100 >&2 || true
+ exit 1
+fi
 default_acl_snapshot >"$tmp_dir/default-acl-after-0039-rollback.txt"
 cmp "$tmp_dir/default-acl-before-0039.txt" "$tmp_dir/default-acl-after-0039-rollback.txt"
 echo "PASS: actual monetary refund history refuses rollback; independent clean fixture restores exact schema/defaultACL"

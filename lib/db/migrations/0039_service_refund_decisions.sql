@@ -120,7 +120,7 @@ BEGIN
  IF NOT FOUND THEN RAISE EXCEPTION 'REFUND_REQUEST_NOT_FOUND' USING ERRCODE='P0002';END IF;
  SELECT * INTO STRICT p FROM petro_private.service_order_payments WHERE id=r.payment_id FOR UPDATE;
  IF NOT coalesce(petro_private.workforce_user_active(actor),false) OR NOT petro_private.platform_has(ARRAY['owner','finance']::text[]) THEN RAISE EXCEPTION 'FORBIDDEN_REFUND_DECISION' USING ERRCODE='42501';END IF;
- IF p_expected_version<>1 OR EXISTS(SELECT 1 FROM petro_private.service_refund_withdrawals WHERE request_id=r.id) OR EXISTS(SELECT 1 FROM petro_private.service_refund_decisions WHERE request_id=r.id) THEN RAISE EXCEPTION 'REFUND_VERSION_CONFLICT' USING ERRCODE='40001';END IF;
+ IF p_expected_version<>1 OR EXISTS(SELECT 1 FROM petro_private.service_refund_withdrawals WHERE request_id=r.id) OR EXISTS(SELECT 1 FROM petro_private.service_refund_decisions WHERE request_id=r.id) THEN RAISE EXCEPTION 'REFUND_VERSION_CONFLICT' USING ERRCODE='PT409';END IF;
  IF amount>r.amount_minor THEN RAISE EXCEPTION 'REFUND_EXCEEDS_REQUEST' USING ERRCODE='23514';END IF;
  SELECT coalesce(sum(amount_minor),0) INTO refunded FROM petro_private.service_refund_allocations WHERE payment_id=p.id;
  IF amount+refunded>p.charged_amount_minor THEN RAISE EXCEPTION 'REFUND_EXCEEDS_REMAINING_PAYMENT' USING ERRCODE='23514';END IF;
@@ -243,7 +243,7 @@ BEGIN
  IF FOUND THEN IF receipt.fingerprint<>fingerprint_value THEN RAISE EXCEPTION 'IDEMPOTENCY_CONFLICT' USING ERRCODE='23505';END IF;RETURN receipt.result;END IF;
  PERFORM 1 FROM petro_private.service_order_payments WHERE id=r.payment_id FOR UPDATE;
  IF NOT coalesce(petro_private.service_refund_order_access(r.order_id,true),false) THEN RAISE EXCEPTION 'FORBIDDEN_REFUND' USING ERRCODE='42501';END IF;
- IF p_expected_version<>1 OR EXISTS(SELECT 1 FROM petro_private.service_refund_withdrawals WHERE request_id=r.id) OR EXISTS(SELECT 1 FROM petro_private.service_refund_decisions WHERE request_id=r.id) THEN RAISE EXCEPTION 'REFUND_VERSION_CONFLICT' USING ERRCODE='40001';END IF;
+ IF p_expected_version<>1 OR EXISTS(SELECT 1 FROM petro_private.service_refund_withdrawals WHERE request_id=r.id) OR EXISTS(SELECT 1 FROM petro_private.service_refund_decisions WHERE request_id=r.id) THEN RAISE EXCEPTION 'REFUND_VERSION_CONFLICT' USING ERRCODE='PT409';END IF;
  INSERT INTO petro_private.service_refund_withdrawals(request_id,actor_id) VALUES(r.id,actor);
  result:=jsonb_build_object('id',r.id,'orderId',r.order_id,'status','withdrawn','version',2,'moneyRefunded',false);
  INSERT INTO petro_private.service_refund_commands(actor_id,request_key,fingerprint,result) VALUES(actor,p_request_key,fingerprint_value,result);

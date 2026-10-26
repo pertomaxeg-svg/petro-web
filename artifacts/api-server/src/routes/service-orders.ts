@@ -14,7 +14,7 @@ async function rpc(session:Session,name:string,args:Record<string,unknown>){
 function reply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
  if(!result.error){res.json(result.data);return;}
  const code=result.error.code??"";
- const status=code==="42501"?403:code==="P0002"?404:code==="22023"?400:["40001","23505","23514","55000"].includes(code)?409:["PGRST202","42883"].includes(code)?503:500;
+ const status=code==="42501"?403:code==="P0002"?404:code==="22023"?400:["PT409","40001","23505","23514","55000"].includes(code)?409:["PGRST202","42883"].includes(code)?503:500;
  const messages:Record<string,string>={
  FORBIDDEN_REFUND_DECISION:"اعتماد رد الرصيد متاح لمالك المنصة والمالية فقط.",
  REFUND_REQUEST_NOT_FOUND:"طلب الاسترداد غير موجود.",
