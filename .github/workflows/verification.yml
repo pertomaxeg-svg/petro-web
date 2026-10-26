@@ -73,6 +73,7 @@ jobs:
             /tmp/pertomax-admin-cards-ui-smoke.png
             /tmp/pertomax-fleet-*.png
             /tmp/pertomax-fleet-order-receipt.pdf
+            /tmp/pertomax-fleet-refund-credit.pdf
           if-no-files-found: ignore
           retention-days: 7
 

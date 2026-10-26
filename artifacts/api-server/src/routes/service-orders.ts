@@ -256,7 +256,7 @@ router.post("/service-refund-requests/:id/decide",async(req:Request,res:Response
  if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).length||!isRecord(b)
  ||Object.keys(b).some(k=>!["expectedVersion","idempotencyKey","action","amountMinor","note"].includes(k))
  ||!Number.isSafeInteger(b.expectedVersion)||Number(b.expectedVersion)<1
- ||!["refund","reject"].includes(String(b.action))
+ ||typeof b.action!=="string"||!["refund","reject"].includes(b.action)
  ||(b.action==="refund"&&(typeof b.amountMinor!=="string"||!/^[1-9][0-9]{0,12}$/.test(b.amountMinor)))
  ||(b.action==="reject"&&b.amountMinor!==null)
  ||(b.note!==undefined&&b.note!==null&&(typeof b.note!=="string"||b.note.length>1000))
