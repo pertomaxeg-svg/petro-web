@@ -1,4 +1,19 @@
-# Build continuation checkpoint —24 October2026
+# Build continuation checkpoint —26 October2026
+
+## Current authoritative state — read this first
+- Only pertomaxeg-svg/petro-web, approved branch pertomax-central-orgs-20261015 and Supabase msvgzsfzrqlrfpstthhe. No Replit agent/local build/other project/VPS/paid resource/force push.0009 deferred. No repeated broad discovery.
+- Current accepted functional source1b7bc6b14e8e2066a7192d9eb4248365e265c8f1, full run40266353022: acceptance121389526415 and real-auth-storage121389526571 GREEN. Frontend fast tests/OpenAPI generation also pass.
+-0037 final payment LIVE20261025190757. Sourcef6211f31346fb7b086a02df74fc42cba73b5ef521f927ca10d090e4bda0509a1. Actual amount capture/released difference/one receipt+receivable+outbox tested; generic reversal blocked. No production payment synthesized.
+-0038A refund request intake LIVE20261026035918. Source13e8be305c80e0fd866795d4a3d7bcfcc3782b5856dcd6cd0185e8de636c402a; preserving rollback3b155f17bd55fe0bbacc028b3fdae651925b61d5b44965c4529a9a7086e37c65. Read/request/withdraw, exact original-payment capacity, immutable actor-key replay/withdrawal history and tenant/branch/role isolation; all open claims retained ahead of recent withdrawn history.
+- Live postflight: contract true;7 affected old function definitions/ACL/owners,5 table ACL/RLS/owners/columns and27 defaultACL scopes unchanged. Requests/withdrawals/commands/payments/journal rows0; no synthetic live business data. Three new unauthenticated calls denied in a read-only transaction. Security advisors78 deliberate RPC-only no-policy INFO,131 scoped authenticated-definer WARN, pre-existing leaked-password warning1.
+-0038A does NOT approve or refund money, post a credit document, move inventory or finish overall0038. UI explicitly displays pending request, not money refunded. Company/merchant generic scoped API exists; their remaining dashboard UI integration is still future approved work.
+- Source is direct GitHub and schema direct Supabase. Web/API runtime NOT deployed: current production URL/hosting target/configuration still unidentified. New refund browser captures exist as Actions artifact, responsive assertions pass, but manual visual inspection blocked by no usable execution environment26October. Do not claim user-visible release or completed visual acceptance. Earlier public/overview manual visual QA was accepted before this environment outage.
+- Exact next task:0038B actual Finance/owner decision and monetary refund/allocations/immutable credit document, tied to original funding account and payment with locked over-refund prevention. Read docs/superpowers/plans/2026-10-24-post-payment.md and2026-10-25-refund-intake.md plus affected finance helpers only. Then0039 physical returns/inspection/warranty,0040 merchant withdrawals/monthly settlement, approved role dashboards/reports/support/public and apps last. No driver app. Do not fabricate a refunded/paid status or restore stock when money is refunded.
+- Preserve original journals/receipts/payment snapshots and generic reversal guard. Do not add a caller-set GUC/role impersonation to bypass guards. Before actual refund support, revise open capacity to count approved refunds and close decisions atomically; current intake alone counts open requests.
+- All past notes below are chronological history; superseded pending/not-live statements are not the current status.
+
+## Historical checkpoints
+
 
 Only repo pertomaxeg-svg/petro-web, branch pertomax-central-orgs-20261015 and Supabase msvgzsfzrqlrfpstthhe. Continue directly on GitHub/Supabase, verification in GitHub Actions. No Replit/local build/other project/VPS/paid resource/force push;0009 deferred. Owner authorizes routine development/migrations; no repeated approval questions. Preserve users/data and exact-object grants. Never claim runtime deployment or background continuation.
 
