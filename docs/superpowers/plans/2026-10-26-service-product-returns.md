@@ -22,6 +22,12 @@ SQL RED first against the existing fully refunded paid product: no automatic sto
 
 Warranty terms/claims/replacement and company/merchant dashboard integration remain separate approved dependent work. Do not fabricate old warranty coverage or mark all engineering0039 complete after intake/inspection alone. Withdrawal/monthly settlement and remaining role dashboards follow the approved post-payment plan. No runtime release is implied; approved hosting/current URL/configuration remains unidentified.
 
-## Current status
+## Accepted intake/inspection slice — 27 October 2026
 
-RED40367802339/121730134684 failed for missing return read function. Candidate SQL/API/UI/native/browser implementation added27October; migration0041 is not accepted or live. Quarantine units are held in the immutable movement ledger until linked inspection releases them, preventing generic transfer/count bypass. Read receipt pages and separate paginated inspection history. Only this repo/approved branch/project;0009 deferred. No production stock/products/orders/payment tests.
+- LIVE 20261027062211; source SHA256d54f1bf03db823a03401f3cd94fe246b5dd90e4c054f6ecceb4f707a68ccd45a, preserving rollback3ad62a224852f1e0b389a1b3772f7cadb4516385536d0948ac824b59936c5af7.
+- Functional source0862a5a1f8fd7d23cc5f0061835a63161c91c676 / Actions40460054475: acceptance122042229908 and real-auth-storage122042229734 GREEN; frontend40460054440/API generation40460054436 GREEN.
+- Mobile fields and actual intake/inspection forms, worker read-only state and desktop post-inspection views manually inspected (artifacts12713604862 and12713996426).
+- Actual partial receipt race, two dispositions, held quarantine/non-bypass, exact replay, uncertain committed HTTP-response retry, reload/history, no money, worker/outsider/revocation denial and preserving exact rollback all passed.
+- Quarantine adds on-hand AND inspection holds; linked inspection removes its exact held quantity before adding accepted/damaged stock. Existing generic inventory guards were preserved.
+- Five applied function bodies exact; five old helper definitions/grants/owners and nine existing table ACL/RLS/owners/OIDs unchanged;27 defaultACL scopes unchanged. New private history rows0 and existing orders/movements/journals0. No synthetic production stock/location/product/user/payment records.
+- This closes intake/inspection only. Warranty terms/claims/replacement and company/merchant dashboard integration remain pending; engineering0039 is not wholly complete. No runtime deployment claimed.

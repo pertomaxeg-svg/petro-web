@@ -1,6 +1,6 @@
-# Remaining dependent milestones — 26 October 2026
+# Remaining dependent milestones — 27 October 2026
 
-0037 final payment,0038A refund intake and0038B actual Finance refund decisions are accepted in isolated SQL/API/browser/real Auth/Storage. Monetary migration0039 is live20261026163457 (source6fec6d18b95615547daa6aa045570b79c1155ce174f8abf9b54dabb5c4a2d3f4). Full run40359778331 GREEN; original-worker read-only refund history/credit UI also passed full run40361558533. Manual central refund/mobile credit and A4 print inspection passed; worker screenshot bounds/capture QA is being finalized. This does not close all0038 dashboard/dispute UI scope or constitute runtime release.
+0037 payment,0038A intake,0038B actual monetary decisions and engineering0039 intake/inspection slice are accepted in isolated SQL/API/browser/real Auth/Storage. Migration0041 LIVE20261027062211; full source0862a5a1f8fd7d23cc5f0061835a63161c91c676 / Actions40460054475 GREEN. Actual partial receipts, quarantine holds, accepted/damaged inspection, exact replay/no new money, mobile visible forms/worker read-only and preserving rollback accepted. Warranty and company/merchant dashboard integration remain pending. Mandatory next financial milestone: merchant statement/eligibility and withdrawals/monthly settlement. No runtime deployment claimed.
 
 Use current GitHub/Supabase baseline and docs/PERTOMAX-EG-ENGINEERING-REFERENCE-v3.md only. No repeated full repository/database discovery. All IDs are engineering tasks, not claims of deployed routes.
 
