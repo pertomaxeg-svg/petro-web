@@ -7,7 +7,7 @@ BEGIN
  IF NOT coalesce(petro_private.workforce_user_active(actor),false) THEN RAISE EXCEPTION 'FORBIDDEN_MERCHANT_STATEMENT' USING ERRCODE='42501';END IF;
  IF p_page IS NULL OR p_page<1 OR p_page>100000 THEN RAISE EXCEPTION 'INVALID_STATEMENT_FILTER' USING ERRCODE='22023';END IF;
  central:=coalesce(petro_private.platform_has(ARRAY['owner','finance','auditor']::text[]),false);
- IF NOT EXISTS(SELECT 1 FROM public.petro_organizations o WHERE o.kind IN('station','provider') AND(p_organization_id IS NULL OR o.id=p_organization_id)
+ IF (NOT central OR p_organization_id IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM public.petro_organizations o WHERE o.kind IN('station','provider') AND(p_organization_id IS NULL OR o.id=p_organization_id)
  AND(central OR EXISTS(SELECT 1 FROM public.petro_memberships m WHERE m.organization_id=o.id AND m.user_id=actor AND m.active AND m.role IN('organization_owner','manager','finance')))) THEN
  RAISE EXCEPTION 'FORBIDDEN_MERCHANT_STATEMENT' USING ERRCODE='42501';END IF;
  IF p_branch_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.petro_branches b JOIN public.petro_organizations o ON o.id=b.organization_id
