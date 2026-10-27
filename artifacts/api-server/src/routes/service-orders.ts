@@ -16,6 +16,14 @@ function reply(res:Response,result:Awaited<ReturnType<typeof rpc>>){
  const code=result.error.code??"";
  const status=code==="42501"?403:code==="P0002"?404:code==="22023"?400:["PT409","40001","23505","23514","55000"].includes(code)?409:["PGRST202","42883"].includes(code)?503:500;
  const messages:Record<string,string>={
+ FORBIDDEN_PRODUCT_RETURN:"لا تملك صلاحية استلام أو فحص مرتجعات هذا الفرع.",
+ INVALID_PRODUCT_RETURN_INPUT:"أدخل كمية موجبة توافق وحدة المنتج، ومرجع محاولة صالحًا.",
+ PRODUCT_RETURN_VERSION_CONFLICT:"تغير سجل المرتجع؛ حدّث البيانات قبل متابعة الإجراء.",
+ PRODUCT_RETURN_REQUIRES_PAID_DELIVERY:"يلزم تسليم منتج ودفع فعلي قبل تسجيل مرتجع من هذا المسار.",
+ PRODUCT_RETURN_ORIGIN_REQUIRES_REVIEW:"مرجع الصرف الأصلي يحتاج مراجعة المخزون.",
+ PRODUCT_RETURN_EXCEEDS_DELIVERY:"الكمية تتجاوز المتبقي من التسليم الفعلي.",
+ PRODUCT_INSPECTION_EXCEEDS_RECEIPT:"الكمية تتجاوز المتبقي للفحص من هذا الاستلام.",
+ INVALID_PRODUCT_RETURN_LOCATION:"اختر موقعًا فعالًا من الفرع نفسه يناسب الحجر أو نتيجة الفحص.",
  FORBIDDEN_REFUND_DECISION:"اعتماد رد الرصيد متاح لمالك المنصة والمالية فقط.",
  REFUND_REQUEST_NOT_FOUND:"طلب الاسترداد غير موجود.",
  INVALID_REFUND_DECISION:"راجع القرار والمبلغ المعتمد ونسخة الطلب.",
@@ -264,6 +272,47 @@ router.post("/service-refund-requests/:id/decide",async(req:Request,res:Response
  res.status(400).json({message:"أدخل قرارًا صالحًا ومبلغًا معتمدًا صحيحًا ومرجع المحاولة. الملاحظة اختيارية."});return;
  }
  reply(res,await rpc(session,"petro_decide_service_refund",{p_request_id:req.params.id,p_expected_version:b.expectedVersion,p_action:b.action,p_amount_minor:b.amountMinor,p_note:b.note??null,p_request_key:b.idempotencyKey}));
+});
+
+
+const returnQuantity=/^[0-9]{1,12}(\.[0-9]{1,6})?$/;
+function physicalBody(b:unknown,inspection:boolean){
+ return isRecord(b)&&Object.keys(b).every(k=>["expectedVersion","targetLocationId","quantity","note","idempotencyKey",...(inspection?["disposition"]:[])].includes(k))
+ &&Number.isSafeInteger(b.expectedVersion)&&Number(b.expectedVersion)>0
+ &&typeof b.targetLocationId==="string"&&uuid.test(b.targetLocationId)
+ &&typeof b.quantity==="string"&&returnQuantity.test(b.quantity)&&!/^0+(\.0+)?$/.test(b.quantity)
+ &&(b.note===undefined||b.note===null||typeof b.note==="string"&&b.note.length<=1000)
+ &&typeof b.idempotencyKey==="string"&&requestKey.test(b.idempotencyKey)
+ &&(!inspection||typeof b.disposition==="string"&&["accepted","damaged"].includes(b.disposition));
+}
+for(const central of [false,true]){
+ const path=(central?"/admin":"")+"/service-orders/:id/product-returns";
+ async function physicalSession(req:Request,res:Response){
+  setNoStore(res);const session=await requireSession(req,res);if(!session)return null;
+  if(typeof req.params.id!=="string"||!uuid.test(req.params.id)){res.status(400).json({message:"مرجع طلب الخدمة غير صالح."});return null;}
+  if(central){const gate=await rpc(session,"petro_service_orders_query",{p_filters:{view:"central",orderId:req.params.id}});if(gate.error){reply(res,gate);return null;}}
+  return session;
+ }
+ router.get(path,async(req:Request,res:Response)=>{
+  const session=await physicalSession(req,res);if(!session)return;
+  if(Object.keys(req.query).some(k=>k!=="page")||req.query.page!==undefined&&(typeof req.query.page!=="string"||! /^[1-9][0-9]{0,4}$|^100000$/.test(req.query.page))){res.status(400).json({message:"رقم الصفحة غير صالح."});return;}
+  reply(res,await rpc(session,"petro_service_product_returns",{p_order_id:req.params.id,p_page:Number(req.query.page??1)}));
+ });
+ router.post(path,async(req:Request,res:Response)=>{
+  const session=await physicalSession(req,res);if(!session)return;const b=req.body;
+  if(Object.keys(req.query).length||!physicalBody(b,false)||!isRecord(b)){res.status(400).json({message:"راجع كمية المرتجع وموقع الحجر ونسخة الطلب. الملاحظة اختيارية."});return;}
+  reply(res,await rpc(session,"petro_receive_service_product_return",{p_order_id:req.params.id,p_expected_version:b.expectedVersion,p_target_location_id:b.targetLocationId,p_quantity:b.quantity,p_note:b.note??null,p_request_key:b.idempotencyKey}));
+ });
+}
+router.get("/service-product-returns/:id/inspections",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).some(k=>k!=="page")||req.query.page!==undefined&&(typeof req.query.page!=="string"||! /^[1-9][0-9]{0,4}$|^100000$/.test(req.query.page))){res.status(400).json({message:"مرجع المرتجع أو الصفحة غير صالح."});return;}
+ reply(res,await rpc(session,"petro_service_product_return_inspections",{p_return_id:req.params.id,p_page:Number(req.query.page??1)}));
+});
+router.post("/service-product-returns/:id/inspect",async(req:Request,res:Response)=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;const b=req.body;
+ if(typeof req.params.id!=="string"||!uuid.test(req.params.id)||Object.keys(req.query).length||!physicalBody(b,true)||!isRecord(b)){res.status(400).json({message:"راجع نتيجة الفحص والكمية وموقع التصنيف ونسخة المرتجع. الملاحظة اختيارية."});return;}
+ reply(res,await rpc(session,"petro_inspect_service_product_return",{p_return_id:req.params.id,p_expected_version:b.expectedVersion,p_target_location_id:b.targetLocationId,p_quantity:b.quantity,p_disposition:b.disposition,p_note:b.note??null,p_request_key:b.idempotencyKey}));
 });
 
 export default router;

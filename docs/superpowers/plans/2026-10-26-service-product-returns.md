@@ -24,4 +24,4 @@ Warranty terms/claims/replacement and company/merchant dashboard integration rem
 
 ## Current status
 
-Behavior test added before implementation; migration0041 is not implemented or live. Only this repo/approved branch/project;0009 deferred. No production stock/products/orders/payment tests.
+RED40367802339/121730134684 failed for missing return read function. Candidate SQL/API/UI/native/browser implementation added27October; migration0041 is not accepted or live. Quarantine units are held in the immutable movement ledger until linked inspection releases them, preventing generic transfer/count bypass. Read receipt pages and separate paginated inspection history. Only this repo/approved branch/project;0009 deferred. No production stock/products/orders/payment tests.
