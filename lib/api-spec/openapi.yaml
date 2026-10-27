@@ -17,6 +17,30 @@ tags:
   - name: fleet
     description: Central fleet, driver, policy, coverage, credential and maintenance operations
 paths:
+  /finance/merchant-statement:
+    get:
+      operationId: getMerchantStatement
+      tags: [finance]
+      summary: Current scoped merchant receivables and original monthly eligibility
+      description: Read-only actual earned/refund/settlement/debt history. Not a payout or debt-offset command. Membership branch scope is evaluated on every request, independent of subscription expiry.
+      parameters:
+        - {in: query, name: organizationId, schema: {type: string, format: uuid}}
+        - {in: query, name: branchId, schema: {type: string, format: uuid}}
+        - {in: query, name: page, schema: {type: integer, minimum: 1, maximum: 100000, default: 1}}
+      responses:
+        "200":
+          description: Authorized whole-scope totals plus fixed20 paginated actual service payments
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MerchantStatement"}
+        "400":
+          description: Invalid or unknown filter
+        "401":
+          description: Session required
+        "403":
+          description: Financial role and organization or branch scope denied
+        "503":
+          description: Statement schema unavailable
   /healthz:
     get:
       operationId: healthCheck
@@ -3086,6 +3110,74 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
   schemas:
+    MerchantStatementAmounts:
+      type: object
+      required: [earnedMinor, refundedMinor, unsettledRefundMinor, settledMinor, remainingMinor, merchantDebtMinor, disputedMinor, eligibleBeforeDebtMinor, notYetEligibleMinor]
+      properties:
+        earnedMinor: {type: string, pattern: "^[0-9]+$"}
+        refundedMinor: {type: string, pattern: "^[0-9]+$"}
+        unsettledRefundMinor: {type: string, pattern: "^[0-9]+$"}
+        settledMinor: {type: string, pattern: "^[0-9]+$"}
+        remainingMinor: {type: string, pattern: "^[0-9]+$"}
+        merchantDebtMinor: {type: string, pattern: "^[0-9]+$"}
+        disputedMinor: {type: string, pattern: "^[0-9]+$"}
+        eligibleBeforeDebtMinor: {type: string, pattern: "^[0-9]+$"}
+        notYetEligibleMinor: {type: string, pattern: "^[0-9]+$"}
+    MerchantStatement:
+      type: object
+      required: [asOf, currency, timezone, page, pageSize, withdrawalsEnabled, total, totals, items, organizations, branches]
+      properties:
+        asOf: {type: string, format: date-time}
+        currency: {type: string, enum: [EGP]}
+        timezone: {type: string, enum: [Africa/Cairo]}
+        page: {type: integer}
+        pageSize: {type: integer, enum: [20]}
+        withdrawalsEnabled: {type: boolean, enum: [false]}
+        total: {type: integer}
+        totals: {$ref: "#/components/schemas/MerchantStatementAmounts"}
+        organizations:
+          type: array
+          items:
+            type: object
+            required: [id, name, kind]
+            properties:
+              id: {type: string, format: uuid}
+              name: {type: string}
+              kind: {type: string, enum: [station, provider]}
+        branches:
+          type: array
+          items:
+            type: object
+            description: Authorized branch totals; unsettledRefundMinor is provided only in whole-scope totals and payment detail.
+            additionalProperties: true
+            required: [id, organizationId, name, remainingMinor, merchantDebtMinor, eligibleBeforeDebtMinor]
+            properties:
+              id: {type: string, format: uuid}
+              organizationId: {type: string, format: uuid}
+              name: {type: string}
+              remainingMinor: {type: string}
+              merchantDebtMinor: {type: string}
+              eligibleBeforeDebtMinor: {type: string}
+        items:
+          type: array
+          items:
+            allOf:
+              - {$ref: "#/components/schemas/MerchantStatementAmounts"}
+              - type: object
+                required: [orderId, paymentId, organizationId, organizationName, branchId, branchName, receiptNumber, earnedAt, periodStart, periodEnd, eligibleAt, settlementPolicyId]
+                properties:
+                  orderId: {type: string, format: uuid}
+                  paymentId: {type: string, format: uuid}
+                  organizationId: {type: string, format: uuid}
+                  branchId: {type: string, format: uuid}
+                  settlementPolicyId: {type: string, format: uuid}
+                  organizationName: {type: string}
+                  branchName: {type: string}
+                  receiptNumber: {type: string}
+                  earnedAt: {type: string, format: date-time}
+                  periodStart: {type: string, format: date-time}
+                  periodEnd: {type: string, format: date-time}
+                  eligibleAt: {type: string, format: date-time}
     ServiceProductReturnReceiveBody: {"type":"object","additionalProperties":false,"required":["expectedVersion","targetLocationId","quantity","idempotencyKey"],"properties":{"expectedVersion":{"type":"integer","minimum":1},"targetLocationId":{"type":"string","format":"uuid"},"quantity":{"type":"string","pattern":"^[0-9]{1,12}(\\.[0-9]{1,6})?$"},"note":{"type":["string","null"],"maxLength":1000},"idempotencyKey":{"type":"string","pattern":"^[A-Za-z0-9._:-]{16,120}$"}}}
     ServiceProductReturnInspectBody: {"type":"object","additionalProperties":false,"required":["expectedVersion","targetLocationId","quantity","idempotencyKey","disposition"],"properties":{"expectedVersion":{"type":"integer","minimum":1},"targetLocationId":{"type":"string","format":"uuid"},"quantity":{"type":"string","pattern":"^[0-9]{1,12}(\\.[0-9]{1,6})?$"},"note":{"type":["string","null"],"maxLength":1000},"idempotencyKey":{"type":"string","pattern":"^[A-Za-z0-9._:-]{16,120}$"},"disposition":{"type":"string","enum":["accepted","damaged"]}}}
     ServiceProductReturnCommandResult: {"type":"object","required":["id","status","quantity","documentId","version"],"properties":{"id":{"type":"string","format":"uuid"},"orderId":{"type":"string","format":"uuid"},"returnId":{"type":"string","format":"uuid"},"status":{"type":"string","enum":["received","inspected"]},"quantity":{"type":"string"},"documentId":{"type":"string","format":"uuid"},"version":{"type":"integer"},"disposition":{"type":"string","enum":["accepted","damaged"]}}}

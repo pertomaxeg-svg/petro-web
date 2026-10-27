@@ -1,3 +1,4 @@
+import {Link} from "wouter";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -407,6 +408,7 @@ export function AdminFinancePage({ roles }: { roles: string[] }) {
 
   if (!canSubmit && !canRead) return <main className="af-page" dir="rtl"><StateMessage title="هذه المساحة غير متاحة">لا يملك الحساب الحالي دورًا مخولًا للوصول إلى السجلات المالية.</StateMessage></main>;
   return <main className="af-page" dir="rtl">
+    {canRead&&<Link href="/admin/merchant-statement" className="af-button af-button-soft"><WalletCards size={17}/>مستحقات المحطات ومقدمي الخدمات</Link>}
     <header className="af-heading">
       <div><span className="af-kicker"><i/>Pertomax EG / الإدارة المالية</span><h1>مكتب الضبط المالي</h1><p>سجل حيّ للتحصيلات والأرصدة والقرارات. كل تغيير موثّق، ولا يُفترض إثبات المال.</p></div>
       <div className="af-security"><LockKeyhole size={16}/><span><b>بيانات خاصة</b><small>{finance ? "وصول مالي موثّق" : auditor ? "وصول تدقيق للقراءة فقط" : "نطاق العمليات"}</small></span></div>

@@ -53,6 +53,10 @@ BEGIN
  OR item->'decision'->'document'->'snapshot'->>'originalReceiptNumber'<>(SELECT receipt_number FROM petro_private.service_order_receipts WHERE payment_id=p.id) THEN RAISE EXCEPTION 'Immutable service credit document invalid: %',item;END IF;
  BEGIN PERFORM public.petro_finance_admin_reverse_journal(refunded_entry,'رفض عكس قيد رد خدمة','actual-refund-generic-reverse');RAISE EXCEPTION 'Refund journal reversed without updating subledger';EXCEPTION WHEN object_not_in_prerequisite_state THEN IF SQLERRM<>'USE_SERVICE_ORDER_REFUND_WORKFLOW' THEN RAISE;END IF;END;
  request:=public.petro_request_service_refund(p.order_id,'4750','quality',NULL,'actual-refund-remainder-request');
+ read_view:=public.petro_merchant_statement(v.merchant_organization_id,v.merchant_branch_id,1);
+ SELECT x INTO item FROM jsonb_array_elements(read_view->'items')x WHERE x->>'paymentId'=p.id::text;
+ IF item->>'remainingMinor'<>'4750' OR item->>'disputedMinor'<>'4750' OR item->>'eligibleBeforeDebtMinor'<>'0' THEN RAISE EXCEPTION 'Open refund not excluded from statement eligibility: %',item;END IF;
+
  PERFORM public.petro_decide_service_refund((request->>'id')::uuid,1,'refund','4750',NULL,'actual-refund-remainder-0001');
  BEGIN PERFORM public.petro_request_service_refund(p.order_id,'1','quality',NULL,'actual-refund-overpayment-01');RAISE EXCEPTION 'Fully refunded original accepted extra claim';EXCEPTION WHEN check_violation THEN NULL;END;
  IF(SELECT sum(amount_minor) FROM petro_private.service_refund_allocations WHERE payment_id=p.id)<>8750

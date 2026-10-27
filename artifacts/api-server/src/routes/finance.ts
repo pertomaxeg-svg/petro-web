@@ -462,4 +462,16 @@ router.post("/admin/finance/journal/:entryId/reverse", async (req, res): Promise
 router.get("/admin/finance/reconciliation", (req, res) =>
   runRpc(req, res, "petro_finance_admin_reconciliation", undefined, READ_ROLES));
 
+// Same scoped RPC for central and merchant roles; never require an active subscription to read earned money.
+router.get("/finance/merchant-statement", async(req,res):Promise<void>=>{
+ setNoStore(res);
+ const session=await requireSession(req,res);if(!session)return;
+ if(Object.keys(req.query).some(k=>!["organizationId","branchId","page"].includes(k))){fail(res,400,"مرشحات كشف المستحقات غير صالحة.");return;}
+ const organizationId=queryId(req,"organizationId"),branchId=queryId(req,"branchId"),page=pageValue(req,"page",1,100000);
+ if(organizationId===undefined||branchId===undefined||(organizationId!==null&&!validId(organizationId))||(branchId!==null&&!validId(branchId))||page===null){
+ fail(res,400,"اختر جهة وفرعًا صحيحين وصفحة صالحة.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_merchant_statement",{p_organization_id:organizationId,p_branch_id:branchId,p_page:page});
+ if(error){mapFinanceError(res,error);return;}res.json(data);
+});
+
 export default router;
