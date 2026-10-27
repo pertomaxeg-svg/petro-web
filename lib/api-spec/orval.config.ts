@@ -56,6 +56,14 @@ export default defineConfig({
       clean: true,
       prettier: true,
       override: {
+        // Orval 8.30 gives path schemas and query types the same *Params name
+        // when an operation has both. These new routers validate UUIDs directly;
+        // keep generated query/body validation and types without duplicate exports.
+        operations: {
+          ServiceProductReturns: { zod: { generate: { param: false } } },
+          adminServiceProductReturns: { zod: { generate: { param: false } } },
+          serviceProductReturnInspections: { zod: { generate: { param: false } } },
+        },
         zod: {
           // Orval resolves `auto` from lib/api-spec/package.json, which has no
           // zod dependency, so orval >= 8.23 falls back to Zod 4 syntax while

@@ -173,7 +173,7 @@ BEGIN
  IF inspected+q>r.quantity THEN RAISE EXCEPTION 'PRODUCT_INSPECTION_EXCEEDS_RECEIPT' USING ERRCODE='23514';END IF;
  SELECT * INTO l FROM public.petro_inventory_locations WHERE id=p_target_location_id FOR SHARE;
  IF NOT FOUND OR NOT l.active OR l.organization_id<>r.merchant_organization_id OR l.branch_id IS DISTINCT FROM r.merchant_branch_id
- OR l.id=r.quarantine_location_id OR l.location_kind<>CASE WHEN p_disposition='accepted' THEN 'sellable' ELSE 'damaged' END THEN RAISE EXCEPTION 'INVALID_PRODUCT_RETURN_LOCATION' USING ERRCODE='23514';END IF;
+ OR l.id=r.quarantine_location_id OR l.location_kind<>(CASE WHEN p_disposition='accepted' THEN 'sellable' ELSE 'damaged' END) THEN RAISE EXCEPTION 'INVALID_PRODUCT_RETURN_LOCATION' USING ERRCODE='23514';END IF;
  INSERT INTO public.petro_inventory_documents(id,organization_id,source_location_id,target_location_id,document_type,status,reason,idempotency_key,payload_hash,created_by,reviewed_by,reviewed_at)
  VALUES(document_id,r.merchant_organization_id,r.quarantine_location_id,l.id,CASE WHEN p_disposition='accepted' THEN 'transfer' ELSE 'damage' END,'approved','فحص وتصنيف مرتجع خدمة '||r.id::text,'service-return-inspection:'||inspection_id::text,md5(fingerprint_value),actor,actor,clock_timestamp());
  INSERT INTO public.petro_inventory_document_lines(document_id,organization_id,item_id,quantity,related_movement_id)

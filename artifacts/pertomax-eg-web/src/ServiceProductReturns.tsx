@@ -22,7 +22,7 @@ function InspectionForm({receipt,locations,disabled,onSubmit}:{receipt:Receipt;l
  const [disposition,setDisposition]=useState<"accepted"|"damaged">("accepted"),[target,setTarget]=useState(""),[amount,setAmount]=useState(receipt.remainingQuantity),[note,setNote]=useState(""),[error,setError]=useState("");
  const options=locations.filter(l=>l.kind===(disposition==="accepted"?"sellable":"damaged"));
  useEffect(()=>{setAmount(receipt.remainingQuantity);setNote("");setError("");},[receipt.version,receipt.remainingQuantity]);
- function submit(e:FormEvent){e.preventDefault();const q=inputQuantity(amount);if(!q||!options.some(l=>l.id===target)){setError("اختر موقع التصنيف وأدخل كمية موجبة مطابقة لوحدة المنتج.");return;}setError("");onSubmit({kind:"inspect",id:receipt.id,body:{expectedVersion:receipt.version,targetLocationId:target,quantity:q,disposition,note:note.trim()||null,idempotencyKey:crypto.randomUUID()}});}
+ function submit(e:FormEvent){e.preventDefault();if(disabled)return;const q=inputQuantity(amount);if(!q||!options.some(l=>l.id===target)){setError("اختر موقع التصنيف وأدخل كمية موجبة مطابقة لوحدة المنتج.");return;}setError("");onSubmit({kind:"inspect",id:receipt.id,body:{expectedVersion:receipt.version,targetLocationId:target,quantity:q,disposition,note:note.trim()||null,idempotencyKey:crypto.randomUUID()}});}
  return <form className="so-return-form" onSubmit={submit}><h4>نتيجة فحص المستلم</h4><label className="fleet-field">التصنيف<select data-testid="return-disposition" value={disposition} disabled={disabled} onChange={e=>{setDisposition(e.target.value as "accepted"|"damaged");setTarget("");}}><option value="accepted">صالح للاستخدام</option><option value="damaged">تالف</option></select></label><label className="fleet-field">موقع التصنيف<select data-testid="return-inspection-location" value={target} onChange={e=>setTarget(e.target.value)} disabled={disabled} required><option value="">اختر الموقع</option>{options.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label><label className="fleet-field">الكمية المفحوصة<input data-testid="return-inspection-quantity" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" maxLength={24} disabled={disabled} required/></label><label className="fleet-field">ملاحظة الفحص (اختياري)<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={1000} disabled={disabled}/></label>{!options.length&&<p>أضف موقعًا مناسبًا في مخزون الفرع قبل تسجيل هذا التصنيف.</p>}<button data-testid="return-inspect" className="fleet-button" disabled={disabled||!options.length}>تسجيل الفحص ونقل الكمية</button>{error&&<p role="alert">{error}</p>}</form>;
 }
 export function ServiceProductReturns({orderId,userId,central}:{orderId:string;userId:string;central:boolean}){
@@ -31,12 +31,12 @@ export function ServiceProductReturns({orderId,userId,central}:{orderId:string;u
  const api=(central?"/api/admin":"/api")+"/service-orders/"+orderId+"/product-returns";
  const query=useQuery({queryKey:["service-product-returns",central,userId,orderId,page],queryFn:()=>request<View>(api+"?page="+page),retry:false,gcTime:0});
  async function execute(command:Pending){
-  if(busy)return;setBusy(true);pending.current=command;setError("");setSuccess("");
+  if(busy||pending.current&&pending.current!==command)return;setBusy(true);pending.current=command;setError("");setSuccess("");
   try{
    const result=await request<{status:string}>(command.kind==="receive"?api:"/api/service-product-returns/"+command.id+"/inspect",command.body);
    if(result.status!==(command.kind==="receive"?"received":"inspected"))throw new ReturnError("تعذر تأكيد نتيجة الحركة؛ أعد المحاولة نفسها.",502);
    pending.current=null;setAmount("");setNote("");setSuccess(command.kind==="receive"?"سُجّل الاستلام في الحجر، وحُجزت الكمية للفحص.":"سُجّل الفحص ونُقلت الكمية مرة واحدة. لم تُسجّل حركة مالية.");
-   await Promise.all([query.refetch(),cache.invalidateQueries({queryKey:["product-return-history",userId]})]);
+   await Promise.all([query.refetch(),cache.invalidateQueries({queryKey:["product-return-history",userId]})]);if(command.kind==="receive")setPage(1);
   }catch(e){if(e instanceof ReturnError&&e.status<500){pending.current=null;await query.refetch();}setError(e instanceof Error?e.message:"تعذر تأكيد الحركة.");}finally{setBusy(false);}
  }
  function receive(e:FormEvent){e.preventDefault();if(busy||pending.current)return;const q=inputQuantity(amount);if(!q||!query.data?.locations.some(l=>l.id===target&&l.kind==="quarantine")){setError("أدخل كمية موجبة واختر موقع الحجر في هذا الفرع.");return;}void execute({kind:"receive",body:{expectedVersion:query.data.version,targetLocationId:target,quantity:q,note:note.trim()||null,idempotencyKey:crypto.randomUUID()}});}
