@@ -51,14 +51,7 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [bankVersionId, paymentIds, idempotencyKey]
-              properties:
-                bankVersionId: {type: string, format: uuid}
-                paymentIds: {type: array, minItems: 1, maxItems: 100, uniqueItems: true, items: {type: string, format: uuid}}
-                idempotencyKey: {type: string, minLength: 16, maxLength: 120}
+            schema: {$ref: "#/components/schemas/MerchantWithdrawalSubmission"}
       responses:
         "201":
           description: Actual held request; no bank debit or paid state
@@ -93,14 +86,7 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [expectedVersion, action, idempotencyKey]
-              properties:
-                expectedVersion: {type: integer, minimum: 1}
-                action: {type: string, enum: [approve, reject, cancel]}
-                idempotencyKey: {type: string, minLength: 16, maxLength: 120}
+            schema: {$ref: "#/components/schemas/MerchantWithdrawalReview"}
       responses:
         "200":
           description: New immutable request revision
@@ -3202,6 +3188,22 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
   schemas:
+    MerchantWithdrawalSubmission:
+      type: object
+      additionalProperties: false
+      required: [bankVersionId, paymentIds, idempotencyKey]
+      properties:
+        bankVersionId: {type: string, format: uuid}
+        paymentIds: {type: array, minItems: 1, maxItems: 100, uniqueItems: true, items: {type: string, format: uuid}}
+        idempotencyKey: {type: string, minLength: 16, maxLength: 120}
+    MerchantWithdrawalReview:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, action, idempotencyKey]
+      properties:
+        expectedVersion: {type: integer, minimum: 1}
+        action: {type: string, enum: [approve, reject, cancel]}
+        idempotencyKey: {type: string, minLength: 16, maxLength: 120}
     MerchantWithdrawal:
       type: object
       required: [id, organizationId, organizationName, version, status, amountMinor, originalAmountMinor, createdAt, paid, canCancel, canReview, bank, items, events]

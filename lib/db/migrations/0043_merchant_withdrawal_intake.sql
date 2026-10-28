@@ -1,6 +1,6 @@
 BEGIN;
 SET LOCAL lock_timeout='5s';
-DO $ BEGIN IF(SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid=to_regprocedure('public.petro_merchant_statement(uuid,uuid,integer)')) IS DISTINCT FROM 'cd3c05cee380f44b7abd83a943b03d00e039e4839bfd7557a9fd5e14a3ca51be' THEN RAISE EXCEPTION '0043 statement source drift';END IF;END $;
+DO $$ BEGIN IF(SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc WHERE oid=to_regprocedure('public.petro_merchant_statement(uuid,uuid,integer)')) IS DISTINCT FROM 'cd3c05cee380f44b7abd83a943b03d00e039e4839bfd7557a9fd5e14a3ca51be' THEN RAISE EXCEPTION '0043 statement source drift';END IF;END $$;
 CREATE TABLE petro_private.merchant_withdrawals(
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL REFERENCES public.petro_organizations(id) ON DELETE RESTRICT,
  bank_version_id uuid NOT NULL REFERENCES public.petro_bank_account_versions(id) ON DELETE RESTRICT,
@@ -102,12 +102,15 @@ DECLARE actor uuid:=auth.uid();fingerprint_value text;c petro_private.merchant_w
  PERFORM pg_advisory_xact_lock(hashtextextended('withdrawal-command:'||actor::text||':'||p_request_key,0));
  SELECT * INTO c FROM petro_private.merchant_withdrawal_commands WHERE actor_id=actor AND request_key=p_request_key;
  IF FOUND THEN IF c.fingerprint<>fingerprint_value THEN RAISE EXCEPTION 'IDEMPOTENCY_CONFLICT' USING ERRCODE='23505';END IF;RETURN c.result;END IF;
+ IF(SELECT count(*) FROM petro_private.service_order_receivables WHERE payment_id=ANY(sorted) AND merchant_organization_id=p_organization_id)<>cardinality(sorted) THEN RAISE EXCEPTION 'FORBIDDEN_WITHDRAWAL' USING ERRCODE='42501';END IF;
  PERFORM 1 FROM petro_private.service_order_payments WHERE id=ANY(sorted) ORDER BY id FOR UPDATE;
  IF(SELECT count(*) FROM petro_private.service_order_receivables WHERE payment_id=ANY(sorted) AND merchant_organization_id=p_organization_id)<>cardinality(sorted) THEN RAISE EXCEPTION 'FORBIDDEN_WITHDRAWAL' USING ERRCODE='42501';END IF;
- SELECT * INTO bank FROM public.petro_bank_account_versions WHERE id=p_bank_version_id AND organization_id=p_organization_id FOR SHARE;
+ SELECT * INTO bank FROM public.petro_bank_account_versions WHERE id=p_bank_version_id AND organization_id=p_organization_id;
  IF NOT FOUND OR bank.status<>'approved' THEN RAISE EXCEPTION 'WITHDRAWAL_BANK_CHANGED' USING ERRCODE='PT409';END IF;
+ --0006 approval locks the account before superseding the old approved version.
  SELECT * INTO account FROM public.petro_bank_accounts WHERE id=bank.bank_account_id FOR SHARE;
- IF account.status<>'active' THEN RAISE EXCEPTION 'WITHDRAWAL_BANK_CHANGED' USING ERRCODE='PT409';END IF;
+ SELECT * INTO bank FROM public.petro_bank_account_versions WHERE id=p_bank_version_id AND organization_id=p_organization_id FOR SHARE;
+ IF bank.status<>'approved' OR account.status<>'active' THEN RAISE EXCEPTION 'WITHDRAWAL_BANK_CHANGED' USING ERRCODE='PT409';END IF;
  IF NOT coalesce(petro_private.merchant_withdrawal_scope(p_organization_id,true),false) THEN RAISE EXCEPTION 'FORBIDDEN_WITHDRAWAL' USING ERRCODE='42501';END IF;
  INSERT INTO petro_private.merchant_withdrawals(id,organization_id,bank_version_id,bank_snapshot,created_by)
  VALUES(new_id,p_organization_id,bank.id,jsonb_build_object('accountId',account.id,'accountRevision',account.version,'bankName',bank.bank_name,'beneficiaryName',bank.beneficiary_name,'identifier',bank.account_identifier,'last4',bank.account_last4,'reviewedAt',bank.reviewed_at),actor);
@@ -139,8 +142,9 @@ DECLARE actor uuid:=auth.uid();w petro_private.merchant_withdrawals%ROWTYPE;e pe
  SELECT * INTO STRICT e FROM petro_private.merchant_withdrawal_events WHERE withdrawal_id=p_id ORDER BY version DESC LIMIT 1;
  IF e.version<>p_expected_version OR e.state NOT IN('submitted','approved') OR(p_action IN('approve','reject') AND e.state<>'submitted') THEN RAISE EXCEPTION 'WITHDRAWAL_VERSION_CONFLICT' USING ERRCODE='PT409';END IF;
  IF p_action='approve' THEN
- SELECT * INTO bank FROM public.petro_bank_account_versions WHERE id=w.bank_version_id FOR SHARE;
+ SELECT * INTO bank FROM public.petro_bank_account_versions WHERE id=w.bank_version_id;
  SELECT * INTO account FROM public.petro_bank_accounts WHERE id=bank.bank_account_id FOR SHARE;
+ SELECT * INTO bank FROM public.petro_bank_account_versions WHERE id=w.bank_version_id FOR SHARE;
  IF bank.status<>'approved' OR account.status<>'active' OR account.version<>(w.bank_snapshot->>'accountRevision')::bigint THEN RAISE EXCEPTION 'WITHDRAWAL_BANK_CHANGED' USING ERRCODE='PT409';END IF;
  IF EXISTS(SELECT 1 FROM petro_private.service_refund_requests r JOIN petro_private.merchant_withdrawal_allocations a ON a.payment_id=r.payment_id WHERE a.withdrawal_id=p_id
  AND NOT EXISTS(SELECT 1 FROM petro_private.service_refund_withdrawals x WHERE x.request_id=r.id) AND NOT EXISTS(SELECT 1 FROM petro_private.service_refund_decisions d WHERE d.request_id=r.id)) THEN RAISE EXCEPTION 'WITHDRAWAL_REFUND_PENDING' USING ERRCODE='PT409';END IF;
