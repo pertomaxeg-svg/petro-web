@@ -502,7 +502,7 @@ router.post("/finance/merchant-withdrawals/:organizationId",async(req,res):Promi
 router.post("/finance/merchant-withdrawals/:id/review",async(req,res):Promise<void>=>{
  setNoStore(res);const session=await requireSession(req,res);if(!session)return;const b=req.body;
  if(!validId(req.params["id"])||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","action","idempotencyKey"].includes(k))
- ||typeof b["expectedVersion"]!=="number"||!Number.isSafeInteger(b["expectedVersion"])||b["expectedVersion"]<1||!["approve","reject","cancel"].includes(String(b["action"]))||typeof b["action"]!=="string"
+ ||typeof b["expectedVersion"]!=="number"||!Number.isSafeInteger(b["expectedVersion"])||b["expectedVersion"]<1||typeof b["action"]!=="string"||!["approve","reject","cancel"].includes(b["action"])
  ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"قرار السحب أو نسخة الطلب غير صالح.");return;}
  const {data,error}=await callFinanceRpc(session,"petro_review_merchant_withdrawal",{p_id:req.params["id"],p_expected_version:b["expectedVersion"],p_action:b["action"],p_request_key:b["idempotencyKey"]});if(error){withdrawalError(res,error);return;}res.json(data);
 });
