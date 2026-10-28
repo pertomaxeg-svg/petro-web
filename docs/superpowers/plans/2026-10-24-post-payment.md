@@ -1,5 +1,7 @@
 # Remaining dependent milestones — 27 October 2026
 
+28October:0043 intake/actual holds/Finance approval-rejection/cancellation/refund adjustments accepted and LIVE20261028193127. Functional sourcebb5cb7855be0b30112a9c917f4178d800490c838 / full40754149378 GREEN, native123048423899 + acceptance123048424422. No actual bank payout/proof yet. Next docs/superpowers/plans/2026-10-28-bank-payouts.md. Current checkpoint/evidence supersede older pending notes below.
+
 0042 merchant statement is now accepted/live20261027144429, source806623a19142598bb9ee065607cc55d5f8304f21 / full40523137663 GREEN. Source UI/API/native financial read/branch scope/exact refund-debt reconciliation accepted. This is the read foundation only, not withdrawal/payment acceptance. Next: docs/superpowers/plans/2026-10-27-merchant-withdrawals.md.
 
 0037 payment,0038A intake,0038B actual monetary decisions and engineering0039 intake/inspection slice are accepted in isolated SQL/API/browser/real Auth/Storage. Migration0041 LIVE20261027062211; full source0862a5a1f8fd7d23cc5f0061835a63161c91c676 / Actions40460054475 GREEN. Actual partial receipts, quarantine holds, accepted/damaged inspection, exact replay/no new money, mobile visible forms/worker read-only and preserving rollback accepted. Warranty and company/merchant dashboard integration remain pending. Mandatory next financial milestone: merchant statement/eligibility and withdrawals/monthly settlement. No runtime deployment claimed.

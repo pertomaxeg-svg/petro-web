@@ -1,6 +1,28 @@
-# Build continuation checkpoint — 27 October 2026
+# Build continuation checkpoint — 28 October 2026
 
 ## Current authoritative state — read this first
+
+Only pertomaxeg-svg/petro-web, branch pertomax-central-orgs-20261015 and Supabase msvgzsfzrqlrfpstthhe. Direct GitHub/Supabase; source remote and tests/build in Actions. No Replit/local source checkout/build/other project/VPS/paid resource/force push;0009 deferred. Preserve users/business data. No repeated broad discovery.
+
+- Last accepted functional source **bb5cb7855be0b30112a9c917f4178d800490c838**. Full40754149378 GREEN: acceptance123048424422 and native real-auth-storage123048423899. Frontend40754149379/contracts40754149349 GREEN.
+-0037–0042 accepted/live unchanged as dependency context below.0042 statement initially LIVE20261027144429, intentionally upgraded by0043 for real holds.
+- **0043 withdrawal intake/holds/Finance review LIVE20261028193127**. Sourcef4b26c431a74ea14d5365c0c22390d186345e7ebd111a9d7c41584ccd94f0c7e; preserving rollback182da642851463899886a2bc8344c5c7df2f1131294d01f45c12ffe1b87a45c3. All10 applied bodies match tested source (9 new functions + updated statement), contracttrue. New tables requests/allocations/events/releases/commands are private immutable RLS/no-client-grant.
+- Public RPCs: petro_merchant_withdrawals(uuid,integer), petro_merchant_withdrawal_options(uuid,integer), petro_submit_merchant_withdrawal(uuid,uuid,uuid[],text), petro_review_merchant_withdrawal(uuid,bigint,text,text). Five private invoker helpers include scope/held/capacity/json/after-refund adjustment.
+- Organization-level merchant owner/manager/finance requests/cancels; central Finance/owner approves/rejects; auditor reads masked bank. Branch-scoped financial member cannot create a competing central withdrawal. Branch internal request-to-org flow still pending. No subscription expiry gate on earned money.
+- Full eligible remaining amount per selected original payment, max100 unique payment IDs, immutable original Cairo eligibility; bank version/revision frozen privately, only masked data returned. Actor/key command snapshots, version PT409 and real payment row locks prevent overlap.
+- Lock order payment UUIDs before request; beneficiary account before already-approved version (0006 account→old-version retirement), no old refund/settlement/bank body rewrite. After-refund trigger locks only affected request after caller's original payment/account locks. Never take request before payments in future payout.
+- Refund reduces held amount only to actual unrefunded/unsettled capacity; previously excluded pending claim is not subtracted twice. Append adjustment invalidates approval if reduced, records version/outbox; cancel/reject releases only remaining hold with history retained. Actual payout NOT implemented.
+- Strict no-store GET/POST /api/finance/merchant-withdrawals/:organizationId; GET .../:organizationId/options; POST .../:id/review. No actor/amount injection; malformed non-string action400. UI in /admin/merchant-statement and /workspace/merchant-statement after org selection. Genuine bank/receipt selection, review/history/cancel, exact uncertain201-response retry freezes scope, no paid button.
+-0042 totals add withdrawalReservedMinor; remaining partitions into holds/other dispute/immature/eligible. withdrawalsEnabled=true denotes intake; bankPayoutEnabled=false. Pending total-claim display distinct from outside-hold dispute is a required next UI refinement.
+- SQL actual historical fixtures are explicit disposable INSERT-only history imports with genuine balanced original journal; no immutable edits/disabled triggers or production clock override. Native genuine current-month SDK-paid product denies early withdrawal. Real merchant JWT overlap winner/replay/owner-only review/refund7750/cancel/revocation/Storage regressions pass.
+- Final internal screenshot artifact12845522672: actual selection form390 and approved history390/1280 manually accepted. Browser uses existing isolated synthetic owner; genuine merchant Auth tested separately via real SDK, not claimed native browser Auth.
+- Live postflight: four old refund/settlement/bank bodies/OIDs/ACL/owners and five old table security/OIDs unchanged. DefaultACL MD512effceb111a268b05bf3dd09dccdc30 unchanged. Original orders/payments/refunds/settlements/journals0 and all five new tables0; no synthetic bank or business writes. Advisors90 RPC-only no-policy INFO/141 scoped authenticated-definer WARN/old password warning1 as expected. Schema cache reload notified.
+- Evidence docs/acceptance/2026-10-28-merchant-withdrawal-intake.md. Rollback refuses any persisted withdrawal history, even cancelled; exact independent empty schema/defaultACL restoration passed.
+- **NEXT: actual bank proof/payout/partial settlement** per docs/superpowers/plans/2026-10-28-bank-payouts.md. Source-bank registry0012 petro_finance_bank_accounts differs from0006 beneficiary petro_bank_accounts/versions. Use0039 actual settlement allocation contract and0043 holds; never fabricate bank event or automatic debt offset.
+- Then branch internal requests, warranties, company/station/provider dashboards, reconciled reports/documents/support/outbox/public refinements; apps/devices last. **Runtime NOT deployed:** current approved hosting URL/config remains unidentified. Source/schema success is not user-visible release; no automatic background promise.
+
+## Previous accepted0042 state — dependency context only
+All older NEXT/source-only/pending notes below are superseded by this current block.
 
 Only pertomaxeg-svg/petro-web, branch pertomax-central-orgs-20261015 and Supabase msvgzsfzrqlrfpstthhe. Direct GitHub/Supabase; source edits remote, tests/build in Actions. No Replit/local checkout/build/other project/VPS/paid resource/force push.0009 deferred; preserve real users/business data. Use this checkpoint; no repeated broad discovery.
 
