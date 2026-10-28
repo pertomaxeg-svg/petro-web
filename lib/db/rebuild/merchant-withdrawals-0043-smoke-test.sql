@@ -3,7 +3,7 @@ DO $$ BEGIN IF to_regprocedure('public.petro_submit_merchant_withdrawal(uuid,uui
 
 \ir merchant-withdrawal-0043-fixture.sql
 DO $withdrawal$
-DECLARE source_order uuid;payment uuid;org uuid;bank jsonb;bank2 jsonb;w jsonb;result jsonb;req jsonb;request_id uuid;baseline bigint;statement jsonb;BEGIN
+DECLARE source_order uuid;payment uuid;payment2 uuid;w2 jsonb;org uuid;bank jsonb;bank2 jsonb;w jsonb;result jsonb;req jsonb;request_id uuid;baseline bigint;statement jsonb;BEGIN
  PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003701',true);
  SELECT order_id INTO STRICT source_order FROM petro_private.service_order_payments WHERE charged_amount_minor=8750;
  payment:=pg_temp.withdrawal_historical_payment(source_order);
@@ -25,14 +25,23 @@ DECLARE source_order uuid;payment uuid;org uuid;bank jsonb;bank2 jsonb;w jsonb;r
  IF result->>'status'<>'submitted' OR result->>'version'<>'3' OR result->>'amountMinor'<>'7750' THEN RAISE EXCEPTION 'Refund did not invalidate approval/reduce hold: %',result;END IF;
  BEGIN PERFORM public.petro_review_merchant_withdrawal(request_id,2,'approve','sql-withdrawal-stale-review');RAISE EXCEPTION 'Stale review approved';EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;END;
  result:=public.petro_review_merchant_withdrawal(request_id,3,'cancel','sql-withdrawal-cancel-01');
- IF result->>'amountMinor'<>'0' OR result->>'status'<>'cancelled' OR petro_private.merchant_withdrawal_held(payment)<>0 THEN RAISE EXCEPTION 'Cancellation did not release only open hold';END IF;
+ IF result->>'amountMinor'<>'0' OR result->>'status'<>'cancelled' OR petro_private.merchant_withdrawal_held(payment)<>0 OR EXISTS(SELECT 1 FROM jsonb_array_elements(result->'items')x WHERE x->>'heldMinor'<>'0') THEN RAISE EXCEPTION 'Cancellation did not release only open hold';END IF;
  w:=public.petro_submit_merchant_withdrawal(org,(bank->>'versionId')::uuid,ARRAY[payment],'sql-withdrawal-reopened-01');
  IF w->>'amountMinor'<>'7750' THEN RAISE EXCEPTION 'Request reclaimed refunded amount';END IF;
+ payment2:=pg_temp.withdrawal_historical_payment(source_order);
+ req:=public.petro_request_service_refund((SELECT order_id FROM petro_private.service_order_payments WHERE id=payment2),'1000','quality',NULL,'sql-before-hold-refund-request');
+ w2:=public.petro_submit_merchant_withdrawal(org,(bank->>'versionId')::uuid,ARRAY[payment2],'sql-withdrawal-pending-buffer');
+ IF w2->>'amountMinor'<>'7750' THEN RAISE EXCEPTION 'Pending refund not excluded before hold';END IF;
+ BEGIN PERFORM public.petro_review_merchant_withdrawal((w2->>'id')::uuid,1,'approve','sql-pending-review-deny');RAISE EXCEPTION 'Open refund approved for payout';EXCEPTION WHEN SQLSTATE 'PT409' THEN IF SQLERRM<>'WITHDRAWAL_REFUND_PENDING' THEN RAISE;END IF;END;
+ PERFORM public.petro_decide_service_refund((req->>'id')::uuid,1,'refund','1000',NULL,'sql-before-hold-refund-decision');
+ result:=petro_private.merchant_withdrawal_json((w2->>'id')::uuid);
+ IF result->>'amountMinor'<>'7750' OR result->>'version'<>'1' THEN RAISE EXCEPTION 'Refund subtracted an already excluded claim twice: %',result;END IF;
+ PERFORM public.petro_review_merchant_withdrawal((w2->>'id')::uuid,1,'cancel','sql-buffered-hold-cancel');
  bank2:=public.petro_propose_bank_account_version(org,(bank->>'accountId')::uuid,1,'بنك نسخة جديدة','مستفيد جديد','EG004300002');
  PERFORM public.petro_review_bank_account_version((bank2->>'versionId')::uuid,2,'approve','اعتماد نسخة جديدة للاختبار',1);
  BEGIN PERFORM public.petro_review_merchant_withdrawal((w->>'id')::uuid,1,'approve','sql-withdrawal-bank-change');RAISE EXCEPTION 'Changed bank approved old request';EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;END;
  PERFORM public.petro_review_merchant_withdrawal((w->>'id')::uuid,1,'reject','sql-withdrawal-reject-01');
- IF(SELECT count(*) FROM public.petro_finance_journal_entries)<>baseline+1 THEN RAISE EXCEPTION 'Hold/review/cancel moved money';END IF;
+ IF(SELECT count(*) FROM public.petro_finance_journal_entries)<>baseline+3 THEN RAISE EXCEPTION 'Hold/review/cancel moved money';END IF;
  PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003803',true);
  BEGIN PERFORM public.petro_merchant_withdrawals(org,1);RAISE EXCEPTION 'Branch manager read central withdrawal bank details';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
 END $withdrawal$;

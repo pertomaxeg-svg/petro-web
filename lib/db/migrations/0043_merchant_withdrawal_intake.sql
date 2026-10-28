@@ -164,6 +164,11 @@ END $$;
 CREATE FUNCTION petro_private.adjust_withdrawal_after_refund() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $$
 DECLARE a record;e petro_private.merchant_withdrawal_events%ROWTYPE;remaining bigint:=NEW.unsettled_amount_minor;release_amount bigint;event_id uuid;new_amount bigint;BEGIN
  -- Caller holds the original payment and financial accounts. This hook never takes other payment/account locks.
+ -- A request can already exclude a pending refund. Release only the actual excess hold, not the refund amount twice.
+ SELECT greatest(petro_private.merchant_withdrawal_held(NEW.payment_id)-greatest(v.earned_amount_minor
+ -coalesce((SELECT sum(r.unsettled_amount_minor) FROM petro_private.service_refund_allocations r WHERE r.payment_id=NEW.payment_id),0)
+ -coalesce((SELECT sum(s.amount_minor) FROM petro_private.service_receivable_settlements s WHERE s.payment_id=NEW.payment_id),0),0),0)::bigint
+ INTO remaining FROM petro_private.service_order_receivables v WHERE v.payment_id=NEW.payment_id;
  FOR a IN SELECT x.*,x.amount_minor-coalesce((SELECT sum(amount_minor) FROM petro_private.merchant_withdrawal_releases WHERE allocation_id=x.id),0) AS held
  FROM petro_private.merchant_withdrawal_allocations x WHERE x.payment_id=NEW.payment_id ORDER BY x.withdrawal_id,x.id LOOP
  IF remaining<=0 THEN EXIT;END IF;
