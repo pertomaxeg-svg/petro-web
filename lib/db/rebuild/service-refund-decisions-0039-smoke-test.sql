@@ -85,3 +85,5 @@ END $actual_refund$;
 \ir service-product-returns-0041-smoke-test.sql
 
 \ir merchant-statement-0042-smoke-test.sql
+
+\ir merchant-withdrawals-0043-smoke-test.sql
