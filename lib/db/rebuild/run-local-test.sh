@@ -508,6 +508,13 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0042
 test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-statement-0042-contract.sql")" = "t"
 default_acl_snapshot >"$tmp_dir/default-acl-after-0042.txt"
 cmp "$tmp_dir/default-acl-before-0042.txt" "$tmp_dir/default-acl-after-0042.txt"
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0043.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0043.txt"
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-withdrawals-0043-contract.sql")" = "f"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0043_merchant_withdrawal_intake.sql" >/dev/null
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-withdrawals-0043-contract.sql")" = "t"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0043.txt"
+cmp "$tmp_dir/default-acl-before-0043.txt" "$tmp_dir/default-acl-after-0043.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
 export PERTOMAX_BEFORE_REFUND_SNAPSHOT="$tmp_dir/before-financial-browser"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
@@ -515,6 +522,10 @@ if [ ! -s "$PERTOMAX_BEFORE_REFUND_SNAPSHOT/PG_VERSION" ] || [ ! -d "$PERTOMAX_B
  echo "Missing isolated pre-refund fixture snapshot; do not attempt any reset." >&2
  exit 1
 fi
+if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0043_merchant_withdrawal_intake.sql" >"$tmp_dir/0043-rollback-refusal.log" 2>&1; then
+ echo "0043 rollback erased financial withdrawal history" >&2;exit 1
+fi
+rg -q '0043 rollback refuses' "$tmp_dir/0043-rollback-refusal.log"
 if psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0041_service_product_returns.sql" >"$tmp_dir/0041-rollback-refusal.log" 2>&1; then
  echo "0041 rollback erased physical return history" >&2
  exit 1
@@ -538,6 +549,12 @@ pg_ctl -D "$tmp_dir/data" \
   -o "-c listen_addresses='' -c unix_socket_directories='$tmp_dir/socket' -c port=55444 -c shared_preload_libraries=pg_cron -c cron.database_name=postgres -c cron.use_background_workers=on -c max_worker_processes=16" \
   -l "$tmp_dir/postgres.log" start >/dev/null
 pg_started=1
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0043_merchant_withdrawal_intake.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0043-rollback.sql"
+cmp "$tmp_dir/schema-before-0043.sql" "$tmp_dir/schema-after-0043-rollback.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0043-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0043.txt" "$tmp_dir/default-acl-after-0043-rollback.txt"
+echo "PASS:0043 withdrawal history refusal and exact independent clean rollback"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0042_merchant_statement.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0042-rollback.sql"
 cmp "$tmp_dir/schema-before-0042.sql" "$tmp_dir/schema-after-0042-rollback.sql"

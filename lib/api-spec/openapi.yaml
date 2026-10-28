@@ -17,6 +17,98 @@ tags:
   - name: fleet
     description: Central fleet, driver, policy, coverage, credential and maintenance operations
 paths:
+  /finance/merchant-withdrawals/{organizationId}:
+    parameters:
+      - {in: path, name: organizationId, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listMerchantWithdrawals
+      tags: [finance]
+      summary: Organization-level merchant withdrawal requests with masked bank and immutable review history
+      parameters:
+        - {in: query, name: page, schema: {type: integer, minimum: 1, maximum: 100000}}
+      responses:
+        "200":
+          description: Scoped requests; approval is never a bank payout
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, page, pageSize, banks, canSubmit, bankPayoutEnabled]
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/MerchantWithdrawal"}}
+                  total: {type: integer}
+                  page: {type: integer}
+                  pageSize: {type: integer}
+                  banks: {type: array, items: {type: object, additionalProperties: true}}
+                  canSubmit: {type: boolean}
+                  bankPayoutEnabled: {type: boolean, enum: [false]}
+        "403": {description: Organization-level financial scope required}
+    post:
+      operationId: submitMerchantWithdrawal
+      tags: [finance]
+      summary: Atomically hold entire eligible remaining original receivables using an approved frozen beneficiary bank version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [bankVersionId, paymentIds, idempotencyKey]
+              properties:
+                bankVersionId: {type: string, format: uuid}
+                paymentIds: {type: array, minItems: 1, maxItems: 100, uniqueItems: true, items: {type: string, format: uuid}}
+                idempotencyKey: {type: string, minLength: 16, maxLength: 120}
+      responses:
+        "201":
+          description: Actual held request; no bank debit or paid state
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MerchantWithdrawal"}
+        "403": {description: Financial organization scope required}
+        "409": {description: Frozen bank changed or selected remaining amount is not eligible}
+  /finance/merchant-withdrawals/{organizationId}/options:
+    parameters:
+      - {in: path, name: organizationId, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listMerchantWithdrawalOptions
+      tags: [finance]
+      parameters:
+        - {in: query, name: page, schema: {type: integer, minimum: 1, maximum: 100000}}
+      responses:
+        "200":
+          description: Current eligible remaining payments after real refunds, disputes, settlements and holds
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+        "403": {description: Financial organization scope required}
+  /finance/merchant-withdrawals/{id}/review:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: reviewMerchantWithdrawal
+      tags: [finance]
+      summary: Finance approval or rejection; scoped merchant may cancel unpaid request. No paid action.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedVersion, action, idempotencyKey]
+              properties:
+                expectedVersion: {type: integer, minimum: 1}
+                action: {type: string, enum: [approve, reject, cancel]}
+                idempotencyKey: {type: string, minLength: 16, maxLength: 120}
+      responses:
+        "200":
+          description: New immutable request revision
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MerchantWithdrawal"}
+        "403": {description: Platform Finance required to approve or reject}
+        "409": {description: Version or bank changed or refund unresolved}
   /finance/merchant-statement:
     get:
       operationId: getMerchantStatement
@@ -3110,6 +3202,31 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
   schemas:
+    MerchantWithdrawal:
+      type: object
+      required: [id, organizationId, organizationName, version, status, amountMinor, originalAmountMinor, createdAt, paid, canCancel, canReview, bank, items, events]
+      properties:
+        id: {type: string, format: uuid}
+        organizationId: {type: string, format: uuid}
+        organizationName: {type: string}
+        version: {type: integer, minimum: 1}
+        status: {type: string, enum: [submitted, approved, rejected, cancelled]}
+        amountMinor: {type: string, pattern: "^[0-9]+$"}
+        originalAmountMinor: {type: string, pattern: "^[0-9]+$"}
+        createdAt: {type: string, format: date-time}
+        paid: {type: boolean, enum: [false]}
+        canCancel: {type: boolean}
+        canReview: {type: boolean}
+        bank:
+          type: object
+          additionalProperties: false
+          properties:
+            versionId: {type: string, format: uuid}
+            name: {type: string}
+            beneficiaryName: {type: string}
+            last4: {type: string}
+        items: {type: array, items: {type: object, additionalProperties: true}}
+        events: {type: array, items: {type: object, additionalProperties: true}}
     MerchantStatementAmounts:
       type: object
       required: [earnedMinor, refundedMinor, unsettledRefundMinor, settledMinor, remainingMinor, merchantDebtMinor, disputedMinor, eligibleBeforeDebtMinor, notYetEligibleMinor]
@@ -3123,6 +3240,7 @@ components:
         disputedMinor: {type: string, pattern: "^[0-9]+$"}
         eligibleBeforeDebtMinor: {type: string, pattern: "^[0-9]+$"}
         notYetEligibleMinor: {type: string, pattern: "^[0-9]+$"}
+        withdrawalReservedMinor: {type: string, pattern: "^[0-9]+$"}
     MerchantStatement:
       type: object
       required: [asOf, currency, timezone, page, pageSize, withdrawalsEnabled, total, totals, items, organizations, branches]
@@ -3132,7 +3250,8 @@ components:
         timezone: {type: string, enum: [Africa/Cairo]}
         page: {type: integer}
         pageSize: {type: integer, enum: [20]}
-        withdrawalsEnabled: {type: boolean, enum: [false]}
+        withdrawalsEnabled: {type: boolean, enum: [true]}
+        bankPayoutEnabled: {type: boolean, enum: [false]}
         total: {type: integer}
         totals: {$ref: "#/components/schemas/MerchantStatementAmounts"}
         organizations:

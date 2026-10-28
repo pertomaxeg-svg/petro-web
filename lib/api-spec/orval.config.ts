@@ -60,6 +60,8 @@ export default defineConfig({
         // when an operation has both. These new routers validate UUIDs directly;
         // keep generated query/body validation and types without duplicate exports.
         operations: {
+          listMerchantWithdrawals: {zod:{generate:{param:false}}},
+          listMerchantWithdrawalOptions: {zod:{generate:{param:false}}},
           ServiceProductReturns: { zod: { generate: { param: false } } },
           adminServiceProductReturns: { zod: { generate: { param: false } } },
           serviceProductReturnInspections: { zod: { generate: { param: false } } },

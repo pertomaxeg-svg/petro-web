@@ -50,7 +50,7 @@ function mapFinanceError(
     fail(res, 503, "مخطط الإدارة المالية غير مطبق أو غير متوافق بعد.");
   } else if (error.code === "P0002") {
     fail(res, 404, "لم يتم العثور على السجل المطلوب.");
-  } else if (["23505", "23514", "40001", "55000"].includes(error.code ?? "")) {
+  } else if (["23505", "23514", "40001", "PT409", "55000"].includes(error.code ?? "")) {
     fail(res, 409, "تعارضت الحالة أو الرصيد أو المرجع. حدّث السجل قبل إعادة المحاولة.");
   } else if (error.code === "22023" || error.code === "22003") {
     fail(res, 400, "تحقق من المبلغ والحقول والسبب المطلوب.");
@@ -472,6 +472,39 @@ router.get("/finance/merchant-statement", async(req,res):Promise<void>=>{
  fail(res,400,"اختر جهة وفرعًا صحيحين وصفحة صالحة.");return;}
  const {data,error}=await callFinanceRpc(session,"petro_merchant_statement",{p_organization_id:organizationId,p_branch_id:branchId,p_page:page});
  if(error){mapFinanceError(res,error);return;}res.json(data);
+});
+
+
+function withdrawalError(res:Response,error:{code?:string;message?:string}):void{
+ const messages:Record<string,string>={FORBIDDEN_WITHDRAWAL:"هذه المساحة متاحة لمالية الجهة أو مديرها على مستوى الجهة، ومالية المنصة.",WITHDRAWAL_BANK_CHANGED:"تغير اعتماد الحساب البنكي؛ راجع البنك وأنشئ طلبًا بالنسخة المعتمدة.",WITHDRAWAL_NO_ELIGIBLE_REMAINDER:"المستحق لم يحِن موعده أو أصبح محجوزًا أو مستردًا. حدّث الكشف.",WITHDRAWAL_VERSION_CONFLICT:"تغير الطلب؛ حدّث البيانات قبل المتابعة.",WITHDRAWAL_REFUND_PENDING:"يوجد طلب استرداد مفتوح على هذه المستحقات. يلزم حسمه قبل الاعتماد.",INVALID_WITHDRAWAL:"راجع الحساب والمستحقات المحددة ومرجع المحاولة."};
+ if(Object.hasOwn(messages,error.message??"")){res.status(error.code==="42501"?403:error.code==="22023"?400:409).json({message:messages[error.message!]});return;}mapFinanceError(res,error);
+}
+router.get("/finance/merchant-withdrawals/:organizationId",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const page=pageValue(req,"page",1,100000);
+ if(!validId(req.params["organizationId"])||page===null||Object.keys(req.query).some(k=>k!=="page")){fail(res,400,"مرشحات السحب غير صالحة.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_merchant_withdrawals",{p_organization_id:req.params["organizationId"],p_page:page});if(error){withdrawalError(res,error);return;}res.json(data);
+});
+router.get("/finance/merchant-withdrawals/:organizationId/options",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const page=pageValue(req,"page",1,100000);
+ if(!validId(req.params["organizationId"])||page===null||Object.keys(req.query).some(k=>k!=="page")){fail(res,400,"مرشحات المستحقات غير صالحة.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_merchant_withdrawal_options",{p_organization_id:req.params["organizationId"],p_page:page});if(error){withdrawalError(res,error);return;}res.json(data);
+});
+router.post("/finance/merchant-withdrawals/:organizationId",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const b=req.body;
+ if(!validId(req.params["organizationId"])||!isRecord(b)||Object.keys(b).some(k=>!["bankVersionId","paymentIds","idempotencyKey"].includes(k))
+ ||typeof b["bankVersionId"]!=="string"||!validId(b["bankVersionId"])||!Array.isArray(b["paymentIds"])||b["paymentIds"].length<1||b["paymentIds"].length>100||b["paymentIds"].some(x=>typeof x!=="string"||!validId(x))
+ ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"اختر الحساب والمستحقات دون إدخال مبالغ أو حقول إضافية.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_submit_merchant_withdrawal",{p_organization_id:req.params["organizationId"],p_bank_version_id:b["bankVersionId"],p_payment_ids:b["paymentIds"],p_request_key:b["idempotencyKey"]});if(error){withdrawalError(res,error);return;}res.status(201).json(data);
+});
+router.post("/finance/merchant-withdrawals/:id/review",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;const b=req.body;
+ if(!validId(req.params["id"])||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","action","idempotencyKey"].includes(k))
+ ||typeof b["expectedVersion"]!=="number"||!Number.isSafeInteger(b["expectedVersion"])||b["expectedVersion"]<1||!["approve","reject","cancel"].includes(String(b["action"]))||typeof b["action"]!=="string"
+ ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"قرار السحب أو نسخة الطلب غير صالح.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_review_merchant_withdrawal",{p_id:req.params["id"],p_expected_version:b["expectedVersion"],p_action:b["action"],p_request_key:b["idempotencyKey"]});if(error){withdrawalError(res,error);return;}res.json(data);
 });
 
 export default router;
