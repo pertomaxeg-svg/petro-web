@@ -516,6 +516,7 @@ test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-
 default_acl_snapshot >"$tmp_dir/default-acl-after-0043.txt"
 cmp "$tmp_dir/default-acl-before-0043.txt" "$tmp_dir/default-acl-after-0043.txt"
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0044.sql"
+psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY policyname),'[]'::jsonb) FROM pg_policies p WHERE schemaname='storage' AND tablename='objects'" >"$tmp_dir/storage-policies-before-0044.json"
 default_acl_snapshot >"$tmp_dir/default-acl-before-0044.txt"
 test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-payout-proof-0044-contract.sql")" = "f"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0044_merchant_payout_proofs.sql" >/dev/null
@@ -563,6 +564,8 @@ pg_started=1
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0044_merchant_payout_proofs.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0044.sql"
 cmp "$tmp_dir/schema-before-0044.sql" "$tmp_dir/schema-after-0044.sql"
+psql --no-psqlrc -At --set ON_ERROR_STOP=1 -c "SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY policyname),'[]'::jsonb) FROM pg_policies p WHERE schemaname='storage' AND tablename='objects'" >"$tmp_dir/storage-policies-after-0044.json"
+cmp "$tmp_dir/storage-policies-before-0044.json" "$tmp_dir/storage-policies-after-0044.json"
 default_acl_snapshot >"$tmp_dir/default-acl-after-0044-rollback.txt"
 cmp "$tmp_dir/default-acl-before-0044.txt" "$tmp_dir/default-acl-after-0044-rollback.txt"
 echo "PASS:0044 proof history refusal and exact independent schema/defaultACL rollback"
