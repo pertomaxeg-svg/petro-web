@@ -566,7 +566,7 @@ router.get("/finance/merchant-payout-proofs/:id/content",async(req,res):Promise<
  if(!isRecord(d)||d["status"]!=="accepted"||typeof d["objectPath"]!=="string"||typeof d["contentType"]!=="string"||typeof d["fileName"]!=="string"){fail(res,409,"لم يكتمل قبول الملف.");return;}
  const stored=await session.supabase.storage.from("petro-private-documents").download(d["objectPath"]);
  if(stored.error||!stored.data){fail(res,503,"تعذر تنزيل الإثبات الخاص.");return;}const bytes=Buffer.from(await stored.data.arrayBuffer());
- if(bytes.length!==Number(d["byteSize"])||!proofMagic(d["contentType"],bytes)){fail(res,409,"محتوى الإثبات المحفوظ يحتاج مراجعة.");return;}
+ if(bytes.length!==Number(d["byteSize"])||!proofMagic(d["contentType"],bytes)||typeof d["sha256"]!=="string"||createHash("sha256").update(bytes).digest("hex")!==d["sha256"]){fail(res,409,"محتوى الإثبات المحفوظ أو بصمته يحتاج مراجعة.");return;}
  res.setHeader("Content-Type",d["contentType"]);res.setHeader("X-Content-Type-Options","nosniff");res.setHeader("Content-Disposition","attachment; filename*=UTF-8''"+encodeURIComponent(d["fileName"]));res.send(bytes);
 });
 
