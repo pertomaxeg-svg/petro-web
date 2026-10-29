@@ -9,6 +9,17 @@ Steps:
 2.0045 replaces only current statement function body, preserving OID/ACL/owner/security; old exact body as rollback. No tables, policies, defaultACL, business rows or new role grants. Restrict no API writes.
 3. Shared Arabic UI/API schema/types display total claims separately at summary/branch/payment detail, mobile no overflow. Update actual browser/native SDK assertions including real1000 claim within approved hold, API equality and scoped readers.
 4. Actions SQL/API/browser/nativeAuth/build/contracts, exact empty schema/defaultACL rollback, read-no-money regression. Manual390/1280 screenshots.
-5. Save actual evidence/checkpoint. This run's inherited resumption constraint permits no new live migration/Secret/publication; source acceptance must not be called live application or runtime release.
+5. Save actual evidence/checkpoint. The bounded Replit Agent task permits no new live migration/Secret/publication. Direct routine tested project rollout remains authorized; source/schema acceptance must not be called runtime release.
 
 The actual full/partial external bank payout slice follows as0046 after this read correctness prerequisite, using existing0044 proof. Remaining engineering stages stay open; no repeated broad discovery or completed-flow rebuild.
+
+## Source acceptance
+
+- [x] Expected RED40909113480:MERCHANT_PENDING_REFUND_TOTAL_MISSING.
+- [x] Implementation and SQL/API/browser/nativeAuth/build/contracts GREEN at9d5b6d337f4878a5569c6bf16b1ad61dae446949 /40909932596.
+- [x] Manual390/1280 artifact12912813975 inspection and exact independent schema/defaultACL rollback.
+- [x] Evidence/current continuation/full remaining roadmap saved.
+- [x] Exact live0045 apply20261029162321, body/contract/security/old-function/defaultACL/policy/count/advisor postflight passed; no live synthetic business writes.
+- [ ] Runtime deployment/current real user browser acceptance remains open; publication is prohibited by current user request.
+
+Actual external bank payout follows as0046. Evidence docs/acceptance/2026-10-29-merchant-pending-refund-totals.md.

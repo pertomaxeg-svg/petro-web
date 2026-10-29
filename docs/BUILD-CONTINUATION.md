@@ -1,5 +1,25 @@
 # Build continuation checkpoint —29October2026
 
+## Current authoritative state —0045 accepted/live
+
+Only approved pertomaxeg-svg/petro-web / pertomax-central-orgs-20261015 / Supabase msvgzsfzrqlrfpstthhe. No other projects/connections/VPS/paid modes/tools/upgrades/publication/force push;0009 deferred. User-authorized bounded Replit resumption is recorded separately; newest source is authoritative. No repeated broad discovery. The no-new-live-migration instruction remains specific to the delegated Replit task; routine tested direct project rollout is authorized. No Secrets changed. Preserve real data.
+
+- Accepted functional source **9d5b6d337f4878a5569c6bf16b1ad61dae446949**, full40909932596 GREEN: acceptance123574824095 + genuineAuthStorage123574822954; frontend40909932719/contracts40909932661 GREEN.
+- **0045 pending-refund total visibility LIVE20261029162321**. SQLc6ac74bb1893171c560e89646c3814edb363d6a7f8097a82e35cde0df9ba48de; rollback8ccfc9744226eedea026423bfa85c2659369bd91fa586cf2ac64ec28ffdc0a38. Exact prior0043 statement restoration; only current statement body changes, no new objects/grants/financial writes.
+- New pendingRefundMinor in each authorized payment/branch/whole-scope totals is full undecided/unwithdrawn claim amount; existing disputedMinor is only outside-withdrawal-hold disputed partition. A1000claim within8750hold displays pending1000/disputed0/held8750; no double subtraction. Shared central/merchant Arabic summary/branch/detail labels and OpenAPI accurately distinguish them.
+- RED5569b6... /40909113480 /123571928619 failed MERCHANT_PENDING_REFUND_TOTAL_MISSING. SQL actual before/within hold, refund and withdrawn transitions, scoped totals/pagination and no money; native actual merchant JWT+real pending refund, browser actual HTTP claim/visible API equality; all GREEN. Artifact12912813975390/1280 manually inspected. Exact independent rollback schema/defaultACL passed.
+- Live0045 body4e3067aee2a73ac98cb03795a10fa848cf1826f1d02637659ea01c84eecb0118 matches tested source, contracttrue. Statement OID/owner/ACL/security unchanged; four old protected function definitions/OIDs/ACL/owners and all policies/defaultACL unchanged. Counts journals/withdrawals/refund allocations/settlements0 before/after; advisors93/145/1 unchanged, cache reload notified. No live synthetic business writes or Secrets/publication.
+- Evidence docs/acceptance/2026-10-29-merchant-pending-refund-totals.md; completed plan2026-10-29-statement-claims.md. Source/schema acceptance is not runtime release.
+- Live0037–0044 accepted dependency state below is unchanged. Direct read-only approved Supabase metadata29October confirms accounts foundation organizations/branches/memberships and statement/0044 functions exist. Replit connector403 is not empty tables or a global DB outage.
+- Replit Free resumption prior run shows Worked10minutes/checkpoint and last Auth/API-success + connector403 message; no active Working/Stop observed on this turn and no new Agent task sent. Its completed protected-preview/account/branch permission report remains unverified. Its old22d204ad/0025 local state must never overwrite newer accepted remote source.
+- **NEXT0046 actual external full/partial bank payout recording**, using accepted/live0045 claim visibility. Follow docs/superpowers/plans/2026-10-28-bank-payouts.md, existing0012 source-bank /0039 settlement guard /0043 payment→request→beneficiary-account-first locks /0044 proof. Save explicit unpaid-remainder/partial policy and RED tests before code; approval/proof is never paid.
+- Then branch internal request-to-org, warranties, four linked role dashboards, reconciled reports/documents, support/private notes/outbox/public accessibility/performance, three worker apps/physical NFC last (no driver app). Full dependencies/sections/role/acceptance table: docs/superpowers/plans/2026-10-29-remaining-roadmap.md.
+- Runtime web/API NOT deployed. Existing Replit landing page is old preview until source synchronization/health are verified; approved production host/config remains unidentified. Current user forbids publication. Never invent an external transfer, native device result, user browser session or automatic background continuation.
+
+## Previous accepted0044 state —dependency context only
+
+Older NEXT/source-only notes below are superseded by the authoritative block above.
+
 ## Current authoritative state —0044 accepted/live
 
 Only pertomaxeg-svg/petro-web, branch pertomax-central-orgs-20261015 and Supabase msvgzsfzrqlrfpstthhe. Direct GitHub/Supabase; edits remote, build/test in Actions. No Replit/local source checkout/build/other project/VPS/paid resource/force push;0009 deferred. Preserve real users/business data; no repeated broad discovery.
