@@ -20,6 +20,9 @@ DECLARE source_order uuid;payment uuid;payment2 uuid;w2 jsonb;org uuid;bank json
  IF statement->'totals'->>'withdrawalReservedMinor'<>'8750' THEN RAISE EXCEPTION 'Statement missing actual withdrawal hold';END IF;
  PERFORM public.petro_review_merchant_withdrawal(request_id,1,'approve','sql-withdrawal-approve-01');
  req:=public.petro_request_service_refund((SELECT order_id FROM petro_private.service_order_payments WHERE id=payment),'1000','quality',NULL,'sql-withdrawal-refund-request');
+ statement:=public.petro_merchant_statement(org,NULL,1);
+ IF NOT(statement->'totals' ? 'pendingRefundMinor') THEN RAISE EXCEPTION 'MERCHANT_PENDING_REFUND_TOTAL_MISSING';END IF;
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(statement->'items') x WHERE x->>'paymentId'=payment::text AND x->>'pendingRefundMinor'='1000' AND x->>'disputedMinor'='0' AND x->>'withdrawalReservedMinor'='8750') THEN RAISE EXCEPTION 'Open claim hidden by existing withdrawal hold: %',statement;END IF;
  PERFORM public.petro_decide_service_refund((req->>'id')::uuid,1,'refund','1000',NULL,'sql-withdrawal-refund-decision');
  result:=petro_private.merchant_withdrawal_json(request_id);
  IF result->>'status'<>'submitted' OR result->>'version'<>'3' OR result->>'amountMinor'<>'7750' THEN RAISE EXCEPTION 'Refund did not invalidate approval/reduce hold: %',result;END IF;
