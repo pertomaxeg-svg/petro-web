@@ -3367,7 +3367,7 @@ components:
         events: {type: array, items: {type: object, additionalProperties: true}}
     MerchantStatementAmounts:
       type: object
-      required: [earnedMinor, refundedMinor, unsettledRefundMinor, settledMinor, remainingMinor, merchantDebtMinor, disputedMinor, eligibleBeforeDebtMinor, notYetEligibleMinor]
+      required: [earnedMinor, refundedMinor, unsettledRefundMinor, settledMinor, remainingMinor, merchantDebtMinor, pendingRefundMinor, disputedMinor, eligibleBeforeDebtMinor, notYetEligibleMinor]
       properties:
         earnedMinor: {type: string, pattern: "^[0-9]+$"}
         refundedMinor: {type: string, pattern: "^[0-9]+$"}
@@ -3375,7 +3375,14 @@ components:
         settledMinor: {type: string, pattern: "^[0-9]+$"}
         remainingMinor: {type: string, pattern: "^[0-9]+$"}
         merchantDebtMinor: {type: string, pattern: "^[0-9]+$"}
-        disputedMinor: {type: string, pattern: "^[0-9]+$"}
+        pendingRefundMinor:
+          type: string
+          pattern: "^[0-9]+$"
+          description: Total open refund claims; may overlap withdrawal holds or previously settled money and is not an additive remaining-balance partition.
+        disputedMinor:
+          type: string
+          pattern: "^[0-9]+$"
+          description: Portion of remaining money disputed outside withdrawal holds; zero does not imply no open claims.
         eligibleBeforeDebtMinor: {type: string, pattern: "^[0-9]+$"}
         notYetEligibleMinor: {type: string, pattern: "^[0-9]+$"}
         withdrawalReservedMinor: {type: string, pattern: "^[0-9]+$"}
@@ -3407,11 +3414,12 @@ components:
             type: object
             description: Authorized branch totals; unsettledRefundMinor is provided only in whole-scope totals and payment detail.
             additionalProperties: true
-            required: [id, organizationId, name, remainingMinor, merchantDebtMinor, eligibleBeforeDebtMinor]
+            required: [id, organizationId, name, remainingMinor, pendingRefundMinor, merchantDebtMinor, eligibleBeforeDebtMinor]
             properties:
               id: {type: string, format: uuid}
               organizationId: {type: string, format: uuid}
               name: {type: string}
+              pendingRefundMinor: {type: string, pattern: "^[0-9]+$"}
               remainingMinor: {type: string}
               merchantDebtMinor: {type: string}
               eligibleBeforeDebtMinor: {type: string}

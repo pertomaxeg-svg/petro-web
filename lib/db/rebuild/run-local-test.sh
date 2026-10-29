@@ -523,6 +523,13 @@ psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0044
 test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-payout-proof-0044-contract.sql")" = "t"
 default_acl_snapshot >"$tmp_dir/default-acl-after-0044.txt"
 cmp "$tmp_dir/default-acl-before-0044.txt" "$tmp_dir/default-acl-after-0044.txt"
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-before-0045.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-before-0045.txt"
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-statement-claims-0045-contract.sql")" = "f"
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/migrations/0045_merchant_statement_claim_totals.sql" >/dev/null
+test "$(psql --no-psqlrc -At --set ON_ERROR_STOP=1 --file="$script_dir/merchant-statement-claims-0045-contract.sql")" = "t"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0045.txt"
+cmp "$tmp_dir/default-acl-before-0045.txt" "$tmp_dir/default-acl-after-0045.txt"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$script_dir/service-payment-0037-smoke-test.sql" >/dev/null
 export PERTOMAX_BEFORE_REFUND_SNAPSHOT="$tmp_dir/before-financial-browser"
 node "$script_dir/platform-user-admin-api-smoke-test.mjs"
@@ -561,6 +568,12 @@ pg_ctl -D "$tmp_dir/data" \
   -o "-c listen_addresses='' -c unix_socket_directories='$tmp_dir/socket' -c port=55444 -c shared_preload_libraries=pg_cron -c cron.database_name=postgres -c cron.use_background_workers=on -c max_worker_processes=16" \
   -l "$tmp_dir/postgres.log" start >/dev/null
 pg_started=1
+psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0045_merchant_statement_claim_totals.sql" >/dev/null
+pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0045.sql"
+cmp "$tmp_dir/schema-before-0045.sql" "$tmp_dir/schema-after-0045.sql"
+default_acl_snapshot >"$tmp_dir/default-acl-after-0045-rollback.txt"
+cmp "$tmp_dir/default-acl-before-0045.txt" "$tmp_dir/default-acl-after-0045-rollback.txt"
+echo "PASS:0045 pending claim visibility exact schema/defaultACL rollback without data changes"
 psql --no-psqlrc --set ON_ERROR_STOP=1 --file="$repo_root/lib/db/rollback/0044_merchant_payout_proofs.sql" >/dev/null
 pg_dump --schema-only --no-owner --schema=public --schema=petro_private | node "$script_dir/normalize-pg-dump.mjs" >"$tmp_dir/schema-after-0044.sql"
 cmp "$tmp_dir/schema-before-0044.sql" "$tmp_dir/schema-after-0044.sql"
