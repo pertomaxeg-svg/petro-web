@@ -1,4 +1,6 @@
-# Remaining dependent milestones — 27 October 2026
+# Remaining dependent milestones —29October2026
+
+29October:0044 private bank proof accepted/live20261029071845. Functional74e5b619307c99f9d35d826bcac31b5b2d764377 / full40833779972, frontend40833779875/contracts40833779928 GREEN. Actual native Auth/Storage bytes, SQL/API/browser retry/stale/digest/immutable/rollback accepted. Proof is not payment or independent bank verification; next0045 actual full/partial bank payout. Evidence docs/acceptance/2026-10-29-merchant-bank-proof.md and current BUILD-CONTINUATION supersede earlier missing-proof notes below.
 
 28October:0043 intake/actual holds/Finance approval-rejection/cancellation/refund adjustments accepted and LIVE20261028193127. Functional sourcebb5cb7855be0b30112a9c917f4178d800490c838 / full40754149378 GREEN, native123048423899 + acceptance123048424422. No actual bank payout/proof yet. Next docs/superpowers/plans/2026-10-28-bank-payouts.md. Current checkpoint/evidence supersede older pending notes below.
 

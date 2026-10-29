@@ -1,4 +1,26 @@
-# Build continuation checkpoint — 28 October 2026
+# Build continuation checkpoint —29October2026
+
+## Current authoritative state —0044 accepted/live
+
+Only pertomaxeg-svg/petro-web, branch pertomax-central-orgs-20261015 and Supabase msvgzsfzrqlrfpstthhe. Direct GitHub/Supabase; edits remote, build/test in Actions. No Replit/local source checkout/build/other project/VPS/paid resource/force push;0009 deferred. Preserve real users/business data; no repeated broad discovery.
+
+- Last accepted functional source **74e5b619307c99f9d35d826bcac31b5b2d764377**. Full40833779972 GREEN: acceptance123313713688 + native real-auth-storage123313713933. Frontend40833779875/API generation40833779928 GREEN.
+-0037–0043 accepted/live dependencies unchanged. **0044 private bank proof LIVE20261029071845**, exact SQL SHA256d0cfb98cd3859ba42a892cbc0d8e93a67395e1362e7aadc19611c73f72de7164; preserving rollback8e4a64a03016993c1257787df37d0aca8e6d91c2581682f5529f1059d931de58.
+-3 new private immutable RLS/no-client-grant tables: merchant_payout_proof_intents/acceptances/commands.7 functions (2 private invoker helpers,1 authenticated Storage guard,4 public scoped RPCs),2 narrow existing-bucket INSERT/SELECT policies. No existing function body rewrite, no Storage UPDATE/DELETE permission.
+- Current platform Finance/owner creates/uploads/accepts PDF/PNG/JPEG<=10MB against exact approved0043 withdrawal version/frozen beneficiary revision. Actor-key fingerprints,20minute expiry, server-authoritative uploadAllowed/expiresAt, same-intent failed-upload retry; accepted immutable historic proof remains readable/currentfalse after request/refund/bank change.
+- API validates magic/size, no-upsert upload, downloads and compares actual bytes, computes SHA256, verifies attachment digest on subsequent download. SQL verifies actual object UUID/owner/MIME/size and records ETag/uploader-attested SHA; it does not download bytes, validate the bank transfer or provide unforgeable server attestation. No paid status/journal/settlement/automatic bank call; bankPayoutEnabled=false.
+- Routes: GET/POST /api/finance/merchant-withdrawals/:id/proofs; PUT/GET /api/finance/merchant-payout-proofs/:id/content; GET .../:id/download (authorized60s signed URL). Current org financial readers/auditors see accepted history in scope, uploader only pending. Shared MerchantPayoutProofs.tsx mounted inside central/merchant withdrawal history; pending operation freezes request/scope.
+- All7 live body hashes match, contracttrue. Pre-existing4 financial function definitions/OIDs/ACL/owners +4 tables security/OIDs + all old Storage policies unchanged. DefaultACL MD512effceb111a268b05bf3dd09dccdc30 unchanged. New3table counts0; withdrawals/journals/settlements remain0; no live synthetic files/users/business rows. Advisors93 RPC-only no-policy INFO/145 exposed scoped definer WARN/old password warning1; schema reload notified.
+- RED missingproof9d5bd.../40830995011; native realAuth/Storage actualbytes/concurrentacceptance/outsider/public/overwrite/delete/revocation/refundstale and SQL/API/browser failed-upload exactretry/downloadSHA/stalehistory/expiry/immutable/rollback GREEN. Browser synthetic isolated owner, native actual Auth separately. Artifact12879418908 actual390/1280 proof form/history manually inspected. Accepted rollback compares Storage policies as well as full schema/defaultACL.
+- Evidence: docs/acceptance/2026-10-29-merchant-bank-proof.md. Completed narrow plan docs/superpowers/plans/2026-10-29-bank-proof.md.
+- **NEXT0045: actual full/partial external bank payout recording** per docs/superpowers/plans/2026-10-28-bank-payouts.md. Start exact current0039 settlement trigger,0043 held/capacity/json/review/refund functions and0012 platform source-bank/status locks; do not rediscover repository/project. Save unpaid-remainder policy + regression-first payout gate before implementation.
+- Payment row UUIDs→request→beneficiary account before approved version→deterministic finance accounts. Proof-only never acquires payment locks. Source0012 petro_finance_bank_accounts differs from0006 beneficiary petro_bank_accounts/versions. Recheck current approved accepted proof/object/hash, Finance role, bank revision and remaining hold under locks. Real external reference/date/source/amount, unique normalized reference, balanced merchant-clearing debit/platform-bank credit, actual0039 settlement allocations, no second company debit. Partial unpaid remainder and refund-after-paid debt must reconcile; no silent merchant debt offset.
+- Also expose pending-refund total distinctly from outside-hold disputed partition. Then branch internal request-to-org flow, warranty, role dashboards, reports/documents/support/outbox/public refinements; applications/devices last.
+- **Runtime NOT deployed:** current approved hosting URL/configuration remains unidentified. Source/schema acceptance is not user-visible release; no invented hosting or automatic background promise.
+
+## Previous accepted0043 state —dependency context only
+
+Older NEXT/source-only notes below are superseded by the authoritative block above.
 
 ## Current authoritative state — read this first
 
