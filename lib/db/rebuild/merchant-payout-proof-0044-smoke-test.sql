@@ -25,6 +25,13 @@ DECLARE source_order uuid;payment uuid;org uuid;bank uuid;w jsonb;i jsonb;second
  IF public.petro_accept_merchant_payout_proof((i->>'id')::uuid,repeat('a',64),'sql-proof-accept-0001') IS DISTINCT FROM r THEN RAISE EXCEPTION 'Acceptance replay changed';END IF;
  BEGIN PERFORM public.petro_accept_merchant_payout_proof((i->>'id')::uuid,repeat('b',64),'sql-proof-accept-0001');RAISE EXCEPTION 'Changed digest reused key';EXCEPTION WHEN unique_violation THEN NULL;END;
  BEGIN UPDATE petro_private.merchant_payout_proof_acceptances SET sha256=repeat('b',64) WHERE proof_id=(i->>'id')::uuid;RAISE EXCEPTION 'Accepted proof edited';EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;END;
+ -- Expired intent imported by INSERT only: never alter a live clock or immutable row.
+ INSERT INTO petro_private.merchant_payout_proof_intents(withdrawal_id,withdrawal_version,bank_version_id,uploader_id,file_name,content_type,byte_size,object_path,created_at,expires_at)
+ VALUES((w->>'id')::uuid,2,bank,auth.uid(),'expired.png','image/png',68,'merchant-payout-proof/'||(w->>'id')||'/'||gen_random_uuid(),clock_timestamp()-interval '21 minutes',clock_timestamp()-interval '1 minute')
+ RETURNING id INTO object_id;
+ IF public.petro_merchant_payout_proofs((w->>'id')::uuid)->'items' IS NULL THEN RAISE EXCEPTION 'Proof history missing';END IF;
+ IF petro_private.can_access_merchant_payout_proof((SELECT object_path FROM petro_private.merchant_payout_proof_intents WHERE id=object_id),'upload') THEN RAISE EXCEPTION 'Expired proof remained uploadable';END IF;
+ BEGIN PERFORM public.petro_accept_merchant_payout_proof(object_id,repeat('a',64),'sql-expired-proof-finalize');RAISE EXCEPTION 'Expired proof accepted';EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;END;
  second:=public.petro_create_merchant_payout_proof((w->>'id')::uuid,2,'pending.png','image/png',68,'sql-proof-stale-pending');
  PERFORM public.petro_review_merchant_withdrawal((w->>'id')::uuid,2,'cancel','sql-proof-withdrawal-cancel');
  BEGIN PERFORM public.petro_accept_merchant_payout_proof((second->>'id')::uuid,repeat('a',64),'sql-proof-stale-finalize');RAISE EXCEPTION 'Stale proof accepted';EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;END;
