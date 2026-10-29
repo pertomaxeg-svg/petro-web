@@ -45,3 +45,5 @@ DECLARE source_order uuid;payment uuid;payment2 uuid;w2 jsonb;org uuid;bank json
  PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003803',true);
  BEGIN PERFORM public.petro_merchant_withdrawals(org,1);RAISE EXCEPTION 'Branch manager read central withdrawal bank details';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
 END $withdrawal$;
+
+\ir merchant-payout-proof-0044-smoke-test.sql
