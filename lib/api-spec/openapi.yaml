@@ -3301,6 +3301,8 @@ components:
         byteSize: {type: integer}
         status: {type: string, enum: [pending, accepted]}
         current: {type: boolean}
+        uploadAllowed: {type: boolean}
+        expiresAt: {type: string, format: date-time}
         createdAt: {type: string, format: date-time}
         acceptedAt: {type: [string, "null"]}
         uploaderName: {type: string}

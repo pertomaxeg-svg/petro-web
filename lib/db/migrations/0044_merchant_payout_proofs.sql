@@ -64,7 +64,7 @@ DECLARE w petro_private.merchant_withdrawals%ROWTYPE;e petro_private.merchant_wi
  SELECT * INTO STRICT e FROM petro_private.merchant_withdrawal_events WHERE withdrawal_id=w.id ORDER BY version DESC LIMIT 1;
  SELECT coalesce(jsonb_agg(jsonb_build_object('id',i.id,'withdrawalVersion',i.withdrawal_version,'fileName',i.file_name,'contentType',i.content_type,'byteSize',i.byte_size,
  'status',CASE WHEN a.proof_id IS NULL THEN 'pending' ELSE 'accepted' END,'acceptedAt',a.accepted_at,'createdAt',i.created_at,'uploaderName',p.display_name,
- 'current',a.proof_id IS NOT NULL AND petro_private.merchant_payout_proof_version_current(i.withdrawal_id,i.withdrawal_version),'sha256',a.sha256) ORDER BY i.created_at DESC,i.id),'[]'::jsonb)
+ 'current',a.proof_id IS NOT NULL AND petro_private.merchant_payout_proof_version_current(i.withdrawal_id,i.withdrawal_version),'uploadAllowed',a.proof_id IS NULL AND petro_private.can_access_merchant_payout_proof(i.object_path,'upload'),'expiresAt',i.expires_at,'sha256',a.sha256) ORDER BY i.created_at DESC,i.id),'[]'::jsonb)
  INTO items FROM petro_private.merchant_payout_proof_intents i JOIN public.petro_profiles p ON p.user_id=i.uploader_id
  LEFT JOIN petro_private.merchant_payout_proof_acceptances a ON a.proof_id=i.id WHERE i.withdrawal_id=w.id AND(a.proof_id IS NOT NULL OR i.uploader_id=auth.uid() AND petro_private.platform_has(ARRAY['owner','finance']::text[]));
  RETURN jsonb_build_object('withdrawalId',w.id,'version',e.version,'canUpload',petro_private.merchant_payout_proof_current(w.id,e.version),'items',items,'bankPayoutEnabled',false);
