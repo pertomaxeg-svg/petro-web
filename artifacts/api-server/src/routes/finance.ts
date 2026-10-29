@@ -1,4 +1,5 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import {createHash} from "node:crypto";
+import { raw, Router, type IRouter, type Request, type Response } from "express";
 import {
   AllocateAdminFinanceReceiptBody,
   ApproveAdminFinanceBankAccountBody,
@@ -505,6 +506,68 @@ router.post("/finance/merchant-withdrawals/:id/review",async(req,res):Promise<vo
  ||typeof b["expectedVersion"]!=="number"||!Number.isSafeInteger(b["expectedVersion"])||b["expectedVersion"]<1||typeof b["action"]!=="string"||!["approve","reject","cancel"].includes(b["action"])
  ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"قرار السحب أو نسخة الطلب غير صالح.");return;}
  const {data,error}=await callFinanceRpc(session,"petro_review_merchant_withdrawal",{p_id:req.params["id"],p_expected_version:b["expectedVersion"],p_action:b["action"],p_request_key:b["idempotencyKey"]});if(error){withdrawalError(res,error);return;}res.json(data);
+});
+
+
+const payoutProofTypes=["application/pdf","image/png","image/jpeg"];
+function proofMagic(type:string,bytes:Buffer):boolean{
+ return type==="application/pdf"?bytes.length>=5&&bytes.subarray(0,5).toString("ascii")==="%PDF-":type==="image/png"?bytes.length>=8&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):type==="image/jpeg"&&bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+}
+function proofError(res:Response,error:{code?:string;message?:string}):void{
+ const labels:Record<string,string>={FORBIDDEN_PAYOUT_PROOF:"لا تملك صلاحية هذا الإثبات الخاص.",INVALID_PAYOUT_PROOF:"راجع الملف ونسخة الطلب ومرجع المحاولة.",PAYOUT_PROOF_VERSION_CONFLICT:"تغير اعتماد الطلب أو البنك؛ حدّث الطلب قبل رفع إثبات جديد.",PAYOUT_PROOF_CONTENT_CONFLICT:"الإثبات المقبول يحوي ملفًا مختلفًا ولا يمكن استبداله.",PAYOUT_PROOF_UPLOAD_UNVERIFIED:"لم يثبت حفظ الملف بحجمه ونوعه وهوية رافعه.",PAYOUT_PROOF_LIMIT:"وصل الطلب إلى الحد المسموح من محاولات الإثبات."};
+ if(Object.hasOwn(labels,error.message??"")){res.status(error.code==="42501"?403:error.code==="22023"?400:409).json({message:labels[error.message!]});return;}mapFinanceError(res,error);
+}
+router.get("/finance/merchant-withdrawals/:id/proofs",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||Object.keys(req.query).length){fail(res,400,"مرجع الطلب غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proofs",{p_withdrawal_id:req.params["id"]});if(r.error){proofError(res,r.error);return;}res.json(r.data);
+});
+router.post("/finance/merchant-withdrawals/:id/proofs",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;const b=req.body;
+ if(!validId(req.params["id"])||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","fileName","contentType","byteSize","idempotencyKey"].includes(k))
+ ||typeof b["expectedVersion"]!=="number"||!Number.isSafeInteger(b["expectedVersion"])||b["expectedVersion"]<1
+ ||typeof b["fileName"]!=="string"||b["fileName"].trim().length<1||b["fileName"].length>160||typeof b["contentType"]!=="string"||!payoutProofTypes.includes(b["contentType"])
+ ||typeof b["byteSize"]!=="number"||!Number.isSafeInteger(b["byteSize"])||b["byteSize"]<1||b["byteSize"]>10485760
+ ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"اختر PDF أو PNG أو JPEG حتى10 ميجابايت مع نسخة الطلب.");return;}
+ const r=await callFinanceRpc(session,"petro_create_merchant_payout_proof",{p_withdrawal_id:req.params["id"],p_expected_version:b["expectedVersion"],p_file_name:b["fileName"],p_content_type:b["contentType"],p_byte_size:b["byteSize"],p_request_key:b["idempotencyKey"]});if(r.error){proofError(res,r.error);return;}res.status(201).json(r.data);
+});
+router.put("/finance/merchant-payout-proofs/:id/content",raw({type:"application/octet-stream",limit:"10mb"}),async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||!Buffer.isBuffer(req.body)){fail(res,400,"محتوى الملف غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"read"});if(r.error){proofError(res,r.error);return;}
+ const d=r.data;
+ if(!isRecord(d)||d["bucket"]!=="petro-private-documents"||typeof d["objectPath"]!=="string"||typeof d["contentType"]!=="string"){fail(res,502,"تعذر التحقق من مرجع الملف.");return;}
+ const bytes=req.body as Buffer;if(bytes.length!==Number(d["byteSize"])||!proofMagic(d["contentType"],bytes)){fail(res,400,"محتوى الملف أو حجمه لا يطابق طلب الرفع.");return;}
+ const bucket=session.supabase.storage.from("petro-private-documents");let exists=d["status"]==="accepted";
+ if(!exists){
+ const permit=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"upload"});if(permit.error){proofError(res,permit.error);return;}
+ const upload=await bucket.upload(d["objectPath"],bytes,{contentType:d["contentType"],upsert:false,cacheControl:"0"});
+ if(upload.error){const status=String((upload.error as unknown as {statusCode?:string}).statusCode??"");if(status==="409"||status==="400"&&/already exists|Duplicate/i.test(upload.error.message))exists=true;else{fail(res,503,"تعذر تأكيد حفظ الملف؛ أعد رفع الملف نفسه.");return;}}
+ }
+ const stored=await bucket.download(d["objectPath"]);if(stored.error||!stored.data){fail(res,503,"تعذر قراءة الملف المحفوظ للتحقق منه.");return;}
+ const saved=Buffer.from(await stored.data.arrayBuffer());if(!saved.equals(bytes)){fail(res,409,"الملف المحفوظ مختلف؛ لا يمكن استبدال إثبات سابق.");return;}
+ const digest=createHash("sha256").update(saved).digest("hex");
+ const accepted=await callFinanceRpc(session,"petro_accept_merchant_payout_proof",{p_id:req.params["id"],p_sha256:digest,p_request_key:"accept-payout-proof:"+req.params["id"]});if(accepted.error){proofError(res,accepted.error);return;}res.json(accepted.data);
+});
+router.get("/finance/merchant-payout-proofs/:id/download",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||Object.keys(req.query).length){fail(res,400,"مرجع الملف غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"read"});if(r.error){proofError(res,r.error);return;}const d=r.data;
+ if(!isRecord(d)||d["status"]!=="accepted"||typeof d["objectPath"]!=="string"){fail(res,409,"لم يكتمل رفع الإثبات.");return;}
+ const signed=await session.supabase.storage.from("petro-private-documents").createSignedUrl(d["objectPath"],60);
+ if(signed.error||!signed.data?.signedUrl){fail(res,503,"تعذر فتح الإثبات الخاص؛ أعد المحاولة.");return;}res.json({url:signed.data.signedUrl,expiresInSeconds:60});
+});
+
+
+router.get("/finance/merchant-payout-proofs/:id/content",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||Object.keys(req.query).length){fail(res,400,"مرجع الإثبات غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"read"});if(r.error){proofError(res,r.error);return;}const d=r.data;
+ if(!isRecord(d)||d["status"]!=="accepted"||typeof d["objectPath"]!=="string"||typeof d["contentType"]!=="string"||typeof d["fileName"]!=="string"){fail(res,409,"لم يكتمل قبول الملف.");return;}
+ const stored=await session.supabase.storage.from("petro-private-documents").download(d["objectPath"]);
+ if(stored.error||!stored.data){fail(res,503,"تعذر تنزيل الإثبات الخاص.");return;}const bytes=Buffer.from(await stored.data.arrayBuffer());
+ if(bytes.length!==Number(d["byteSize"])||!proofMagic(d["contentType"],bytes)){fail(res,409,"محتوى الإثبات المحفوظ يحتاج مراجعة.");return;}
+ res.setHeader("Content-Type",d["contentType"]);res.setHeader("X-Content-Type-Options","nosniff");res.setHeader("Content-Disposition","attachment; filename*=UTF-8''"+encodeURIComponent(d["fileName"]));res.send(bytes);
 });
 
 export default router;

@@ -17,6 +17,98 @@ tags:
   - name: fleet
     description: Central fleet, driver, policy, coverage, credential and maintenance operations
 paths:
+  /finance/merchant-withdrawals/{id}/proofs:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listMerchantPayoutProofs
+      tags: [finance]
+      summary: Read authorized accepted history and own pending uploads; never mark paid
+      responses:
+        "200":
+          description: Scoped proof history for current request version
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [withdrawalId, version, canUpload, items, bankPayoutEnabled]
+                properties:
+                  withdrawalId: {type: string, format: uuid}
+                  version: {type: integer}
+                  canUpload: {type: boolean}
+                  bankPayoutEnabled: {type: boolean, enum: [false]}
+                  items: {type: array, items: {$ref: "#/components/schemas/MerchantPayoutProofSummary"}}
+        "403": {description: Current organization financial scope required}
+    post:
+      operationId: createMerchantPayoutProof
+      tags: [finance]
+      summary: Finance-only immutable upload intent bound to approved withdrawal and beneficiary revision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/MerchantPayoutProofCreateRequest"}
+      responses:
+        "201":
+          description: Same actor/key returns same intent
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MerchantPayoutProofFile"}
+        "400": {description: Invalid fields or MIME or size}
+        "403": {description: Current platform Finance or owner required}
+        "409": {description: Request or beneficiary changed or attempt limit}
+  /finance/merchant-payout-proofs/{id}/content:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    put:
+      operationId: uploadMerchantPayoutProofContent
+      tags: [finance]
+      summary: Validate actual file signature and length, upload once, compare stored bytes, record API-computed SHA256 and accept metadata
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: {type: string, format: binary}
+      responses:
+        "200":
+          description: Immutable acceptance; no bank journal
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MerchantPayoutProofFile"}
+        "400": {description: Content signature or size mismatch}
+        "403": {description: Current authorized uploader required}
+        "409": {description: Different stored file or stale approval}
+        "503": {description: Uncertain upload; retry same file and intent}
+    get:
+      operationId: downloadMerchantPayoutProofContent
+      tags: [finance]
+      summary: Reauthorize and download accepted private proof as attachment
+      responses:
+        "200":
+          description: No-store actual private attachment bytes
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        "403": {description: Current proof read scope required}
+  /finance/merchant-payout-proofs/{id}/download:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getMerchantPayoutProofDownload
+      tags: [finance]
+      summary: Reauthorize and issue60-second private signed URL for accepted proof
+      responses:
+        "200":
+          description: Private URL; no public bucket
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresInSeconds]
+                properties:
+                  url: {type: string}
+                  expiresInSeconds: {type: integer, enum: [60]}
+        "403": {description: Current proof read scope required}
   /finance/merchant-withdrawals/{organizationId}:
     parameters:
       - {in: path, name: organizationId, required: true, schema: {type: string, format: uuid}}
@@ -3188,6 +3280,48 @@ components:
           schema:
             $ref: "#/components/schemas/ApiError"
   schemas:
+    MerchantPayoutProofCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, fileName, contentType, byteSize, idempotencyKey]
+      properties:
+        expectedVersion: {type: integer, minimum: 1}
+        fileName: {type: string, minLength: 1, maxLength: 160}
+        contentType: {type: string, enum: [application/pdf, image/png, image/jpeg]}
+        byteSize: {type: integer, minimum: 1, maximum: 10485760}
+        idempotencyKey: {type: string, minLength: 16, maxLength: 120}
+    MerchantPayoutProofSummary:
+      type: object
+      required: [id, withdrawalVersion, fileName, contentType, byteSize, status, current, createdAt, uploaderName]
+      properties:
+        id: {type: string, format: uuid}
+        withdrawalVersion: {type: integer}
+        fileName: {type: string}
+        contentType: {type: string}
+        byteSize: {type: integer}
+        status: {type: string, enum: [pending, accepted]}
+        current: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        acceptedAt: {type: [string, "null"]}
+        uploaderName: {type: string}
+        sha256: {type: [string, "null"]}
+    MerchantPayoutProofFile:
+      type: object
+      required: [id, withdrawalId, withdrawalVersion, bankVersionId, fileName, contentType, byteSize, bucket, objectPath, status, current]
+      properties:
+        id: {type: string, format: uuid}
+        withdrawalId: {type: string, format: uuid}
+        withdrawalVersion: {type: integer}
+        bankVersionId: {type: string, format: uuid}
+        fileName: {type: string}
+        contentType: {type: string}
+        byteSize: {type: integer}
+        bucket: {type: string, enum: [petro-private-documents]}
+        objectPath: {type: string}
+        status: {type: string, enum: [pending, accepted]}
+        current: {type: boolean}
+        acceptedAt: {type: [string, "null"]}
+        sha256: {type: [string, "null"]}
     MerchantWithdrawalSubmission:
       type: object
       additionalProperties: false
