@@ -17,7 +17,7 @@ DECLARE source_order uuid;payment uuid;org uuid;bank uuid;w jsonb;i jsonb;second
  BEGIN PERFORM public.petro_create_merchant_payout_proof((w->>'id')::uuid,2,'different.png','image/png',68,'sql-proof-create-intent-01');RAISE EXCEPTION 'Changed proof reused key';EXCEPTION WHEN unique_violation THEN NULL;END;
  BEGIN PERFORM public.petro_accept_merchant_payout_proof((i->>'id')::uuid,repeat('a',64),'sql-proof-missing-object');RAISE EXCEPTION 'Missing object accepted';EXCEPTION WHEN check_violation THEN NULL;END;
  -- Metadata simulation only. Actual object upload/download verified by native Supabase suite.
- INSERT INTO storage.objects(id,bucket_id,name,owner_id,metadata) VALUES(object_id,'petro-private-documents',i->>'objectPath',auth.uid()::text,'{"size":67,"mimetype":"image/png","eTag":"isolated-etag"}');
+ INSERT INTO storage.objects(id,bucket_id,name,owner_id,metadata) VALUES(object_id,'petro-private-documents',i->>'objectPath',auth.uid(),'{"size":67,"mimetype":"image/png","eTag":"isolated-etag"}');
  BEGIN PERFORM public.petro_accept_merchant_payout_proof((i->>'id')::uuid,repeat('a',64),'sql-proof-wrong-size');RAISE EXCEPTION 'Wrong metadata size accepted';EXCEPTION WHEN check_violation THEN NULL;END;
  UPDATE storage.objects SET metadata='{"size":68,"mimetype":"image/png","eTag":"isolated-etag"}' WHERE id=object_id;
  r:=public.petro_accept_merchant_payout_proof((i->>'id')::uuid,repeat('a',64),'sql-proof-accept-0001');
