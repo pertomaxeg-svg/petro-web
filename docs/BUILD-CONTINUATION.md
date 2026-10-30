@@ -37,6 +37,7 @@ Only pertomaxeg-svg/petro-web, branch pertomax-central-orgs-20261015 and Supabas
 - Payment row UUIDs→request→beneficiary account before approved version→deterministic finance accounts. Proof-only never acquires payment locks. Source0012 petro_finance_bank_accounts differs from0006 beneficiary petro_bank_accounts/versions. Recheck current approved accepted proof/object/hash, Finance role, bank revision and remaining hold under locks. Real external reference/date/source/amount, unique normalized reference, balanced merchant-clearing debit/platform-bank credit, actual0039 settlement allocations, no second company debit. Partial unpaid remainder and refund-after-paid debt must reconcile; no silent merchant debt offset.
 - Also expose pending-refund total distinctly from outside-hold disputed partition. Then branch internal request-to-org flow, warranty, role dashboards, reports/documents/support/outbox/public refinements; applications/devices last.
 - **Runtime NOT deployed:** current approved hosting URL/configuration remains unidentified. Source/schema acceptance is not user-visible release; no invented hosting or automatic background promise.
+- Read-only account/branch/permission audit and current resume point: [2026-10-30 audit](./READONLY-ACCOUNT-BRANCH-ACCESS-AUDIT-2026-10-30.md). No code or live data changes were made for that audit; 0045 remains unstarted.
 
 ## Previous accepted0043 state —dependency context only
 
