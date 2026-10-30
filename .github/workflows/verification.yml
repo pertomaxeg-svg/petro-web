@@ -1,0 +1,103 @@
+name: Pertomax independent verification
+
+on:
+  push:
+    # Feature branches are checked through their pull requests; avoid duplicate suites.
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      BASE_PATH: /
+      PORT: '25467'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned package manager
+        run: npm install --global pnpm@11.25.0
+      - name: Install PostgreSQL 17 from the official PGDG repository
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-17 postgresql-client-17 postgresql-17-cron ripgrep
+          echo '/usr/lib/postgresql/17/bin' >> "$GITHUB_PATH"
+      - name: Select preinstalled browser
+        run: |
+          browser_path="$(command -v google-chrome || command -v chromium || true)"
+          test -n "$browser_path"
+          echo "CHROMIUM_PATH=$browser_path" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - name: Unit checks
+        run: |
+          node --check lib/db/scripts/apply-approved-admin-migrations.mjs
+          node --test artifacts/api-server/src/lib/*.test.mjs lib/db/rebuild/normalize-pg-dump.test.mjs
+      - name: Build API and web
+        run: |
+          pnpm --filter @workspace/api-server run build
+          pnpm --filter @workspace/pertomax-eg-web run build
+      - name: Reviewed migration fingerprints
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          for(const path of ['lib/db/migrations/0031_operational_pin_proofs.sql','lib/db/rollback/0031_operational_pin_proofs.sql','lib/db/migrations/0032_internal_usage_reservation_core.sql','lib/db/rollback/0032_internal_usage_reservation_core.sql','lib/db/migrations/0033_worker_service_quotation.sql','lib/db/rollback/0033_worker_service_quotation.sql','lib/db/migrations/0034_system_execution_attribution.sql','lib/db/rollback/0034_system_execution_attribution.sql','lib/db/migrations/0035_service_order_reservation.sql','lib/db/rollback/0035_service_order_reservation.sql','lib/db/migrations/0036_service_execution_evidence.sql','lib/db/rollback/0036_service_execution_evidence.sql','lib/db/migrations/0037_final_service_payment.sql','lib/db/rollback/0037_final_service_payment.sql']) {
+            console.log(path+': '+createHash('sha256').update(readFileSync(path)).digest('hex'));
+          }
+          NODE
+      - name: Isolated SQL, API and browser acceptance
+        run: bash lib/db/rebuild/run-local-test.sh
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-browser-evidence
+          path: |
+            /tmp/pertomax-admin-cards-ui-smoke.png
+            /tmp/pertomax-fleet-*.png
+            /tmp/pertomax-fleet-order-receipt.pdf
+            /tmp/pertomax-fleet-refund-credit.pdf
+          if-no-files-found: ignore
+          retention-days: 7
+
+  real-auth-storage:
+    env:
+      # CLI v2.58.5 supports the original upstream registry; avoid ECR shared-IP data quotas.
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - name: Start isolated real Supabase services
+        run: |
+          pnpm dlx supabase@2.58.5 start --workdir ci/auth-storage --exclude studio,postgres-meta,realtime,imgproxy,edge-runtime,logflare,vector,supavisor > "$RUNNER_TEMP/pertomax-supabase-start.log" 2>&1 || { tail -60 "$RUNNER_TEMP/pertomax-supabase-start.log" | sed -E '/[Kk]ey:|Database URL:/d'; exit 1; }
+          pnpm dlx supabase@2.58.5 status --workdir ci/auth-storage --output json > "$RUNNER_TEMP/pertomax-local-status.json"
+      - name: Exercise actual Auth, project RPC and Storage
+        env:
+          PERTOMAX_LOCAL_STATUS_FILE: ${{ runner.temp }}/pertomax-local-status.json
+        run: node lib/db/rebuild/real-auth-storage-smoke-test.mjs
+      - name: Stop disposable services
+        if: always()
+        run: pnpm dlx supabase@2.58.5 stop --workdir ci/auth-storage --no-backup

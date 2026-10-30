@@ -54,6 +54,9 @@ function mapBillingError(
   error: { code?: string; message?: string } | null,
 ): void {
   if (!error) return;
+  if(error.code==="55000"&&error.message==="plan rights and settings require explicit approval"){
+    res.status(409).json({code:"PLAN_PUBLICATION_NOT_READY",message:"راجع مسودة الباقة: يلزم تسجيل ميزة واحدة على الأقل واعتماد المميزات والإعدادات قبل النشر."});return;
+  }
   if (error.code === "42501" || error.code === "PGRST301") {
     fail(res, 403, "ليست لديك صلاحية لهذا الإجراء.");
   } else if (error.code === "PGRST202" || error.code === "42883") {
@@ -85,13 +88,68 @@ router.get("/admin/billing/catalog", async (req, res): Promise<void> => {
   res.json(data);
 });
 
+router.get("/admin/billing/organization", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const rawOrganizationId = req.query["organizationId"];
+  const organizationId = typeof rawOrganizationId === "string" ? rawOrganizationId : undefined;
+  const selectedSection = req.query["section"];
+  const section = typeof selectedSection === "string"
+    ? selectedSection
+    : "subscriptions";
+  const pageValue = (key: "page" | "pageSize", fallback: number, maximum: number): number | null => {
+    const raw = req.query[key];
+    if (raw === undefined) return fallback;
+    if (typeof raw !== "string" || !/^\d+$/.test(raw)) return null;
+    const parsed = Number(raw);
+    return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= maximum ? parsed : null;
+  };
+  const page = pageValue("page", 1, 100000);
+  const pageSize = pageValue("pageSize", 10, 100);
+  if (!validId(organizationId) || page === null || pageSize === null ||
+    !["requests", "subscriptions", "priceOverrides"].includes(section)) {
+    fail(res, 400, "معرّف الجهة أو خيارات عرض الاشتراكات غير صالحة.");
+    return;
+  }
+  const session = await requireOwner(req, res);
+  if (!session) return;
+  const { data, error } = await session.supabase.rpc("petro_billing_admin_catalog_v2");
+  if (error) {
+    mapBillingError(res, error);
+    return;
+  }
+  if (!isRecord(data)) {
+    fail(res, 503, "استجابة مخطط إدارة الباقات غير متوافقة.");
+    return;
+  }
+  const pageItems = (key: "requests" | "subscriptions" | "priceOverrides") => {
+    const source = Array.isArray(data[key]) ? data[key] as unknown[] : [];
+    const scoped = source.filter((item) =>
+      isRecord(item) && item["organizationId"] === organizationId
+    );
+    const start = (page - 1) * pageSize;
+    return {
+      items: scoped.slice(start, start + pageSize),
+      total: scoped.length,
+      totalPages: Math.ceil(scoped.length / pageSize),
+      truncatedAtSource: (key === "requests" || key === "subscriptions") && source.length >= 500,
+    };
+  };
+  const selected = pageItems(section as "requests" | "subscriptions" | "priceOverrides");
+  res.json({
+    organizationId,
+    section,
+    ...selected,
+    sourceNote: "طلبات واشتراكات التاريخ الطويل تُعرض بحد الأرشيف الذي يعيده سجل الباقات الحالي.",
+  });
+});
+
 router.post("/admin/billing/plans", async (req, res): Promise<void> => {
   setNoStore(res);
   const session = await requireOwner(req, res);
   if (!session) return;
   const body = parseBody(CreateAdminBillingPlanBody, req.body);
   if (!body) {
-    fail(res, 400, "بيانات الخطة أو سبب الإنشاء غير صالح.");
+    fail(res, 400, "بيانات الخطة غير صالحة.");
     return;
   }
   const { data, error } = await session.supabase.rpc("petro_billing_admin_create_plan_v2", {
@@ -106,7 +164,7 @@ router.post("/admin/billing/plans", async (req, res): Promise<void> => {
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);
@@ -126,7 +184,7 @@ router.post("/admin/billing/plans/:planId/versions", async (req, res): Promise<v
   const planId = req.params["planId"];
   const body = parseBody(CreateAdminBillingPlanVersionBody, req.body);
   if (!validId(planId) || !body) {
-    fail(res, 400, "تحقق من معرّف الخطة وبيانات النسخة وسبب التعديل.");
+    fail(res, 400, "تحقق من معرّف الخطة وبيانات النسخة.");
     return;
   }
   const { data, error } = await session.supabase.rpc("petro_billing_admin_add_plan_version_v2", {
@@ -140,7 +198,7 @@ router.post("/admin/billing/plans/:planId/versions", async (req, res): Promise<v
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);
@@ -161,7 +219,7 @@ router.patch("/admin/billing/plans/:planId/versions/:versionId", async (req, res
   const versionId = req.params["versionId"];
   const body = parseBody(UpdateAdminBillingPlanDraftBody, req.body);
   if (!validId(planId) || !validId(versionId) || !body) {
-    fail(res, 400, "تحقق من معرّفات الخطة والنسخة وبيانات المسودة وسبب التعديل.");
+    fail(res, 400, "تحقق من معرّفات الخطة والنسخة وبيانات المسودة.");
     return;
   }
   const { data, error } = await session.supabase.rpc("petro_billing_admin_update_draft_version", {
@@ -176,7 +234,7 @@ router.patch("/admin/billing/plans/:planId/versions/:versionId", async (req, res
     p_effective_at: body.effectiveAt.toISOString(),
     p_entitlements: body.entitlements,
     p_settings: body.settings,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);
@@ -195,14 +253,14 @@ router.patch("/admin/billing/pricing-defaults", async (req, res): Promise<void> 
   if (!session) return;
   const body = parseBody(UpdateAdminBillingPriceDefaultsBody, req.body);
   if (!body) {
-    fail(res, 400, "تحقق من أسعار الاقتراحات وسعر إصدار NFC وسبب التغيير.");
+    fail(res, 400, "تحقق من أسعار الاقتراحات وسعر إصدار NFC.");
     return;
   }
   const { error } = await session.supabase.rpc("petro_billing_admin_update_price_defaults", {
     p_company_prices_minor: body.companyAnnualPricesMinor,
     p_provider_price_minor: body.providerAnnualPriceMinor,
     p_nfc_issue_price_minor: body.nfcIssuePriceMinor,
-    p_reason: body.reason,
+    p_reason: body.reason?.trim() || "لم تُدخل ملاحظة؛ سجل النظام الفاعل والوقت",
   });
   if (error) {
     mapBillingError(res, error);

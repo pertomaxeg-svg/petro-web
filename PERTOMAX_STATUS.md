@@ -1,7 +1,62 @@
 # Pertomax EG — تقرير الحالة
 
-**آخر تحديث:** 15 أكتوبر 2026
+**آخر تحديث:** 29 أكتوبر 2026
 **النطاق:** مشروع Pertomax EG الحالي فقط، قاعدة Supabase `msvgzsfzrqlrfpstthhe` ومستودع `pertomaxeg-svg/petro-web`. لا مشاريع أخرى أو VPS أو نشر.
+
+
+## متابعة 29 أكتوبر 2026 —دقة طلبات الاسترداد المعلقة
+
+- أُصلح إخفاء طلب الاسترداد عند تداخله مع حجز السحب: يظهر الآن إجمالي الطلبات المعلقة مستقلًا عن المبلغ المعلق خارج الحجز، في الملخص والفرع وتفاصيل العملية، دون خصم المبلغ مرتين أو تغيير القيود.
+- اختبار أولي كشف غياب الحقل، ثم نجحت SQL/API والمتصفح وAuth/Storage الحقيقي المعزول والبناء والعقود عند9d5b6d337f4878a5569c6bf16b1ad61dae446949 /40909932596. روجعت صور390/1280 يدويًا، والرجوع الدقيق ناجح.
+- طُبق0045 بالسجل20261029162321؛ تطابق جسم الدالة وحُفظت صلاحياتها وOID والمالك والدوال المالية السابقة والسياسات والصلاحيات الافتراضية. لم تُنشأ معاملات اختبار حية أو يتغير Secret أو تُنشر نسخة تشغيل.
+- الأدلة: docs/acceptance/2026-10-29-merchant-pending-refund-totals.md. خريطة جميع المراحل المتبقية وأقسامها وأدوارها واعتماداتها في docs/superpowers/plans/2026-10-29-remaining-roadmap.md. التالي0046 لتسجيل السداد البنكي الفعلي الكامل والجزئي؛ المشروع الكلي ما زال مفتوحًا.
+
+## متابعة 29 أكتوبر 2026 —إثبات التحويل البنكي الخاص
+
+- اكتمل رفع PDF/PNG/JPEG الخاص وتنزيله حسب الصلاحيات وربطه بنسخة اعتماد طلب السحب وحساب المستفيد، مع منع الاستبدال وحفظ التاريخ بعد تغيّر الطلب. رفع الإثبات لا يسجّل سدادًا أو قيدًا ماليًا ولا يثبت وحده تنفيذ البنك للتحويل.
+- نجحت اختبارات SQL وAPI والمتصفح بعرض390/1280 وAuth/Storage الحقيقي المعزول، بما فيها فشل الرفع وإعادته دون تكرار، مطابقة البايتات والبصمة، انتهاء المهلة والصلاحيات والرجوع المحمي. المصدر المقبول74e5b619307c99f9d35d826bcac31b5b2d764377، التشغيل40833779972؛ البناء وتوليد العقود ناجحان أيضًا.
+- طُبق0044 بالسجل20261029071845، وتطابقت الدوال السبع، وظلت الصلاحيات والسياسات السابقة وبيانات الأعمال كما هي. لا ملفات أو معاملات اختبار حية. تفاصيل الأدلة والحدود في docs/acceptance/2026-10-29-merchant-bank-proof.md.
+- التالي0045 لتسجيل التحويل الخارجي الفعلي والسداد الكامل/الجزئي وربط التسويات والمرتجعات. لم تُنشر نسخة ويب/API؛ وجهة التشغيل المعتمدة وإعداداتها لم تُحدد بعد. المخطط الكلي ما زال مفتوحًا، و0009 مؤجل.
+
+## متابعة 24 أكتوبر 2026 — تكليفات العمال ونطاق التشغيل
+
+- أُضيف قسم رئيسي `/admin/workforce` لاختيار المحطة/مقدم الخدمة والفرع والعضو المؤهل والخدمة، مع البحث والترقيم والإيقاف وإعادة التفعيل. لا إدخال UUID أو سبب يدوي.
+- التكليف مستقل عن أهلية التنفيذ الحالية؛ تُفحص حالة الحساب وتأكيد البريد وكلمة المرور والعضوية والفرع في كل طلب. العامل لا يكلّف نفسه ولا يقرأ إدارة الأسطول، ومقدم الخدمة لا يُكلّف بالوقود أو إصدار البطاقات.
+- طُبق 0030 وحده بالسجل `20261024052703`. الجداول الثلاثة تحت RLS بلا وصول مباشر للعملاء، وصلاحيات الدوال محددة. بقيت ACL الافتراضية ودالة الحالة القديمة كما هي، و0009 مؤجل. لا تكليفات أو حسابات اختبار إنتاجية.
+- نجح `40066038275` عند `97fb8ce`: SQL وAPI والمتصفح والحفظ وإعادة التحميل والرفض حسب الدور والرجوع المحمي، وكذلك Auth/PostgREST/Storage الحقيقي المعزول مع إلغاء صلاحية العامل مع بقاء JWT نفسه. عقود OpenAPI/Orval محفوظة ومطابقة.
+- لم تُنشر نسخة ويب/API. التحقق التشغيلي برمز التعبئة والطلبات والدفع والمخزون لم تُعتبر مكتملة. الأدلة والحدود في `docs/WORKFORCE-0030-ROLLOUT.md`.
+
+
+## متابعة 24 أكتوبر 2026 — طلبات تركيب واستلام NFC
+
+- أُضيفت تبويبات كل الطلبات / طلبات التركيب / طلبات الاستلام من الفرع في إدارة البطاقات، مع الطريقة داخل صف الطلب وإخفاء بيانات التواصل غير اللازمة للاستلام.
+- الفلترة على الخادم قبل حساب الإجمالي والترقيم؛ تُرفض الطريقة غير المعروفة أو استخدامها مع عروض غير الطلبات. الطلب يحتفظ بالمرجع نفسه، ولا يُنشأ سجل مكرر أو يُعتبر التسليم/التركيب أو التحصيل منجزًا بمجرد التصنيف.
+- طُبق 0029 وحده على المشروع المعتمد، بالسجل `20261024043222`. نجح الفحص القبلي والبعدي؛ الصلاحيات ودالة الحالة القديمة ثابتة، و0009 مؤجل. لا بيانات أعمال اختبارية حية.
+- نجح تشغيل GitHub `40062548670` عند `5b5e132`: الأنواع والبناء وSQL وAPI والمتصفح والرجوع الدقيق، واختبارات Auth/PostgREST/Storage الفعلية في موارد معزولة. توليد Orval في `40062548665` مطابق للملفات دون اختلاف.
+- العمل محفوظ مباشرة على GitHub؛ لم تُنشر نسخة ويب/API، ولم يُغلق قبول المشروع الكلي. مرجع الأدلة والحدود: `docs/FLEET-CARDS-0029-ROLLOUT.md`.
+
+
+## متابعة البناء المباشر — 23 أكتوبر 2026
+
+- جميع تغييرات هذه المتابعة أُنشئت مباشرة على GitHub في الفرع المنقح، والترحيلات عبر Supabase للمشروع المعتمد؛ لم يُستخدم Replit أو بيئة تطوير خارجية.
+- طُبق 0027 لتصنيف البطاقات الصادرة الفعالة وغير الفعالة، ثم 0028 لصور قوائم المركبات وربط مركبات السائقين. السجلان: `20261023150540` و`20261023152855`. لم تتغير ACL أو النطاقات الـ24 للصلاحيات الافتراضية أو دالة الحالة القديمة؛ 0009 مؤجل.
+- قوائم المركبات تعرض صورة خاصة قابلة للتكبير، وقائمة السائقين تعرض المركبات المسندة ولوحتها وفرعها وصورتها. التنزيل يمر بالصلاحيات الحالية؛ لا تُحفظ روابط التخزين الموقعة في سجل القائمة. الصور المرفوضة والرفع غير المكتمل مستبعدان.
+- بُسّط ملف المركبة والسائق، وأزيل جدول التفاصيل المكرر وكود السائق التشغيلي من العرض. بقيت البيانات محفوظة؛ الشاسيه والكود الداخلي والتواريخ تحت قسم إضافي.
+- نجح تشغيل GitHub `39978082855` عند `8aa32f7`: الأنواع والبناء والاختبارات الكاملة والمتصفح وSQL والرجوع الدقيق، واختبار Auth/PostgREST/Storage الفعلي في موارد معزولة. هذا ليس اختبار معاملات إنتاجية أو SMTP أو NFC ميدانيًا.
+- عولج تكرار تشغيل المجموعة عند push وpull_request للالتزام نفسه، مع استمرار التحقق عبر طلب الدمج وmain. تفاصيل التشغيل وحدود النشر في `docs/DEPLOYMENT.md`.
+- المشروع لم يكتمل ولم تُنشر نسخة ويب/API جديدة. ما زالت دورة الخدمات والتسويات والمراحل اللاحقة مفتوحة، وكذلك جاهزية مفاتيح التشغيل والمرجع النهائي للاستضافة والفحص البصري الكامل للأدوار.
+
+
+## متابعة 23 أكتوبر 2026 — تبسيط الأسطول
+
+- استُرجعت تعديلات Replit المتوقفة ورُفعت على الفرع المنقح. أُزيلت خانات كتابة سبب الإجراء من الواجهات مع إبقاء الأوصاف الآلية والتدقيق والصلاحيات.
+- نُقل اختيار شبكة الخدمة من نموذج المركبة إلى وراثة صريحة لسياسة الفرع عبر API؛ غياب النطاق المعتمد يرفض الحفظ ولا يسمح بجميع الجهات.
+- صُحح ترحيل 0025 غير المطبق حيًا ليستهدف مقيم السياسات الفعلي بعد 0016، مع اختبار منع الرجوع عند استخدام الحدود الاختيارية.
+- اكتمل `run-local-test.sh` بخروج 0 في PostgreSQL معزول. نجح اختبار Chromium لتعديل الباقات وأسعار الوقود وحفظ الصور وتكبيرها وطلبات NFC وإعادة ربط السائق وإبطال رمزه السابق، إضافة إلى فحوص API/المخزون والمالية والرجوع وACL.
+- مصادقة المتصفح هنا جلسة مالك اصطناعية، وStorage محاكاة في الذاكرة. لا يُعد هذا تحققًا من Supabase Auth أو Storage الحي. لم يُطبق 0025 على القاعدة الحية، ولم تُغير بيانات أعمال أو Secrets أو يُنشر التطبيق. 0009 ما زال مؤجلًا.
+- مطابقة العرض الكامل لقوائم المركبات والسائقين والحقول مع الصور، والتحقق الحقيقي المخول من Auth وStorage، ما زالا مفتوحين. لم تبدأ مرحلة خدمات أو تسويات أو تطبيقات جديدة.
+
+التفصيل وحدود الأدلة: [سجل قبول تبسيط الأسطول](docs/FLEET-SIMPLIFICATION-CHECKPOINT-2026-10-23.md).
 
 ## حدود العمل المعتمدة
 
@@ -131,4 +186,53 @@
 - فحص الأنواع والبناء نجحا (`PORT=25467 BASE_PATH=/`). بعد تحميل النسخة الجديدة: `/api/healthz` أعاد 200، وطلب `/api/organizations` بلا جلسة أعاد 401، والجذر العام أعاد 200 مع `lang="ar"` و`dir="rtl"`. لقطتا `docs/central-organizations-signed-out-desktop.jpg` و`docs/central-organizations-signed-out-mobile.jpg` توثقان بوابة الدخول فقط؛ لم تتوفر جلسة مالك/مدير لعرض لوحة داخلية.
 - فحص الأسرار للملفات الـ49 في الالتزام الأول لم يجد مفاتيح خاصة أو رموزًا أو عناوين اتصال بكلمة مرور أو إعدادات أسرار حرفية، ولم يدخل المرفق الشخصي المستبعد في الفرع. فشل fetch الأول قبل محاولة المفتاح لأن ملف GitHub host keys الموثق لم يكن موجودًا في Git metadata الخاص بالـworktree؛ استُخدم الملف الموثق الموجود في Git metadata المشترك دون تغيير Secret أو remote أو إعداد حساب. نجح fetch والدفع العادي باستخدام الإعداد الحالي. بعد إصلاح نطاق ألوان بوابة الدخول، تطابق SHA التطبيق المحلي والبعيد عند `e1cc5455ba4fc747b2f711efa07354abea33612a` حتى قبل تحديث هذا السجل. لم يتغير `origin/main` عن `1f5ba5a9021a8f81f40288096fc163e0a1fbbb09`.
 - لا نشر. لا تغيير Secrets أو إعداد المالك. لا ادعاء لاختبار بيانات حقيقي بجلسة مصادق.
-- لم تُنشر المنصة. لم تتغير Secrets أو تهيئة المالك. الرفع العادي للفرع المنقح وتطابق SHA ما زالا قيد التنفيذ.
+
+## المخزون الإداري — 21 أكتوبر 2026
+
+- استُكملت شاشة `/admin/inventory` لتشمل الملخص والأرصدة والمستندات والتحويلات والجرد والتنبيهات والحركات والمطابقة، مع ترتيب ومرشح حالة على الخادم. لا تنشئ محفظة أو أثرًا ماليًا.
+- طُبق `0021_inventory_and_plan_draft_repair.sql` وحده على `msvgzsfzrqlrfpstthhe` بعد موافقة المالك والمطابقة؛ بصمة المصدر `e632334c76d16e2ed95a2ed0f0a97c1977307a2992557ec4880beb24c61fcfdb` ورقم سجل الترحيل `20261021032931`. يضيف رصيدًا افتتاحيًا فريدًا لكل صنف وموقع، ولقطات إصدار للجرد، وربط المرتجع بالصرف الأصلي، وحد إعادة طلب موثقًا.
+- فحص ما بعد التطبيق أكد TLS 1.3 وPostgreSQL 17.0.11، وبقاء بصمة `pg_default_acl` عبر 24 نطاقًا و300 صف صلاحيات `65e09b76b80628c531e6e223128f0a201befefeb9eaa75685dae5dafdc337cea` كما هي، وعدم تغير دوال الحالة القديمة أو صلاحياتها، وتطابق سجل الترحيلات السابقة. `0009` بقي مؤجلًا. لم تُنشأ حركات أو بيانات أعمال حية.
+- نجحت 90 تحققًا HTTP مركّزًا للمخزون عبر API محلية حقيقية وPostgreSQL مؤقتة، واختبارات SQL للحركات الذرية والعزل والكسور والتكرار والتزامن والمطابقة والافتتاحي والجرد والمرتجع والتنبيهات والفرز. لا اختبار خدمة Supabase حيّة أو Storage أو معاملة أعمال حية.
+- نجح فحص الأنواع الكامل وبناء API والويب. حزمة الويب الأكبر 360.32 kB خامًا و96.46 kB gzip؛ جزء المخزون 53.51 kB خامًا و12.37 kB gzip.
+- تمت مراجعة تصميم الشاشة وتحسين تباين الجداول والحالات والتركيز واستجابة الهاتف وإتاحة اختيار الجهة بلوحة المفاتيح. بقيت مراجعة بصريّة بعد تسجيل الدخول غير متاحة للأداة.
+- مخطط المخزون مطبق، لكن لم تُسجل حركات أعمال حية ولم تُختبر اللوحة بجلسة مالك أو خدمة Storage الحية. البيع والشراء والتسويات وربط الحجز بدورة الخدمة والمرفقات وPDF والبريد ليست منجزة؛ التفاصيل في `docs/INVENTORY-ACCEPTANCE.md` و`docs/INVENTORY-0021-ROLLBACK-PLAN.md`.
+- لم تُنشر المنصة ولم يتغير `0009` أو Secrets أو تهيئة المالك. تحديث التوثيق الحالي يحتاج رفعًا عاديًا للفرع المنقح؛ لا دمج إلى `main`.
+
+## تحرير الإدارة والبطاقات والمخزون — 21 أكتوبر 2026
+
+- خُففت خطوة التحرير العادي للباقات والكتالوج: الملاحظة اختيارية، وعند تركها فارغة يمرر API عبارة نظامية لا تنسبها للمستخدم. تظل أسباب النشر والإيقاف والمراجعة وتغيير الحالة والإلغاء مطلوبة؛ لم يتغير المخطط الحي. تفاصيل فرق الحقول قبل/بعد ليست مستقلة ومثبتة بعد.
+- أضيفت إدارة البطاقات إلى القائمة المركزية عند `/admin/cards` مع توجيه الرابط القديم إليها. صيغة اللوحة المعيارية في نموذج المركبة توضيحية؛ PIN الجديد يمكن توليده وإظهاره مؤقتًا قبل الإرسال ثم يمسح بعد الربط، ولا يمكن استرجاع PIN سابق.
+- يعود إنشاء مستند التحويل والجرد إلى تبويبه المقصود. نجحت فحوص الأنواع وبناء API والويب ومجموعة اختبارات PostgreSQL/HTTP المعزولة؛ التفاصيل والقيود في `docs/ADMIN-EDITS-CARDS-INVENTORY-ACCEPTANCE-2026-10-21.md`.
+- لا تغييرات قاعدة جديدة أو بيانات اختبار حية، ولا معاينة مصادق عليها من أداة المتصفح أو اختبار Storage حي. بقي `0009` مؤجلًا، ولا دمج أو نشر ضمن هذا التحديث.
+
+## متابعة القبول الموحد للإدارة المركزية — 21 أكتوبر 2026
+
+- أضيف مدخل `/admin/fuel-prices` في القائمة المركزية يفتح قسم الوقود مباشرة داخل المكون ومصدر البيانات الحاليين؛ لا ينشئ API أو سعرًا افتراضيًا جديدًا.
+- صُححت تسميات مؤشرات المطابقة المالية للحقول الفعلية في RPC، وأصبحت الأعداد تعرض كأعداد؛ أي مؤشر غير معروف يسبب تنبيهًا ولا يظهر كـ«تفاصيل إضافية».
+- اختبارات جديدة: 3 اختبارات وحدة لمسميات مؤشرات المالية، و12 تأكيدًا API/PostgreSQL معزولًا لتعديل سعر/حقوق/إعدادات الخطة، إعادة القراءة وإعادة الطلب، نشر نسخة مجدولة، وثبات لقطة وشروط اشتراك أقدم. اجتازت مجموعة `run-local-test.sh` كاملة.
+- فحص الأنواع الكامل وبناء الويب (`PORT=3000 BASE_PATH=/pertomax-eg-web`) وAPI ناجحة بعد التعديل. سجل القياس الحالي في البناء: 360.74 kB خامًا و96.59 kB gzip لأكبر ملف الويب؛ لا تحذير 500 kB.
+- لم يتغير المخطط الحي أو ACL أو سجلات الأعمال؛ لا ترحيل جديد أو إعادة تطبيق. `0021` لا يزال آخر ترحيل مطبق، و`0009` مؤجل.
+- بقيت مراجعة الواجهات المحمية بجلسة مالك، ورفع/تنزيل Supabase Storage الحي، وتوثيق فروق الحقول قبل/بعد في سجل تدقيق مستقل نقاطًا غير مثبتة. المراجعة المحلية لا تعوضها. لم يبدأ مسار خدمة/بيع/تسوية غير موجود ولم تنشأ بيانات وهمية.
+- مصفوفة الأدلة والحدود في `docs/ADMIN-EDITS-CARDS-INVENTORY-ACCEPTANCE-2026-10-21.md`. لا دمج إلى `main` ولا نشر.
+
+
+## 24 October2026 — operational PIN proof0031
+Applied only0031 as20261024062426 after GREEN40069746677 at864f718d: acceptance120800669333 and actual Auth/Storage120800669062. Source SHA256d9d141a29969176172ba71f04537c72054bad407fe60af38af51b9922ef365f8, rollbackde08d4c322de765a221e631603db58608da45ec6f3a9a317f64722868f09baa3. Worker browser verification with leading-zero PIN, cleared/masked fields, branch/service scope and mobile/tablet/desktop checks passed on disposable data. Exact rollback/defaultACL checks passed. Three authenticated RPCs and a postgres-only private validator; two RLS tables deny direct client DML. Existing legacy/five guarded function definitions/grants unchanged,24 defaultACL scopes/hash unchanged; live proofs/receipts/assignments all zero. API/web runtime NOT deployed; identity proof does not implement orders/payment. Next: internal reservation core then service orders, policies/prices/funds/inventory and final amount-bound PIN.
+
+
+##24 October2026 — reservation core0032
+Applied alone as20261024095204 after GREEN40070333103 at6e0519eb (acceptance120802283933, actual Auth/Storage120802284100). Source d3946d2aff2cd2bdee19099030cdb4d9def85c61a9715cc593d5f1c3496da2bb; rollback30716a7fa3f6bfca1d75010c43795553cb574c1777b3b0982ab514d166fe6fab. Actual disposable funded holds/replay/policy rejection and exact schema/defaultACL rollback passed. Live defaultACL24/hash and legacy unchanged, wrapper still service_role-only, new private core SECURITY INVOKER/postgres-only; no live business records.0033 quotation next; service orders/payment/runtime deployment remain incomplete.
+
+
+##24 October2026 — scoped quotation0033
+Applied alone as20261024102845 after full GREEN40085731237 at5085fa5c: SQL/API/browser120848152121 and actual Auth/Storage120848152013; generated contracts40085731236 have no drift. Sourcecc360afbeb42fb547b546a8fdb97a6303c36ce07a409ef8f9958b17b3c229031; rollbackeb795380e12855eee5ccabcdbc2c1450524b599eae3a0d983397397254800725. Worker quote100EGP→8litres and policy/tank/precision/funds/stock/provider/role/expiry/current-price/read-only guards passed, with responsive browser evidence. New public authenticated-only RPCs/private postgres-only helpers; preserved previous definitions/grants/defaultACL. No live prices/users/transactions. No order reservation/payment or runtime deployment claimed. Next: system attribution for real expiry, then actual order lifecycle.
+
+
+##24 October2026 — explicit system attribution0034
+Applied alone as20261024104411 after GREEN40086727666 at5943a5a3: acceptance120851082458 and actual Auth/Storage120851082523. Sourcef18e518132e314825d078e9b93547b53938a4c2656da3647ad2c9822ce8da247, rollback462b17c1114f72bd5c662f4e517566b640374f56dd03c027a5443e127689419a. Constraints/history/role denial/immutability/rollback verified. Postflight inventory-query ACL and three table ACL/RLS unchanged, human release/legacy/defaultACL preserved; three live business row counts zero. Attribution supports future expiry; no scheduler or order lifecycle activated. Approved-runner SQL metadata needle repaired and syntax check added. Runtime remains undeployed.
+
+##24 October2026 —0035 reservation/cancellation/native expiry accepted and live
+Source commit63e549d77cd8663aefa00ea86bceb194e35471bf passed full run40090483494: acceptance120861959098 and real-auth-storage120861959202. Actual HTTP/browser booking/reload/cancel recovered deliberately lost commit responses without duplicate orders; real JWT transactions enforced one-proof and last-stock concurrency; committed native cron released fuel/product holds once with zero physical stock issue. Generated contracts passed. Source34a537e41a9fab9e26413c6b5bc5ad9beba158e4d1c5e7428e05c4cd641df126; rollbackbbc2e6e0727a8957bb8876d691651325d361fc8e553e474a6d802bcb53dfce94.
+Applied alone via approved Supabase connector as20261024161411. Direct postflight: new9 functions/3 RLS tables and public/private grants matched; all196 preceding application function definitions/ACL/owners and77 preceding table ACL/RLS/owners unchanged; legacy status unchanged;0009 deferred. Existing24 defaultACL scopes unchanged. Supabase's pre-existing issue_pg_cron_access event trigger added3 NEW supabase_admin/cron defaults granting onlypostgres; total27. These managed scopes were retained, not misreported as an unchanged total or revoked. Plain disposable PostgreSQL does not model that managed trigger; fresh-host CLI runner strict-ACL check may intentionally stop for review. Do not broaden its ACL exception without a focused test.
+Native job1 pertomax_service_order_expiry is active/minutely/postgres; actual live run succeeded at2026-10-24T16:15:00Z with no business records. Orders/commands/events/finance holds/inventory reservations/movements all0. Live business expiry was not artificially induced. Advisor categories unchanged:66 RLS/no-policy INFO (RPC-only tables),119 authenticated-definer WARN (scoped RPCs), existing leaked-password warning1.
+Runtime web/API remains NOT deployed. Hosting destination/runtime secret readiness unverified; no production Edge Functions exist. Next: actual order start/evidence/delivery/physical stock issue and final PIN/capture/merchant receivables/receipt, then settlement/refunds and remaining role dashboards/public pages/reports/apps. No completed payment or whole-project acceptance claimed.

@@ -12,6 +12,10 @@ import {
   readString,
   setNoStore,
 } from "../lib/supabaseServer";
+import {
+  clearPasswordChangeRequired,
+  passwordChangeRequired,
+} from "../lib/platformPasswordGate";
 
 const router: IRouter = Router();
 
@@ -282,12 +286,14 @@ router.post("/auth/sign-in", async (req, res): Promise<void> => {
       return;
     }
 
+    const mustChangePassword = await passwordChangeRequired(data.user.id);
     await clearSignInAttempts(rateLimitKey);
     res.json({
       status: account?.active ? "active" : "pending",
       message: account?.active
         ? "تم تسجيل الدخول."
         : "تم تسجيل الدخول. الحساب بانتظار اعتماد الصلاحيات.",
+      passwordChangeRequired: mustChangePassword,
     });
   } catch {
     if (supabase) await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
@@ -363,6 +369,7 @@ router.post("/auth/password", async (req, res): Promise<void> => {
       responseMessage(res, 400, "تعذر تحديث كلمة المرور. افتح رابط استعادة جديدًا.");
       return;
     }
+    await clearPasswordChangeRequired(data.user.id);
     res.json({ message: "تم تحديث كلمة المرور." });
   } catch {
     responseMessage(res, 503, safeErrorMessage());
@@ -430,8 +437,9 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       return;
     }
 
+    const mustChangePassword = await passwordChangeRequired(authData.user.id);
     let accessContext: unknown = null;
-    if (profile.active) {
+    if (profile.active && !mustChangePassword) {
       const { data, error } = await supabase.rpc("petro_access_context");
       if (error) {
         responseMessage(res, 503, "تعذر تحميل صلاحيات الحساب.");
@@ -446,6 +454,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       username: profile.username,
       loginIdentifierType: profile.login_identifier_type,
       state: profile.active ? "active" : "pending",
+      passwordChangeRequired: mustChangePassword,
       accessContext,
     });
   } catch {

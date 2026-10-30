@@ -30,5 +30,5 @@ export interface AdminPlanVersionInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }

@@ -32,15 +32,13 @@ export interface UpdateBranchRequest {
   /**
      * @minimum -90
      * @maximum 90
-     * @nullable
      */
-  latitude?: number | null;
+  latitude: number;
   /**
      * @minimum -180
      * @maximum 180
-     * @nullable
      */
-  longitude?: number | null;
+  longitude: number;
   hours: BranchHours;
   /**
      * @maxLength 160

@@ -15,5 +15,6 @@ export interface AuthMe {
   username?: string | null;
   loginIdentifierType?: AuthMeLoginIdentifierType;
   state: AuthMeState;
+  passwordChangeRequired: boolean;
   accessContext: unknown;
 }

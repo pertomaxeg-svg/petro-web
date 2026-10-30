@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PlatformRoleOption } from './platformRoleOption';
 import type { PlatformUser } from './platformUser';
 
 export interface PlatformUserList {
   items: PlatformUser[];
+  roleCatalog: PlatformRoleOption[];
   /** @minimum 1 */
   page: number;
   /**

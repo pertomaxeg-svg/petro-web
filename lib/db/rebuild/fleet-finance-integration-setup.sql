@@ -155,16 +155,20 @@ BEGIN
     'organizationId',org_b,'driverCode','FLEET-IT-DB','fullName','سائق عزل'),
     'إنشاء سائق اصطناعي لشركة أخرى','fleet-it-b-driver-1') INTO db;
   SELECT public.petro_admin_fleet_command('driver.link.create',jsonb_build_object(
-    'vehicleId',v1->>'id','driverId',d1->>'id','startsAt','2024-07-01T12:00:00Z','pinHmac',repeat('a',64)),
+    'vehicleId',v1->>'id','driverId',d1->>'id','startsAt','2024-07-01T12:00:00Z',
+    'pinHmac',repeat('a',64),'pinCiphertext',repeat('0',64),'pinKeyVersion',1),
     'ربط سائق اصطناعي','fleet-it-a-link-1') INTO l1;
   SELECT public.petro_admin_fleet_command('driver.link.create',jsonb_build_object(
-    'vehicleId',v2->>'id','driverId',d2->>'id','pinHmac',repeat('b',64)),
+    'vehicleId',v2->>'id','driverId',d2->>'id',
+    'pinHmac',repeat('b',64),'pinCiphertext',repeat('0',64),'pinKeyVersion',1),
     'ربط سائق اصطناعي','fleet-it-a-link-2') INTO l2;
   SELECT public.petro_admin_fleet_command('driver.link.create',jsonb_build_object(
-    'vehicleId',v3->>'id','driverId',d3->>'id','pinHmac',repeat('c',64)),
+    'vehicleId',v3->>'id','driverId',d3->>'id',
+    'pinHmac',repeat('c',64),'pinCiphertext',repeat('0',64),'pinKeyVersion',1),
     'ربط سائق اصطناعي','fleet-it-a-link-3') INTO l3;
   SELECT public.petro_admin_fleet_command('driver.link.create',jsonb_build_object(
-    'vehicleId',vb->>'id','driverId',db->>'id','pinHmac',repeat('d',64)),
+    'vehicleId',vb->>'id','driverId',db->>'id',
+    'pinHmac',repeat('d',64),'pinCiphertext',repeat('0',64),'pinKeyVersion',1),
     'ربط سائق اصطناعي لشركة أخرى','fleet-it-b-link-1') INTO lb;
 
   SELECT public.petro_admin_fleet_assign_coverage(jsonb_build_object(

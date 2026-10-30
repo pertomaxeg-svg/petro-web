@@ -9,7 +9,6 @@
 export interface AdminFleetVerifyPairResult {
   valid: boolean;
   locked: boolean;
-  /** @nullable */
   retryAt?: Date | null;
   verificationId?: string;
   [key: string]: unknown;

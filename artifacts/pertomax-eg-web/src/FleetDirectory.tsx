@@ -18,6 +18,8 @@ import type {
   GetAdminFleetConsumptionRatesParams,
 } from "@workspace/api-client-react";
 import { FleetReferencePicker } from "./FleetReferencePicker";
+import { PrivateFleetImage } from "./PrivateFleetImage";
+import { formatFleetField } from "./fleetDisplay";
 
 type Row = Record<string, unknown>;
 const row = (value: unknown): Row => value && typeof value === "object" && !Array.isArray(value) ? value as Row : {};
@@ -59,13 +61,24 @@ function ErrorState({ message, retry }: { message: string; retry: () => void }) 
 function EmptyState({ title, detail }: { title: string; detail: string }) {
   return <section className="fleet-directory-state"><Building2 size={22}/><b>{title}</b><p>{detail}</p></section>;
 }
+function egpMinor(minor: number | null) {
+  if (minor === null || !Number.isSafeInteger(minor) || minor < 0) return "السعر غير متاح الآن";
+  const whole = Math.trunc(minor / 100);
+  const fraction = minor % 100;
+  const pounds = new Intl.NumberFormat("ar-EG").format(whole);
+  return fraction === 0
+    ? `${pounds} جنيه مصري`
+    : `${pounds}٫${fraction.toLocaleString("ar-EG", { minimumIntegerDigits: 2, useGrouping: false })} جنيه مصري`;
+}
 
 export function FleetDirectory({ canMutate, branchOnly = false }: { canMutate: boolean; branchOnly?: boolean }) {
   const [path] = useLocation();
   const companyMatch = path.match(/^\/admin\/fleet\/companies\/([^/]+)$/);
+  const companyVehiclesMatch = path.match(/^\/admin\/fleet\/companies\/([^/]+)\/vehicles$/);
   const branchMatch = path.match(/^\/admin\/fleet\/companies\/([^/]+)\/branches\/([^/]+)$/);
-  const organizationId = decodeURIComponent(branchMatch?.[1] ?? companyMatch?.[1] ?? "");
+  const organizationId = decodeURIComponent(branchMatch?.[1] ?? companyVehiclesMatch?.[1] ?? companyMatch?.[1] ?? "");
   const branchId = decodeURIComponent(branchMatch?.[2] ?? "");
+  const showVehicleCatalog = Boolean(branchId || companyVehiclesMatch);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [vehicleStatus, setVehicleStatus] = useState("");
@@ -85,7 +98,7 @@ export function FleetDirectory({ canMutate, branchOnly = false }: { canMutate: b
   const vehicleParams = useMemo<GetAdminFleetCatalogParams>(() => ({
     view: "vehicles",
     organizationId,
-    branchId,
+    ...(branchId ? { branchId } : {}),
     page,
     pageSize: 20,
     sort: vehicleSort,
@@ -93,33 +106,39 @@ export function FleetDirectory({ canMutate, branchOnly = false }: { canMutate: b
     ...(vehicleStatus ? { status: vehicleStatus } : {}),
   }), [organizationId, branchId, page, vehicleSort, search, vehicleStatus]);
   const vehicles = useGetAdminFleetCatalog(vehicleParams, {
-    query: { queryKey: getGetAdminFleetCatalogQueryKey(vehicleParams), enabled: Boolean(branchId), retry: false },
+    query: { queryKey: getGetAdminFleetCatalogQueryKey(vehicleParams), enabled: showVehicleCatalog, retry: false },
   });
   const branchItems = asRows(companies.data?.branches);
   const company = row(companies.data?.company);
   const branch = branchItems.find(item => String(item.id ?? "") === branchId) ?? {};
-  const items = branchId ? asRows(row(vehicles.data).items) : asRows(companies.data?.items);
-  const total = branchId ? numeric(row(vehicles.data).total) : numeric(companies.data?.total);
-  const pageSize = branchId ? numeric(row(vehicles.data).pageSize) ?? 20 : numeric(companies.data?.pageSize) ?? 20;
+  const items = showVehicleCatalog ? asRows(row(vehicles.data).items) : asRows(companies.data?.items);
+  const total = showVehicleCatalog ? numeric(row(vehicles.data).total) : numeric(companies.data?.total);
+  const pageSize = showVehicleCatalog ? numeric(row(vehicles.data).pageSize) ?? 20 : numeric(companies.data?.pageSize) ?? 20;
   const totalPages = total === null ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const price = numeric(companies.data?.nfcIssuePriceMinor);
-  const nfcPrice = price === null ? "السعر غير متاح من الخدمة" : `${price.toLocaleString("ar-EG")} قرشًا`;
-  const title = branchId ? `أسطول ${display(branch.name) === "—" ? "الفرع" : display(branch.name)}` : companyMatch ? display(company.name) : "دليل شركات الأسطول";
+  const nfcPrice = egpMinor(price);
+  const companyName = display(company.name);
+  const title = branchId
+    ? `أسطول ${display(branch.name) === "—" ? "الفرع" : display(branch.name)}`
+    : companyVehiclesMatch
+      ? `أسطول ${companyName}`
+      : companyMatch ? companyName : "دليل شركات الأسطول";
 
-  if (companies.isLoading || (branchId && vehicles.isLoading)) return <LoadingState/>;
+  if (companies.isLoading || (showVehicleCatalog && vehicles.isLoading)) return <LoadingState/>;
   if (companies.isError) return <ErrorState message={errorText(companies.error)} retry={() => void companies.refetch()}/>;
-  if (branchId && vehicles.isError) return <ErrorState message={errorText(vehicles.error)} retry={() => void vehicles.refetch()}/>;
+  if (showVehicleCatalog && vehicles.isError) return <ErrorState message={errorText(vehicles.error)} retry={() => void vehicles.refetch()}/>;
 
   return <div className="fleet-directory" dir="rtl">
     <header className="fleet-directory-heading">
       <div><span className="fleet-eyebrow"><Building2 size={13}/> دليل الشركات والفروع</span><h1>{title}</h1>
-        <p>{branchId ? "مركبات الفرع مع ترقيم من سجل الأسطول." : companyMatch ? "الفروع وأعداد المركبات الفعلية المسجلة لكل فرع." : "ابحث عن شركة ثم انتقل إلى فروعها وسجل مركبات كل فرع."}</p>
+        <p>{branchId ? "مركبات الفرع مع ترقيم من سجل الأسطول." : companyVehiclesMatch ? "قائمة مركبات الشركة من السجل الفعلي، مع بقاء الفرع ظاهرًا لكل مركبة." : companyMatch ? "الفروع وأعداد المركبات الفعلية المسجلة لكل فرع." : "ابحث عن شركة ثم انتقل إلى فروعها وسجل مركبات كل فرع."}</p>
       </div>
-      <div className="fleet-directory-price"><small>سعر إصدار NFC المعتمد من الخدمة</small><b>{nfcPrice}</b><span>السعر المرجعي لا ينفذ تحصيلًا أو تركيبًا.</span></div>
+      <div className="fleet-directory-price"><small>سعر إصدار شريحة NFC</small><b>{nfcPrice}</b><span>سعر الإصدار منفصل؛ لا يثبت دفعًا أو تركيبًا.</span></div>
     </header>
     <nav className="fleet-context-nav" aria-label="مسار الشركات والفروع">
       <Link href="/admin/fleet" data-testid="fleet-companies-breadcrumb">الشركات</Link>
-      {organizationId && <><ArrowLeft size={13}/><Link href={`/admin/fleet/companies/${encodeURIComponent(organizationId)}`} data-testid="fleet-company-breadcrumb">{display(company.name)}</Link></>}
+      {organizationId && <><ArrowLeft size={13}/><Link href={`/admin/fleet/companies/${encodeURIComponent(organizationId)}`} data-testid="fleet-company-breadcrumb">{companyName}</Link></>}
+      {companyVehiclesMatch && <><ArrowLeft size={13}/><b>كل المركبات</b></>}
       {branchId && <><ArrowLeft size={13}/><b>{display(branch.name) === "—" ? "الفرع" : display(branch.name)}</b></>}
     </nav>
 
@@ -141,7 +160,8 @@ export function FleetDirectory({ canMutate, branchOnly = false }: { canMutate: b
       <div className="fleet-company-summary">
         <div><small>إجمالي الفروع</small><b>{formatCount(companies.data?.branchTotal)}</b></div>
         <div><small>الفروع المعروضة</small><b>{formatCount(branchItems.length)}</b></div>
-        {numeric(companies.data?.nfcIssuePriceMinor) !== null && <div><small>سعر NFC المرجعي</small><b>{nfcPrice}</b></div>}
+        <Link className="fleet-row-action" href={`/admin/fleet/companies/${encodeURIComponent(organizationId)}/vehicles`}>عرض جميع مركبات الشركة</Link>
+        <Link className="fleet-row-action" href={`/admin/organizations/${encodeURIComponent(organizationId)}`}>فتح ملف الشركة</Link>
       </div>
       {branchItems.length ? <div className="fleet-table-scroll"><table><thead><tr><th>الفرع</th><th>إجمالي المركبات</th><th>نشطة</th><th>حسب الحالة</th><th>فتح الأسطول</th></tr></thead><tbody>{branchItems.map((item, index) => {
         const id = String(item.id ?? "");
@@ -151,21 +171,28 @@ export function FleetDirectory({ canMutate, branchOnly = false }: { canMutate: b
           <td><b>{display(item.name)}</b></td><td>{formatCount(item.vehicleCount)}</td><td>{formatCount(item.activeVehicleCount)}</td><td><div className="fleet-status-counts">{Object.entries(statusCounts).map(([status, count]) => <span key={status}>{statusLabel(status)}: {formatCount(count)}</span>)}</div></td>
           <td><Link className="fleet-row-action" href={branchHref} data-testid={`fleet-branch-open-${index + 1}`}>عرض المركبات</Link></td>
         </tr>;
-      })}</tbody></table></div> : <EmptyState title="لا توجد فروع مسجلة" detail="لا يعيد سجل الشركة فروعًا للعرض."/>}
+      })}</tbody></table></div> : <section className="fleet-directory-state">
+        <Building2 size={22}/><b>لا توجد فروع مسجلة لهذه الشركة</b>
+        <p>تتطلب المركبة فرعًا تابعًا للشركة. أنشئ الفرع من ملفها الإداري ثم ارجع إلى الأسطول.</p>
+        <div className="fleet-directory-empty-actions">
+          {canMutate && <Link className="fleet-row-action" href={`/admin/organizations/${encodeURIComponent(organizationId)}?createBranch=1&returnTo=${encodeURIComponent(`/admin/fleet/companies/${encodeURIComponent(organizationId)}`)}`}>إضافة فرع من ملف الشركة</Link>}
+          <Link className="fleet-row-action" href={`/admin/organizations/${encodeURIComponent(organizationId)}`}>فتح ملف الشركة</Link>
+        </div>
+      </section>}
       {numeric(companies.data?.branchTotal) !== null && Number(companies.data?.branchTotal) > pageSize && <Pagination page={page} pages={Math.ceil(Number(companies.data?.branchTotal) / pageSize)} onPage={setPage} label="فروع"/>}
     </section>}
 
-    {branchId && <section className="fleet-directory-panel">
+    {showVehicleCatalog && <section className="fleet-directory-panel">
       <div className="fleet-directory-toolbar">
         <label className="fleet-directory-search"><Search size={16}/><input data-testid="fleet-branch-vehicle-search" type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="بحث باللوحة أو الطراز"/></label>
         <label className="fleet-inline-filter">الحالة<select data-testid="fleet-branch-status-filter" value={vehicleStatus} onChange={event => { setVehicleStatus(event.target.value); setPage(1); }}><option value="">كل الحالات</option><option value="active">نشطة</option><option value="suspended">موقوفة</option><option value="inactive">غير نشطة</option></select></label>
         <label className="fleet-inline-filter">الترتيب<select data-testid="fleet-branch-sort" value={vehicleSort} onChange={event => setVehicleSort(event.target.value as "plate" | "updatedAt")}><option value="plate">رقم اللوحة</option><option value="updatedAt">آخر تحديث</option></select></label>
         <span>{formatCount(total)} <small>مركبة</small></span>
       </div>
-      {items.length ? <div className="fleet-table-scroll"><table><thead><tr><th>اللوحة</th><th>الفئة والنوع</th><th>الماركة والطراز</th><th>سنة الصنع</th><th>الوقود</th><th>الحالة</th><th>الملف</th></tr></thead><tbody>{items.map((item, index) => {
+      {items.length ? <div className="fleet-table-scroll"><table className="fleet-record-table"><thead><tr><th>الصورة</th>{companyVehiclesMatch && <th>الفرع</th>}<th>اللوحة</th><th>الفئة والنوع</th><th>الماركة والطراز</th><th>سنة الصنع</th><th>الوقود</th><th>الحالة</th><th>الملف</th></tr></thead><tbody>{items.map((item, index) => {
         const id = String(item.id ?? "");
-        return <tr key={id} data-testid={`fleet-branch-vehicle-${index + 1}`}><td><bdi dir="ltr">{display(item.plateOriginal ?? item.plateStandard)}</bdi></td><td>{[display(item.category), display(item.vehicleType)].filter(x => x !== "—").join(" · ") || "—"}</td><td>{[display(item.brand), display(item.model)].filter(x => x !== "—").join(" · ") || "—"}</td><td>{display(item.modelYear)}</td><td>{display(item.fuelType)}</td><td><span className={`fleet-status status-${String(item.status ?? "")}`}>{statusLabel(item.status)}</span></td><td><Link className="fleet-row-action" href={`/admin/fleet/vehicles/${encodeURIComponent(id)}`} data-testid={`fleet-branch-vehicle-open-${index + 1}`}>ملف المركبة</Link></td></tr>;
-      })}</tbody></table></div> : <EmptyState title="لا توجد مركبات للعرض" detail="لا توجد نتائج في هذا الفرع وفق مرشحات البحث الحالية."/>}
+        return <tr key={id} data-testid={`fleet-branch-vehicle-${index + 1}`}><td data-label="الصورة">{typeof item.photoDocumentId === "string" ? <PrivateFleetImage compact documentId={item.photoDocumentId} label={`صورة المركبة ${display(item.plateOriginal)}`}/> : <span className="fleet-muted">لا توجد صورة محفوظة</span>}</td>{companyVehiclesMatch && <td data-label="الفرع">{display(item.branchName)}</td>}<td data-label="اللوحة"><bdi dir="ltr">{display(item.plateOriginal ?? item.plateStandard)}</bdi></td><td data-label="الفئة والنوع">{[display(item.category), display(item.vehicleType)].filter(x => x !== "—").join(" · ") || "—"}</td><td data-label="الماركة والطراز">{[display(item.brand), display(item.model)].filter(x => x !== "—").join(" · ") || "—"}</td><td data-label="سنة الصنع">{display(item.modelYear)}</td><td data-label="الوقود">{formatFleetField("fuelType", item.fuelType)}</td><td data-label="الحالة"><span className={`fleet-status status-${String(item.status ?? "")}`}>{statusLabel(item.status)}</span></td><td data-label="الملف"><Link className="fleet-row-action" href={`/admin/fleet/vehicles/${encodeURIComponent(id)}`} data-testid={`fleet-branch-vehicle-open-${index + 1}`}>ملف المركبة</Link></td></tr>;
+      })}</tbody></table></div> : <EmptyState title="لا توجد مركبات للعرض" detail={companyVehiclesMatch ? "لا توجد مركبات مسجلة لهذه الشركة وفق البحث الحالي." : "لا توجد نتائج في هذا الفرع وفق مرشحات البحث الحالية."}/>}
       {total !== null && total > pageSize && <Pagination page={page} pages={totalPages} onPage={setPage} label="مركبات"/>}
     </section>}
 
@@ -185,7 +212,6 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
   const cache = useQueryClient();
   const [scopeBranchId, setScopeBranchId] = useState(fixedBranchId ?? "");
   const [liters, setLiters] = useState("");
-  const [reason, setReason] = useState("");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState("");
   const params = useMemo<GetAdminFleetConsumptionRatesParams>(() => ({ organizationId, ...(scopeBranchId ? { branchId: scopeBranchId } : {}) }), [organizationId, scopeBranchId]);
@@ -200,22 +226,21 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
     setFormError("");
     setSuccess("");
     const rate = Number(liters);
-    if (!Number.isFinite(rate) || rate <= 0 || reason.trim().length < 3) {
-      setFormError("أدخل معدلًا أكبر من صفر وسببًا موثقًا من ٣ أحرف على الأقل.");
+    if (!Number.isFinite(rate) || rate <= 0) {
+      setFormError("أدخل معدل استهلاك أكبر من صفر.");
       return;
     }
     const payload: FleetConsumptionRateInput = {
       organizationId,
       branchId: scopeBranchId || null,
       litersPer100Km: rate,
-      reason: reason.trim(),
+      reason: "تسجيل آلي: تحديث معدل استهلاك الوقود المتوقع",
       idempotencyKey: crypto.randomUUID(),
     };
     try {
       await save.mutateAsync({ data: payload });
       setSuccess("أُضيف إصدار جديد للمعدل؛ تبقى الإصدارات السابقة محفوظة.");
       setLiters("");
-      setReason("");
       await cache.invalidateQueries({ queryKey: getGetAdminFleetConsumptionRatesQueryKey(params) });
     } catch (error) {
       setFormError(errorText(error));
@@ -230,7 +255,7 @@ function ConsumptionRatePanel({ organizationId, branchId: fixedBranchId, company
     {!fixedBranchId && canMutate && <FleetReferencePicker kind="branch" value={scopeBranchId} onChange={value => setScopeBranchId(value)} organizationId={organizationId} label="فرع لتحديد نطاق المعدل (اختياري)" emptyLabel="ابحث باسم الفرع" allowAll testId="fleet-rate-branch-picker"/>}
     {canMutate && <form className="fleet-rate-form" onSubmit={submit}>
       <label className="fleet-field">معدل متوقع (لتر / ١٠٠ كم)<input data-testid="fleet-rate-value" type="number" min="0.01" step="0.01" value={liters} onChange={event => setLiters(event.target.value)} required placeholder="أدخل القيمة"/></label>
-      <label className="fleet-field fleet-wide">سبب التغيير<input data-testid="fleet-rate-reason" value={reason} onChange={event => setReason(event.target.value)} minLength={3} maxLength={500} required placeholder="سبب موثق للمراجعة"/></label>
+
       <button data-testid="fleet-rate-submit" className="fleet-button" disabled={save.isPending}>{save.isPending ? "جارٍ حفظ الإصدار…" : "إضافة إصدار للمعدل"}</button>
     </form>}
     {formError && <p className="fleet-feedback is-error" role="alert">{formError}</p>}

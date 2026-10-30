@@ -34,5 +34,5 @@ export interface AdminPlanInput {
      * @minLength 5
      * @maxLength 500
      */
-  reason: string;
+  reason?: string;
 }

@@ -1,4 +1,5 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import {createHash} from "node:crypto";
+import { raw, Router, type IRouter, type Request, type Response } from "express";
 import {
   AllocateAdminFinanceReceiptBody,
   ApproveAdminFinanceBankAccountBody,
@@ -50,7 +51,7 @@ function mapFinanceError(
     fail(res, 503, "مخطط الإدارة المالية غير مطبق أو غير متوافق بعد.");
   } else if (error.code === "P0002") {
     fail(res, 404, "لم يتم العثور على السجل المطلوب.");
-  } else if (["23505", "23514", "40001", "55000"].includes(error.code ?? "")) {
+  } else if (["23505", "23514", "40001", "PT409", "55000"].includes(error.code ?? "")) {
     fail(res, 409, "تعارضت الحالة أو الرصيد أو المرجع. حدّث السجل قبل إعادة المحاولة.");
   } else if (error.code === "22023" || error.code === "22003") {
     fail(res, 400, "تحقق من المبلغ والحقول والسبب المطلوب.");
@@ -155,6 +156,95 @@ router.get("/admin/finance/accounts", async (req, res): Promise<void> => {
   await runRpc(req, res, "petro_finance_admin_accounts", {
     p_search: search, p_page: page, p_page_size: pageSize,
   }, READ_ROLES);
+});
+
+router.get("/admin/finance/organization-accounts", async (req, res): Promise<void> => {
+  setNoStore(res);
+  const rawOrganizationId = queryValue(req, "organizationId", 64);
+  const organizationId = typeof rawOrganizationId === "string" && validId(rawOrganizationId)
+    ? rawOrganizationId
+    : undefined;
+  const page = pageValue(req, "page", 1, 100000);
+  const pageSize = pageValue(req, "pageSize", 10, 100);
+  if (!organizationId || page === null || pageSize === null) {
+    fail(res, 400, "معرّف الجهة أو خيارات عرض الحسابات غير صالحة.");
+    return;
+  }
+  const session = await authorizedSession(req, res, READ_ROLES);
+  if (!session) return;
+  const { data: organization, error: organizationError } = await session.supabase
+    .from("petro_organizations")
+    .select("id,name,code")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (organizationError) {
+    mapFinanceError(res, organizationError);
+    return;
+  }
+  if (!isRecord(organization) || organization["id"] !== organizationId) {
+    fail(res, 404, "لم يتم العثور على الجهة المطلوبة.");
+    return;
+  }
+
+  const search = typeof organization["code"] === "string" && organization["code"].trim()
+    ? organization["code"].trim()
+    : String(organization["name"] ?? "");
+  const accounts: Record<string, unknown>[] = [];
+  let totalPages = 1;
+  for (let rpcPage = 1; rpcPage <= totalPages; rpcPage += 1) {
+    if (rpcPage > 1000) {
+      fail(res, 413, "يتجاوز عدد الحسابات حد العرض الآمن. استخدم كشف الحساب المفصل.");
+      return;
+    }
+    const { data, error } = await callFinanceRpc(session, "petro_finance_admin_accounts", {
+      p_search: search,
+      p_page: rpcPage,
+      p_page_size: 100,
+    });
+    if (error) {
+      mapFinanceError(res, error);
+      return;
+    }
+    if (!isRecord(data) || !Array.isArray(data["items"])) {
+      fail(res, 503, "تعذر قراءة حسابات الجهة من الدفتر المالي.");
+      return;
+    }
+    const scoped = data["items"].filter((item): item is Record<string, unknown> =>
+      isRecord(item) && item["organizationId"] === organizationId
+    );
+    accounts.push(...scoped);
+    const reportedPages = Number(data["totalPages"] ?? 1);
+    totalPages = Number.isSafeInteger(reportedPages) && reportedPages >= 1 ? reportedPages : 1;
+  }
+
+  const sumMinor = (key: string): string | null => {
+    let total = 0n;
+    for (const account of accounts) {
+      const amount = account[key];
+      const normalized = typeof amount === "number" ? String(amount) : amount;
+      if (typeof normalized !== "string" || !/^-?\d+$/.test(normalized)) return null;
+      total += BigInt(normalized);
+    }
+    return total.toString();
+  };
+  const ledgerBalanceMinor = sumMinor("ledgerBalanceMinor");
+  const reservedMinor = sumMinor("reservedMinor");
+  const availableMinor = sumMinor("availableMinor");
+  if (ledgerBalanceMinor === null || reservedMinor === null || availableMinor === null) {
+    fail(res, 503, "تعذر مطابقة أرصدة الجهة مع دفترها.");
+    return;
+  }
+  const offset = (page - 1) * pageSize;
+  res.json({
+    organizationId,
+    accountState: accounts.length ? "available" : "missing",
+    balancesMinor: { ledgerBalanceMinor, reservedMinor, availableMinor },
+    items: accounts.slice(offset, offset + pageSize),
+    page,
+    pageSize,
+    total: accounts.length,
+    totalPages: Math.ceil(accounts.length / pageSize),
+  });
 });
 
 router.get("/admin/finance/bank-accounts", (req, res) =>
@@ -372,5 +462,112 @@ router.post("/admin/finance/journal/:entryId/reverse", async (req, res): Promise
 
 router.get("/admin/finance/reconciliation", (req, res) =>
   runRpc(req, res, "petro_finance_admin_reconciliation", undefined, READ_ROLES));
+
+// Same scoped RPC for central and merchant roles; never require an active subscription to read earned money.
+router.get("/finance/merchant-statement", async(req,res):Promise<void>=>{
+ setNoStore(res);
+ const session=await requireSession(req,res);if(!session)return;
+ if(Object.keys(req.query).some(k=>!["organizationId","branchId","page"].includes(k))){fail(res,400,"مرشحات كشف المستحقات غير صالحة.");return;}
+ const organizationId=queryId(req,"organizationId"),branchId=queryId(req,"branchId"),page=pageValue(req,"page",1,100000);
+ if(organizationId===undefined||branchId===undefined||(organizationId!==null&&!validId(organizationId))||(branchId!==null&&!validId(branchId))||page===null){
+ fail(res,400,"اختر جهة وفرعًا صحيحين وصفحة صالحة.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_merchant_statement",{p_organization_id:organizationId,p_branch_id:branchId,p_page:page});
+ if(error){mapFinanceError(res,error);return;}res.json(data);
+});
+
+
+function withdrawalError(res:Response,error:{code?:string;message?:string}):void{
+ const messages:Record<string,string>={FORBIDDEN_WITHDRAWAL:"هذه المساحة متاحة لمالية الجهة أو مديرها على مستوى الجهة، ومالية المنصة.",WITHDRAWAL_BANK_CHANGED:"تغير اعتماد الحساب البنكي؛ راجع البنك وأنشئ طلبًا بالنسخة المعتمدة.",WITHDRAWAL_NO_ELIGIBLE_REMAINDER:"المستحق لم يحِن موعده أو أصبح محجوزًا أو مستردًا. حدّث الكشف.",WITHDRAWAL_VERSION_CONFLICT:"تغير الطلب؛ حدّث البيانات قبل المتابعة.",WITHDRAWAL_REFUND_PENDING:"يوجد طلب استرداد مفتوح على هذه المستحقات. يلزم حسمه قبل الاعتماد.",INVALID_WITHDRAWAL:"راجع الحساب والمستحقات المحددة ومرجع المحاولة."};
+ if(Object.hasOwn(messages,error.message??"")){res.status(error.code==="42501"?403:error.code==="22023"?400:409).json({message:messages[error.message!]});return;}mapFinanceError(res,error);
+}
+router.get("/finance/merchant-withdrawals/:organizationId",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const page=pageValue(req,"page",1,100000);
+ if(!validId(req.params["organizationId"])||page===null||Object.keys(req.query).some(k=>k!=="page")){fail(res,400,"مرشحات السحب غير صالحة.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_merchant_withdrawals",{p_organization_id:req.params["organizationId"],p_page:page});if(error){withdrawalError(res,error);return;}res.json(data);
+});
+router.get("/finance/merchant-withdrawals/:organizationId/options",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const page=pageValue(req,"page",1,100000);
+ if(!validId(req.params["organizationId"])||page===null||Object.keys(req.query).some(k=>k!=="page")){fail(res,400,"مرشحات المستحقات غير صالحة.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_merchant_withdrawal_options",{p_organization_id:req.params["organizationId"],p_page:page});if(error){withdrawalError(res,error);return;}res.json(data);
+});
+router.post("/finance/merchant-withdrawals/:organizationId",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ const b=req.body;
+ if(!validId(req.params["organizationId"])||!isRecord(b)||Object.keys(b).some(k=>!["bankVersionId","paymentIds","idempotencyKey"].includes(k))
+ ||typeof b["bankVersionId"]!=="string"||!validId(b["bankVersionId"])||!Array.isArray(b["paymentIds"])||b["paymentIds"].length<1||b["paymentIds"].length>100||b["paymentIds"].some(x=>typeof x!=="string"||!validId(x))
+ ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"اختر الحساب والمستحقات دون إدخال مبالغ أو حقول إضافية.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_submit_merchant_withdrawal",{p_organization_id:req.params["organizationId"],p_bank_version_id:b["bankVersionId"],p_payment_ids:b["paymentIds"],p_request_key:b["idempotencyKey"]});if(error){withdrawalError(res,error);return;}res.status(201).json(data);
+});
+router.post("/finance/merchant-withdrawals/:id/review",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;const b=req.body;
+ if(!validId(req.params["id"])||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","action","idempotencyKey"].includes(k))
+ ||typeof b["expectedVersion"]!=="number"||!Number.isSafeInteger(b["expectedVersion"])||b["expectedVersion"]<1||typeof b["action"]!=="string"||!["approve","reject","cancel"].includes(b["action"])
+ ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"قرار السحب أو نسخة الطلب غير صالح.");return;}
+ const {data,error}=await callFinanceRpc(session,"petro_review_merchant_withdrawal",{p_id:req.params["id"],p_expected_version:b["expectedVersion"],p_action:b["action"],p_request_key:b["idempotencyKey"]});if(error){withdrawalError(res,error);return;}res.json(data);
+});
+
+
+const payoutProofTypes=["application/pdf","image/png","image/jpeg"];
+function proofMagic(type:string,bytes:Buffer):boolean{
+ return type==="application/pdf"?bytes.length>=5&&bytes.subarray(0,5).toString("ascii")==="%PDF-":type==="image/png"?bytes.length>=8&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):type==="image/jpeg"&&bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+}
+function proofError(res:Response,error:{code?:string;message?:string}):void{
+ const labels:Record<string,string>={FORBIDDEN_PAYOUT_PROOF:"لا تملك صلاحية هذا الإثبات الخاص.",INVALID_PAYOUT_PROOF:"راجع الملف ونسخة الطلب ومرجع المحاولة.",PAYOUT_PROOF_VERSION_CONFLICT:"تغير اعتماد الطلب أو البنك؛ حدّث الطلب قبل رفع إثبات جديد.",PAYOUT_PROOF_CONTENT_CONFLICT:"الإثبات المقبول يحوي ملفًا مختلفًا ولا يمكن استبداله.",PAYOUT_PROOF_UPLOAD_UNVERIFIED:"لم يثبت حفظ الملف بحجمه ونوعه وهوية رافعه.",PAYOUT_PROOF_LIMIT:"وصل الطلب إلى الحد المسموح من محاولات الإثبات."};
+ if(Object.hasOwn(labels,error.message??"")){res.status(error.code==="42501"?403:error.code==="22023"?400:409).json({message:labels[error.message!]});return;}mapFinanceError(res,error);
+}
+router.get("/finance/merchant-withdrawals/:id/proofs",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||Object.keys(req.query).length){fail(res,400,"مرجع الطلب غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proofs",{p_withdrawal_id:req.params["id"]});if(r.error){proofError(res,r.error);return;}res.json(r.data);
+});
+router.post("/finance/merchant-withdrawals/:id/proofs",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;const b=req.body;
+ if(!validId(req.params["id"])||!isRecord(b)||Object.keys(b).some(k=>!["expectedVersion","fileName","contentType","byteSize","idempotencyKey"].includes(k))
+ ||typeof b["expectedVersion"]!=="number"||!Number.isSafeInteger(b["expectedVersion"])||b["expectedVersion"]<1
+ ||typeof b["fileName"]!=="string"||b["fileName"].trim().length<1||b["fileName"].length>160||typeof b["contentType"]!=="string"||!payoutProofTypes.includes(b["contentType"])
+ ||typeof b["byteSize"]!=="number"||!Number.isSafeInteger(b["byteSize"])||b["byteSize"]<1||b["byteSize"]>10485760
+ ||typeof b["idempotencyKey"]!=="string"||!/^[A-Za-z0-9._:-]{16,120}$/.test(b["idempotencyKey"])){fail(res,400,"اختر PDF أو PNG أو JPEG حتى10 ميجابايت مع نسخة الطلب.");return;}
+ const r=await callFinanceRpc(session,"petro_create_merchant_payout_proof",{p_withdrawal_id:req.params["id"],p_expected_version:b["expectedVersion"],p_file_name:b["fileName"],p_content_type:b["contentType"],p_byte_size:b["byteSize"],p_request_key:b["idempotencyKey"]});if(r.error){proofError(res,r.error);return;}res.status(201).json(r.data);
+});
+router.put("/finance/merchant-payout-proofs/:id/content",raw({type:"application/octet-stream",limit:"10mb"}),async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||!Buffer.isBuffer(req.body)){fail(res,400,"محتوى الملف غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"read"});if(r.error){proofError(res,r.error);return;}
+ const d=r.data;
+ if(!isRecord(d)||d["bucket"]!=="petro-private-documents"||typeof d["objectPath"]!=="string"||typeof d["contentType"]!=="string"){fail(res,502,"تعذر التحقق من مرجع الملف.");return;}
+ const bytes=req.body as Buffer;if(bytes.length!==Number(d["byteSize"])||!proofMagic(d["contentType"],bytes)){fail(res,400,"محتوى الملف أو حجمه لا يطابق طلب الرفع.");return;}
+ const bucket=session.supabase.storage.from("petro-private-documents");let exists=d["status"]==="accepted";
+ if(!exists){
+ const permit=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"upload"});if(permit.error){proofError(res,permit.error);return;}
+ const upload=await bucket.upload(d["objectPath"],bytes,{contentType:d["contentType"],upsert:false,cacheControl:"0"});
+ if(upload.error){const status=String((upload.error as unknown as {statusCode?:string}).statusCode??"");if(status==="409"||status==="400"&&/already exists|Duplicate/i.test(upload.error.message))exists=true;else{fail(res,503,"تعذر تأكيد حفظ الملف؛ أعد رفع الملف نفسه.");return;}}
+ }
+ const stored=await bucket.download(d["objectPath"]);if(stored.error||!stored.data){fail(res,503,"تعذر قراءة الملف المحفوظ للتحقق منه.");return;}
+ const saved=Buffer.from(await stored.data.arrayBuffer());if(!saved.equals(bytes)){fail(res,409,"الملف المحفوظ مختلف؛ لا يمكن استبدال إثبات سابق.");return;}
+ const digest=createHash("sha256").update(saved).digest("hex");
+ const accepted=await callFinanceRpc(session,"petro_accept_merchant_payout_proof",{p_id:req.params["id"],p_sha256:digest,p_request_key:"accept-payout-proof:"+req.params["id"]});if(accepted.error){proofError(res,accepted.error);return;}res.json(accepted.data);
+});
+router.get("/finance/merchant-payout-proofs/:id/download",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||Object.keys(req.query).length){fail(res,400,"مرجع الملف غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"read"});if(r.error){proofError(res,r.error);return;}const d=r.data;
+ if(!isRecord(d)||d["status"]!=="accepted"||typeof d["objectPath"]!=="string"){fail(res,409,"لم يكتمل رفع الإثبات.");return;}
+ const signed=await session.supabase.storage.from("petro-private-documents").createSignedUrl(d["objectPath"],60);
+ if(signed.error||!signed.data?.signedUrl){fail(res,503,"تعذر فتح الإثبات الخاص؛ أعد المحاولة.");return;}res.json({url:signed.data.signedUrl,expiresInSeconds:60});
+});
+
+
+router.get("/finance/merchant-payout-proofs/:id/content",async(req,res):Promise<void>=>{
+ setNoStore(res);const session=await requireSession(req,res);if(!session)return;
+ if(!validId(req.params["id"])||Object.keys(req.query).length){fail(res,400,"مرجع الإثبات غير صالح.");return;}
+ const r=await callFinanceRpc(session,"petro_merchant_payout_proof_file",{p_id:req.params["id"],p_action:"read"});if(r.error){proofError(res,r.error);return;}const d=r.data;
+ if(!isRecord(d)||d["status"]!=="accepted"||typeof d["objectPath"]!=="string"||typeof d["contentType"]!=="string"||typeof d["fileName"]!=="string"){fail(res,409,"لم يكتمل قبول الملف.");return;}
+ const stored=await session.supabase.storage.from("petro-private-documents").download(d["objectPath"]);
+ if(stored.error||!stored.data){fail(res,503,"تعذر تنزيل الإثبات الخاص.");return;}const bytes=Buffer.from(await stored.data.arrayBuffer());
+ if(bytes.length!==Number(d["byteSize"])||!proofMagic(d["contentType"],bytes)||typeof d["sha256"]!=="string"||createHash("sha256").update(bytes).digest("hex")!==d["sha256"]){fail(res,409,"محتوى الإثبات المحفوظ أو بصمته يحتاج مراجعة.");return;}
+ res.setHeader("Content-Type",d["contentType"]);res.setHeader("X-Content-Type-Options","nosniff");res.setHeader("Content-Disposition","attachment; filename*=UTF-8''"+encodeURIComponent(d["fileName"]));res.send(bytes);
+});
 
 export default router;

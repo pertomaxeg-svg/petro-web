@@ -1,0 +1,6 @@
+SELECT coalesce((SELECT p.prosecdef AND p.provolatile='s' AND p.proconfig=ARRAY['search_path=""']::text[]
+AND has_function_privilege('authenticated',p.oid,'EXECUTE')
+AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')
+AND NOT EXISTS(SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee=0)
+FROM pg_proc p WHERE p.oid=to_regprocedure('public.petro_merchant_statement(uuid,uuid,integer)')),false);
